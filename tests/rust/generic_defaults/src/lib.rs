@@ -1,0 +1,29 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+#[repr(transparent)]
+pub struct Foo<T, P = c_void> {
+    field: T,
+    _phantom: std::marker::PhantomData<P>,
+}
+
+#[repr(C)]
+pub struct Bar<T, P> {
+    f: Foo<T>,
+    p: P,
+}
+
+pub type Baz<T> = Foo<T>;
+
+#[no_mangle]
+pub extern "C" fn foo_root(f: Foo<i16>, b: Bar<i32, u32>, z: Baz<i64>) {}
+
+// Issue #993
+#[repr(C)]
+pub struct NeverUsedWithDefault<T = ()> {
+    field: T,
+}
+
+#[no_mangle]
+pub extern "C" fn with_i32(x: NeverUsedWithDefault<i32>) {}

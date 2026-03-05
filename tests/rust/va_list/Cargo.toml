@@ -1,0 +1,4 @@
+[package]
+name = "va_list"
+version = "0.1.0"
+authors = ["cbindgen"]

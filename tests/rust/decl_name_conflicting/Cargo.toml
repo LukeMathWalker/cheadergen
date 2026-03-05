@@ -1,0 +1,4 @@
+[package]
+name = "decl_name_conflicting"
+version = "0.1.0"
+authors = ["cbindgen"]

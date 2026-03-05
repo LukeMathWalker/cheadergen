@@ -1,0 +1,4 @@
+[package]
+name = "nested_import"
+version = "0.1.0"
+authors = ["cbindgen"]

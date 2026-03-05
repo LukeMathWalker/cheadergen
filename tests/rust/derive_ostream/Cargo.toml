@@ -1,0 +1,4 @@
+[package]
+name = "derive_ostream"
+version = "0.1.0"
+authors = ["cbindgen"]

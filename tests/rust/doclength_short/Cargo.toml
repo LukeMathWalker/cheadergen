@@ -1,0 +1,4 @@
+[package]
+name = "doclength_short"
+version = "0.1.0"
+authors = ["cbindgen"]

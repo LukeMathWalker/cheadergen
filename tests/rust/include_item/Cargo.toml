@@ -1,0 +1,4 @@
+[package]
+name = "include_item"
+version = "0.1.0"
+authors = ["cbindgen"]

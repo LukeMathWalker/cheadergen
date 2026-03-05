@@ -1,0 +1,4 @@
+[package]
+name = "nullable_attribute"
+version = "0.1.0"
+authors = ["cbindgen"]

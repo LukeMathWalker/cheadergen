@@ -1,0 +1,4 @@
+[package]
+name = "cfg_field"
+version = "0.1.0"
+authors = ["cbindgen"]

@@ -1,0 +1,4 @@
+[package]
+name = "linestyle_cr"
+version = "0.1.0"
+authors = ["cbindgen"]

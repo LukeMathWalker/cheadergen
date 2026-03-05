@@ -1,0 +1,4 @@
+[package]
+name = "associated_constant_panic"
+version = "0.1.0"
+authors = ["cbindgen"]

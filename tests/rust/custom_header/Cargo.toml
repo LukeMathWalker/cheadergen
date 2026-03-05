@@ -1,0 +1,4 @@
+[package]
+name = "custom_header"
+version = "0.1.0"
+authors = ["cbindgen"]

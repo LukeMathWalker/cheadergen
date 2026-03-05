@@ -1,0 +1,4 @@
+[package]
+name = "assoc_const_conflict"
+version = "0.1.0"
+authors = ["cbindgen"]

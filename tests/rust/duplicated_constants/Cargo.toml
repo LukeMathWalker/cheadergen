@@ -1,0 +1,4 @@
+[package]
+name = "duplicated_constants"
+version = "0.1.0"
+authors = ["cbindgen"]

@@ -9,3 +9,7 @@ categories = ["external-ffi-bindings", "development-tools::ffi"]
 repository = "https://github.com/LukeMathWalker/cheadergen"
 
 [dependencies]
+
+[dev-dependencies]
+pretty_assertions = "1"
+tempfile = "3"

@@ -1,0 +1,4 @@
+[package]
+name = "infinite_recursion_typedef_monomorph"
+version = "0.1.0"
+authors = ["cbindgen"]

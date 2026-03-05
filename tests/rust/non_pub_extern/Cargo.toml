@@ -1,0 +1,4 @@
+[package]
+name = "non_pub_extern"
+version = "0.1.0"
+authors = ["cbindgen"]
