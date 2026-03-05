@@ -2,7 +2,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::LazyLock;
@@ -192,15 +191,13 @@ fn compile(
 
 const SKIP_WARNING_AS_ERROR_SUFFIX: &str = ".skip_warning_as_error";
 
-#[expect(clippy::too_many_arguments)]
 fn run_compile_test(
-    name: &'static str,
+    name: &str,
     path: &Path,
     tmp_dir: &Path,
     language: Language,
     cpp_compat: bool,
     style: Option<Style>,
-    cbindgen_outputs: &mut HashSet<Vec<u8>>,
     metadata: &Path,
 ) {
     let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
@@ -230,118 +227,69 @@ fn run_compile_test(
 
     let bindings_content = run_cbindgen(path, language, cpp_compat, style, metadata);
 
-    if cbindgen_outputs.contains(&bindings_content) {
-        // Identical output already verified — the expectation file should not exist.
-        assert!(
-            !expected_file.exists(),
-            "Expectation file {expected_file:?} exists but output is identical to a previous run"
-        );
-    } else {
-        if expected_file.exists() {
-            let expected = fs::read(&expected_file).unwrap();
-            assert_eq!(
-                str::from_utf8(&bindings_content).unwrap_or("<non-utf8>"),
-                str::from_utf8(&expected).unwrap_or("<non-utf8>"),
-                "Output mismatch for {source_file}"
-            );
-        } else {
-            // No expectation file — this is expected when the output is identical
-            // to another variant. But if this is the first time seeing this output,
-            // that's unexpected.
-            panic!("No expectation file found at {expected_file:?} and output is unique");
-        }
+    assert!(
+        expected_file.exists(),
+        "No expectation file found at {expected_file:?}"
+    );
 
-        cbindgen_outputs.insert(bindings_content);
+    let expected = fs::read(&expected_file).unwrap();
+    assert_eq!(
+        str::from_utf8(&bindings_content).unwrap_or("<non-utf8>"),
+        str::from_utf8(&expected).unwrap_or("<non-utf8>"),
+        "Output mismatch for {source_file}"
+    );
 
-        // Compile the expected file to verify it's valid C/C++/Cython.
+    // Compile the expected file to verify it's valid C/C++/Cython.
+    compile(
+        &expected_file,
+        &tests_path,
+        tmp_dir,
+        language,
+        style,
+        skip_warning_as_error,
+        cpp_compat,
+    );
+
+    if language == Language::C && cpp_compat {
         compile(
             &expected_file,
             &tests_path,
             tmp_dir,
-            language,
+            Language::Cxx,
             style,
             skip_warning_as_error,
             cpp_compat,
         );
-
-        if language == Language::C && cpp_compat {
-            compile(
-                &expected_file,
-                &tests_path,
-                tmp_dir,
-                Language::Cxx,
-                style,
-                skip_warning_as_error,
-                cpp_compat,
-            );
-        }
     }
 }
 
-fn test_file(name: &'static str, filename: &'static str) {
-    let test = Path::new(filename);
+fn run_test_variant(
+    name: &str,
+    path: &Path,
+    language: Language,
+    style: Option<Style>,
+    cpp_compat: bool,
+) {
     let tmp_dir = tempfile::Builder::new()
         .prefix("cheadergen-test-output")
         .tempdir()
         .expect("Creating tmp dir failed");
-    let tmp_dir = tmp_dir.path();
 
+    let filename = path.to_str().unwrap();
     let metadata = if filename.contains("/cases/") {
         &*CASES_METADATA
     } else {
         &*WORKSPACE_METADATA
     };
 
-    // Run tests in deduplication priority order. C++ compatibility tests are run first,
-    // otherwise we would lose the C++ compiler run if they were deduplicated.
-    let mut cbindgen_outputs = HashSet::new();
-    for cpp_compat in &[true, false] {
-        for style in &[Style::Type, Style::Tag, Style::Both] {
-            run_compile_test(
-                name,
-                test,
-                tmp_dir,
-                Language::C,
-                *cpp_compat,
-                Some(*style),
-                &mut cbindgen_outputs,
-                metadata,
-            );
-        }
-    }
-
-    run_compile_test(
-        name,
-        test,
-        tmp_dir,
-        Language::Cxx,
-        /* cpp_compat = */ false,
-        None,
-        &mut HashSet::new(),
-        metadata,
-    );
-
-    // `Style::Both` should be identical to `Style::Tag` for Cython.
-    let mut cbindgen_outputs = HashSet::new();
-    for style in &[Style::Type, Style::Tag] {
-        run_compile_test(
-            name,
-            test,
-            tmp_dir,
-            Language::Cython,
-            /* cpp_compat = */ false,
-            Some(*style),
-            &mut cbindgen_outputs,
-            metadata,
-        );
-    }
+    run_compile_test(name, path, tmp_dir.path(), language, cpp_compat, style, metadata);
 }
 
-macro_rules! test_file {
-    ($test_function_name:ident, $name:expr, $file:tt) => {
+macro_rules! test_variant {
+    ($fn_name:ident, $name:expr, $file:tt, $lang:expr, $style:expr, $cpp_compat:expr) => {
         #[test]
-        fn $test_function_name() {
-            test_file($name, $file);
+        fn $fn_name() {
+            run_test_variant($name, Path::new($file), $lang, $style, $cpp_compat);
         }
     };
 }

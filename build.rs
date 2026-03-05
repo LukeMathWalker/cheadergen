@@ -13,6 +13,7 @@ fn main() {
 
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let cases_dir = manifest_dir.join("tests").join("rust").join("cases");
+    let expectations_dir = manifest_dir.join("tests").join("expectations");
     let extra_dirs = [
         manifest_dir.join("tests").join("rust").join("workspace"),
         manifest_dir
@@ -27,7 +28,115 @@ fn main() {
         cases_dir.join("Cargo.toml").display()
     );
 
+    // Watch the expectations directory so new/removed files trigger regeneration.
+    println!("cargo:rerun-if-changed={}", expectations_dir.display());
+
+    // Variant definitions: (suffix, style_expr, lang_expr, cpp_compat, file_pattern)
+    // file_pattern uses {name} as placeholder for the base name.
+    struct Variant {
+        suffix: &'static str,
+        lang: &'static str,
+        style: &'static str,
+        cpp_compat: bool,
+        file_pattern: &'static str,
+    }
+
+    let variants = [
+        Variant {
+            suffix: "_c",
+            lang: "Language::C",
+            style: "Some(Style::Type)",
+            cpp_compat: false,
+            file_pattern: "{name}.c",
+        },
+        Variant {
+            suffix: "_c_tag",
+            lang: "Language::C",
+            style: "Some(Style::Tag)",
+            cpp_compat: false,
+            file_pattern: "{name}_tag.c",
+        },
+        Variant {
+            suffix: "_c_both",
+            lang: "Language::C",
+            style: "Some(Style::Both)",
+            cpp_compat: false,
+            file_pattern: "{name}_both.c",
+        },
+        Variant {
+            suffix: "_c_compat",
+            lang: "Language::C",
+            style: "Some(Style::Type)",
+            cpp_compat: true,
+            file_pattern: "{name}.compat.c",
+        },
+        Variant {
+            suffix: "_c_tag_compat",
+            lang: "Language::C",
+            style: "Some(Style::Tag)",
+            cpp_compat: true,
+            file_pattern: "{name}_tag.compat.c",
+        },
+        Variant {
+            suffix: "_c_both_compat",
+            lang: "Language::C",
+            style: "Some(Style::Both)",
+            cpp_compat: true,
+            file_pattern: "{name}_both.compat.c",
+        },
+        Variant {
+            suffix: "_cpp",
+            lang: "Language::Cxx",
+            style: "None",
+            cpp_compat: false,
+            file_pattern: "{name}.cpp",
+        },
+        Variant {
+            suffix: "_cython",
+            lang: "Language::Cython",
+            style: "Some(Style::Type)",
+            cpp_compat: false,
+            file_pattern: "{name}.pyx",
+        },
+        Variant {
+            suffix: "_cython_tag",
+            lang: "Language::Cython",
+            style: "Some(Style::Tag)",
+            cpp_compat: false,
+            file_pattern: "{name}_tag.pyx",
+        },
+    ];
+
     let mut case_names: Vec<String> = Vec::new();
+
+    let emit_variants_for_case = |dst: &mut File, path_segment: &str, case_path: &Path| {
+        // Strip .skip_warning_as_error suffix for expectation file lookup.
+        let base_name = path_segment
+            .strip_suffix(".skip_warning_as_error")
+            .unwrap_or(path_segment);
+
+        let identifier_base = path_segment
+            .replace(|c: char| !c.is_alphanumeric(), "_")
+            .replace("__", "_");
+
+        for variant in &variants {
+            let expectation_file = variant.file_pattern.replace("{name}", base_name);
+            if expectations_dir.join(&expectation_file).exists() {
+                writeln!(
+                    dst,
+                    "test_variant!(test_{}{}, {:?}, {:?}, {}, {}, {});",
+                    identifier_base,
+                    variant.suffix,
+                    path_segment,
+                    case_path,
+                    variant.lang,
+                    variant.style,
+                    variant.cpp_compat,
+                )
+                .unwrap();
+            }
+        }
+    };
 
     for entry in fs::read_dir(&cases_dir).unwrap() {
         let entry = entry.expect("Couldn't read test entry");
@@ -44,18 +153,7 @@ fn main() {
             entry.path().join("Cargo.toml").display()
         );
 
-        let identifier = path_segment
-            .replace(|c: char| !c.is_alphanumeric(), "_")
-            .replace("__", "_");
-
-        writeln!(
-            dst,
-            "test_file!(test_{}, {:?}, {:?});",
-            identifier,
-            path_segment,
-            entry.path(),
-        )
-        .unwrap();
+        emit_variants_for_case(&mut dst, &path_segment, &entry.path());
 
         case_names.push(path_segment);
     }
@@ -92,16 +190,7 @@ fn main() {
 
         let path_segment = dir.file_name().unwrap().to_str().unwrap().to_owned();
 
-        let identifier = path_segment
-            .replace(|c: char| !c.is_alphanumeric(), "_")
-            .replace("__", "_");
-
-        writeln!(
-            dst,
-            "test_file!(test_{}, {:?}, {:?});",
-            identifier, path_segment, dir,
-        )
-        .unwrap();
+        emit_variants_for_case(&mut dst, &path_segment, dir);
     }
 
     dst.flush().unwrap();
