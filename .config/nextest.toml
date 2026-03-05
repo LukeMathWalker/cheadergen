@@ -1,0 +1,11 @@
+experimental = ["setup-scripts"]
+
+[store]
+dir = "target/nextest"
+
+[scripts.setup.compute-metadata]
+command = ["tests/setup-metadata.sh"]
+
+[[profile.default.scripts]]
+filter = 'test(~test_)'
+setup = 'compute-metadata'

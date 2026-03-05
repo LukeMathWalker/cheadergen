@@ -29,14 +29,28 @@ fn compute_metadata(workspace: &Path) -> PathBuf {
     metadata_path
 }
 
+fn get_metadata(env_var: &str, workspace: &Path) -> PathBuf {
+    if let Ok(path) = env::var(env_var) {
+        PathBuf::from(path)
+    } else {
+        compute_metadata(workspace)
+    }
+}
+
 static CASES_METADATA: LazyLock<PathBuf> = LazyLock::new(|| {
     let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
-    compute_metadata(Path::new(&crate_dir).join("tests/rust/cases").as_path())
+    get_metadata(
+        "CHEADERGEN_CASES_METADATA",
+        Path::new(&crate_dir).join("tests/rust/cases").as_path(),
+    )
 });
 
 static WORKSPACE_METADATA: LazyLock<PathBuf> = LazyLock::new(|| {
     let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
-    compute_metadata(Path::new(&crate_dir).join("tests/rust/workspace").as_path())
+    get_metadata(
+        "CHEADERGEN_WORKSPACE_METADATA",
+        Path::new(&crate_dir).join("tests/rust/workspace").as_path(),
+    )
 });
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
