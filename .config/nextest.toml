@@ -7,5 +7,5 @@ dir = "target/nextest"
 command = ["tests/setup-metadata.sh"]
 
 [[profile.default.scripts]]
-filter = 'test(~test_)'
+filter = 'test(~::generate::)'
 setup = 'compute-metadata'

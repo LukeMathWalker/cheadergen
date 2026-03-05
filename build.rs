@@ -2,143 +2,212 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-fn main() {
-    use std::env;
-    use std::fs::{self, File};
-    use std::io::Write;
-    use std::path::{Path, PathBuf};
+use std::collections::BTreeMap;
+use std::env;
+use std::fs::{self, File};
+use std::io::Write;
+use std::path::{Path, PathBuf};
 
-    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-    let mut dst = File::create(Path::new(&out_dir).join("tests.rs")).unwrap();
+struct Variant {
+    module_path: &'static [&'static str],
+    lang: &'static str,
+    style: &'static str,
+    cpp_compat: bool,
+    file_pattern: &'static str,
+}
 
-    let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    let cases_dir = manifest_dir.join("tests").join("rust").join("cases");
-    let expectations_dir = manifest_dir.join("tests").join("expectations");
-    let extra_dirs = [
-        manifest_dir.join("tests").join("rust").join("workspace"),
-        manifest_dir
-            .join("tests")
-            .join("rust")
-            .join("external_workspace_child"),
-    ];
+const VARIANTS: &[Variant] = &[
+    Variant {
+        module_path: &["c", "plain"],
+        lang: "Language::C",
+        style: "Some(Style::Type)",
+        cpp_compat: false,
+        file_pattern: "{name}.c",
+    },
+    Variant {
+        module_path: &["c", "tag"],
+        lang: "Language::C",
+        style: "Some(Style::Tag)",
+        cpp_compat: false,
+        file_pattern: "{name}_tag.c",
+    },
+    Variant {
+        module_path: &["c", "both"],
+        lang: "Language::C",
+        style: "Some(Style::Both)",
+        cpp_compat: false,
+        file_pattern: "{name}_both.c",
+    },
+    Variant {
+        module_path: &["c", "compat"],
+        lang: "Language::C",
+        style: "Some(Style::Type)",
+        cpp_compat: true,
+        file_pattern: "{name}.compat.c",
+    },
+    Variant {
+        module_path: &["c", "tag_compat"],
+        lang: "Language::C",
+        style: "Some(Style::Tag)",
+        cpp_compat: true,
+        file_pattern: "{name}_tag.compat.c",
+    },
+    Variant {
+        module_path: &["c", "both_compat"],
+        lang: "Language::C",
+        style: "Some(Style::Both)",
+        cpp_compat: true,
+        file_pattern: "{name}_both.compat.c",
+    },
+    Variant {
+        module_path: &["cpp", "plain"],
+        lang: "Language::Cxx",
+        style: "None",
+        cpp_compat: false,
+        file_pattern: "{name}.cpp",
+    },
+    Variant {
+        module_path: &["cython", "plain"],
+        lang: "Language::Cython",
+        style: "Some(Style::Type)",
+        cpp_compat: false,
+        file_pattern: "{name}.pyx",
+    },
+    Variant {
+        module_path: &["cython", "tag"],
+        lang: "Language::Cython",
+        style: "Some(Style::Tag)",
+        cpp_compat: false,
+        file_pattern: "{name}_tag.pyx",
+    },
+];
 
+// Tree node for building nested module structure.
+struct ModNode {
+    children: BTreeMap<String, ModNode>,
+    test_lines: Vec<String>,
+}
+
+impl ModNode {
+    fn new() -> Self {
+        ModNode {
+            children: BTreeMap::new(),
+            test_lines: Vec::new(),
+        }
+    }
+
+    fn insert(&mut self, path: &[&str], line: String) {
+        if path.is_empty() {
+            self.test_lines.push(line);
+        } else {
+            self.children
+                .entry(path[0].to_owned())
+                .or_insert_with(ModNode::new)
+                .insert(&path[1..], line);
+        }
+    }
+
+    fn emit(&self, dst: &mut impl Write, depth: usize) {
+        let indent = "    ".repeat(depth);
+        for (name, child) in &self.children {
+            writeln!(dst, "{indent}mod {name} {{").unwrap();
+            if child.children.is_empty() && !child.test_lines.is_empty() {
+                // Leaf module — emit use statement to bring root items into scope.
+                let supers = "super::".repeat(depth + 1);
+                writeln!(dst, "{indent}    use {supers}*;").unwrap();
+            }
+            child.emit(dst, depth + 1);
+            for line in &child.test_lines {
+                writeln!(dst, "{indent}    {line}").unwrap();
+            }
+            writeln!(dst, "{indent}}}").unwrap();
+        }
+    }
+}
+
+fn collect_variants(
+    root: &mut ModNode,
+    variants: &[Variant],
+    suite: &str,
+    expectations_dir: &Path,
+    path_segment: &str,
+    case_path: &Path,
+) {
+    let base_name = path_segment
+        .strip_suffix(".skip_warning_as_error")
+        .unwrap_or(path_segment);
+
+    let identifier_base = path_segment
+        .replace(|c: char| !c.is_alphanumeric(), "_")
+        .replace("__", "_");
+
+    let skip_warning_as_error = path_segment.contains(".skip_warning_as_error");
+
+    for variant in variants {
+        let expectation_file = variant.file_pattern.replace("{name}", base_name);
+        let expectation_path = expectations_dir.join(&expectation_file);
+        if expectation_path.exists() {
+            // Generate test
+            let gen_line = format!(
+                "generate_variant!(r#{}, {:?}, {:?}, {}, {}, {});",
+                identifier_base,
+                path_segment,
+                case_path,
+                variant.lang,
+                variant.style,
+                variant.cpp_compat,
+            );
+            let mut gen_path: Vec<&str> = vec![suite, "generate"];
+            gen_path.extend_from_slice(variant.module_path);
+            root.insert(&gen_path, gen_line);
+
+            // Compile test
+            let compile_line = format!(
+                "compile_variant!(r#{}, {:?}, {}, {}, {}, {});",
+                identifier_base,
+                expectation_path,
+                variant.lang,
+                variant.style,
+                skip_warning_as_error,
+                variant.cpp_compat,
+            );
+            let mut compile_path: Vec<&str> = vec![suite, "compile"];
+            compile_path.extend_from_slice(variant.module_path);
+            root.insert(&compile_path, compile_line);
+        }
+    }
+}
+
+struct TestSuite<'a> {
+    name: &'a str,
+    cases_dir: PathBuf,
+    expectations_dir: PathBuf,
+    extra_dirs: Vec<PathBuf>,
+    manifest_path: Option<PathBuf>,
+}
+
+fn process_suite(
+    suite: &TestSuite,
+    dst: &mut File,
+    root: &mut ModNode,
+    variants: &[Variant],
+    const_name: &str,
+) -> Vec<String> {
     // Watch the cases workspace definition.
     println!(
         "cargo:rerun-if-changed={}",
-        cases_dir.join("Cargo.toml").display()
+        suite.cases_dir.join("Cargo.toml").display()
     );
 
     // Watch the expectations directory so new/removed files trigger regeneration.
-    println!("cargo:rerun-if-changed={}", expectations_dir.display());
-
-    // Variant definitions: (suffix, style_expr, lang_expr, cpp_compat, file_pattern)
-    // file_pattern uses {name} as placeholder for the base name.
-    struct Variant {
-        suffix: &'static str,
-        lang: &'static str,
-        style: &'static str,
-        cpp_compat: bool,
-        file_pattern: &'static str,
-    }
-
-    let variants = [
-        Variant {
-            suffix: "_c",
-            lang: "Language::C",
-            style: "Some(Style::Type)",
-            cpp_compat: false,
-            file_pattern: "{name}.c",
-        },
-        Variant {
-            suffix: "_c_tag",
-            lang: "Language::C",
-            style: "Some(Style::Tag)",
-            cpp_compat: false,
-            file_pattern: "{name}_tag.c",
-        },
-        Variant {
-            suffix: "_c_both",
-            lang: "Language::C",
-            style: "Some(Style::Both)",
-            cpp_compat: false,
-            file_pattern: "{name}_both.c",
-        },
-        Variant {
-            suffix: "_c_compat",
-            lang: "Language::C",
-            style: "Some(Style::Type)",
-            cpp_compat: true,
-            file_pattern: "{name}.compat.c",
-        },
-        Variant {
-            suffix: "_c_tag_compat",
-            lang: "Language::C",
-            style: "Some(Style::Tag)",
-            cpp_compat: true,
-            file_pattern: "{name}_tag.compat.c",
-        },
-        Variant {
-            suffix: "_c_both_compat",
-            lang: "Language::C",
-            style: "Some(Style::Both)",
-            cpp_compat: true,
-            file_pattern: "{name}_both.compat.c",
-        },
-        Variant {
-            suffix: "_cpp",
-            lang: "Language::Cxx",
-            style: "None",
-            cpp_compat: false,
-            file_pattern: "{name}.cpp",
-        },
-        Variant {
-            suffix: "_cython",
-            lang: "Language::Cython",
-            style: "Some(Style::Type)",
-            cpp_compat: false,
-            file_pattern: "{name}.pyx",
-        },
-        Variant {
-            suffix: "_cython_tag",
-            lang: "Language::Cython",
-            style: "Some(Style::Tag)",
-            cpp_compat: false,
-            file_pattern: "{name}_tag.pyx",
-        },
-    ];
+    println!(
+        "cargo:rerun-if-changed={}",
+        suite.expectations_dir.display()
+    );
 
     let mut case_names: Vec<String> = Vec::new();
 
-    let emit_variants_for_case = |dst: &mut File, path_segment: &str, case_path: &Path| {
-        // Strip .skip_warning_as_error suffix for expectation file lookup.
-        let base_name = path_segment
-            .strip_suffix(".skip_warning_as_error")
-            .unwrap_or(path_segment);
-
-        let identifier_base = path_segment
-            .replace(|c: char| !c.is_alphanumeric(), "_")
-            .replace("__", "_");
-
-        for variant in &variants {
-            let expectation_file = variant.file_pattern.replace("{name}", base_name);
-            if expectations_dir.join(&expectation_file).exists() {
-                writeln!(
-                    dst,
-                    "test_variant!(test_{}{}, {:?}, {:?}, {}, {}, {});",
-                    identifier_base,
-                    variant.suffix,
-                    path_segment,
-                    case_path,
-                    variant.lang,
-                    variant.style,
-                    variant.cpp_compat,
-                )
-                .unwrap();
-            }
-        }
-    };
-
-    for entry in fs::read_dir(&cases_dir).unwrap() {
+    for entry in fs::read_dir(&suite.cases_dir).unwrap() {
         let entry = entry.expect("Couldn't read test entry");
 
         if !entry.file_type().unwrap().is_dir() {
@@ -153,7 +222,14 @@ fn main() {
             entry.path().join("Cargo.toml").display()
         );
 
-        emit_variants_for_case(&mut dst, &path_segment, &entry.path());
+        collect_variants(
+            root,
+            variants,
+            suite.name,
+            &suite.expectations_dir,
+            &path_segment,
+            &entry.path(),
+        );
 
         case_names.push(path_segment);
     }
@@ -161,27 +237,29 @@ fn main() {
     // Sort for deterministic output.
     case_names.sort();
 
-    // Write KNOWN_CASES constant into generated tests.rs.
+    // Write KNOWN_*_CASES constant into generated tests.rs.
     writeln!(dst).unwrap();
-    writeln!(dst, "const KNOWN_CASES: &[&str] = &[").unwrap();
+    writeln!(dst, "const {const_name}: &[&str] = &[").unwrap();
     for name in &case_names {
         writeln!(dst, "    {:?},", name).unwrap();
     }
     writeln!(dst, "];").unwrap();
 
     // Write manifest file for staleness detection.
-    let manifest_path = manifest_dir.join("tests").join(".test_manifest");
-    let new_manifest = case_names.join("\n") + "\n";
-    let needs_write = match fs::read_to_string(&manifest_path) {
-        Ok(existing) => existing != new_manifest,
-        Err(_) => true,
-    };
-    if needs_write {
-        fs::write(&manifest_path, &new_manifest).expect("failed to write .test_manifest");
+    if let Some(manifest_path) = &suite.manifest_path {
+        let new_manifest = case_names.join("\n") + "\n";
+        let needs_write = match fs::read_to_string(manifest_path) {
+            Ok(existing) => existing != new_manifest,
+            Err(_) => true,
+        };
+        if needs_write {
+            fs::write(manifest_path, &new_manifest).expect("failed to write .test_manifest");
+        }
+        println!("cargo:rerun-if-changed={}", manifest_path.display());
     }
-    println!("cargo:rerun-if-changed={}", manifest_path.display());
 
-    for dir in &extra_dirs {
+    // Process extra directories.
+    for dir in &suite.extra_dirs {
         // Only watch the Cargo.toml, not the entire directory tree.
         println!(
             "cargo:rerun-if-changed={}",
@@ -190,8 +268,58 @@ fn main() {
 
         let path_segment = dir.file_name().unwrap().to_str().unwrap().to_owned();
 
-        emit_variants_for_case(&mut dst, &path_segment, dir);
+        collect_variants(
+            root,
+            variants,
+            suite.name,
+            &suite.expectations_dir,
+            &path_segment,
+            dir,
+        );
     }
+
+    case_names
+}
+
+fn main() {
+    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+    let mut dst = File::create(Path::new(&out_dir).join("tests.rs")).unwrap();
+
+    let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+
+    let mut root = ModNode::new();
+
+    let cbindgen = TestSuite {
+        name: "cbindgen",
+        cases_dir: manifest_dir.join("tests/cbindgen/rust/cases"),
+        expectations_dir: manifest_dir.join("tests/cbindgen/expectations"),
+        extra_dirs: vec![
+            manifest_dir.join("tests/cbindgen/rust/workspace"),
+            manifest_dir.join("tests/cbindgen/rust/external_workspace_child"),
+        ],
+        manifest_path: Some(manifest_dir.join("tests/cbindgen/.test_manifest")),
+    };
+
+    let cheadergen = TestSuite {
+        name: "cheadergen",
+        cases_dir: manifest_dir.join("tests/cheadergen/rust/cases"),
+        expectations_dir: manifest_dir.join("tests/cheadergen/expectations"),
+        extra_dirs: vec![],
+        manifest_path: None,
+    };
+
+    process_suite(&cbindgen, &mut dst, &mut root, VARIANTS, "KNOWN_CBINDGEN_CASES");
+
+    if cheadergen.cases_dir.is_dir() {
+        process_suite(&cheadergen, &mut dst, &mut root, VARIANTS, "KNOWN_CHEADERGEN_CASES");
+    } else {
+        writeln!(dst).unwrap();
+        writeln!(dst, "const KNOWN_CHEADERGEN_CASES: &[&str] = &[];").unwrap();
+    }
+
+    // Emit the nested module tree.
+    writeln!(dst).unwrap();
+    root.emit(&mut dst, 0);
 
     dst.flush().unwrap();
 }
