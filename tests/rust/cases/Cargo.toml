@@ -1,0 +1,12 @@
+[workspace]
+members = [
+    "*",
+    "dep_v2/dep",
+    "expand_dep/dep",
+    "expand_dep_v2/dep",
+    "expand_dep_v2/dep_v2",
+    "rename_crate/dependency",
+    "rename_crate/no_extern",
+    "rename_crate/old_dep",
+]
+resolver = "3"

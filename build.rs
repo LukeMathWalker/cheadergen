@@ -12,11 +12,18 @@ fn main() {
     let mut dst = File::create(Path::new(&out_dir).join("tests.rs")).unwrap();
 
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    let tests_dir = manifest_dir.join("tests").join("rust");
+    let cases_dir = manifest_dir.join("tests").join("rust").join("cases");
+    let extra_dirs = [
+        manifest_dir.join("tests").join("rust").join("workspace"),
+        manifest_dir
+            .join("tests")
+            .join("rust")
+            .join("external_workspace_child"),
+    ];
 
-    println!("cargo:rerun-if-changed={}", tests_dir.display());
+    println!("cargo:rerun-if-changed={}", cases_dir.display());
 
-    for entry in fs::read_dir(&tests_dir).unwrap() {
+    for entry in fs::read_dir(&cases_dir).unwrap() {
         let entry = entry.expect("Couldn't read test entry");
 
         if !entry.file_type().unwrap().is_dir() {
@@ -35,6 +42,23 @@ fn main() {
             identifier,
             path_segment,
             entry.path(),
+        )
+        .unwrap();
+    }
+
+    for dir in &extra_dirs {
+        println!("cargo:rerun-if-changed={}", dir.display());
+
+        let path_segment = dir.file_name().unwrap().to_str().unwrap().to_owned();
+
+        let identifier = path_segment
+            .replace(|c: char| !c.is_alphanumeric(), "_")
+            .replace("__", "_");
+
+        writeln!(
+            dst,
+            "test_file!(test_{}, {:?}, {:?});",
+            identifier, path_segment, dir,
         )
         .unwrap();
     }

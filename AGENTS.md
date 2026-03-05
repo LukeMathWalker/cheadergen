@@ -41,6 +41,16 @@ just fmt check
 just lint
 ```
 
+### Testing
+
+```bash
+just test
+```
+
+Tests require the `nightly` toolchain (`rustup toolchain install nightly`).
+The test suite uses `cbindgen` to generate C/C++ headers from mini-crates under `tests/rust/cases/`
+and compares the output against expected headers in `tests/expectations/`.
+
 ## Licensing
 
 cheadergen's own code is licensed under APACHE-2.0.
