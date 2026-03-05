@@ -21,6 +21,12 @@ target
 #.idea/
 
 
+# Generated cargo metadata for tests
+metadata.json
+
+# Generated test manifest for staleness detection
+.test_manifest
+
 # Added by cargo
 
 /target
