@@ -1,0 +1,24 @@
+---
+source: tests/tests.rs
+expression: "const_generics_arrayvec_both.compat.c"
+snapshot_kind: text
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct ArrayVec_____u8__100 {
+  uint8_t *xs[100];
+  uint32_t len;
+} ArrayVec_____u8__100;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+int32_t push(struct ArrayVec_____u8__100 *v, uint8_t *elem);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

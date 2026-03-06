@@ -13,5 +13,5 @@ pub struct NotReprC<T> {
 
 pub type Foo<'a> = NotReprC<std::mem::MaybeUninit<&'a i32>>;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root<'a, 'b>(a: &'a Foo, with_maybe_uninit: &'b MyStruct) {}

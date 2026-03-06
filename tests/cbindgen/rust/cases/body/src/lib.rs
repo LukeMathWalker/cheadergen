@@ -55,5 +55,5 @@ pub union MyUnion_Prepended {
 }
 
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(s: MyFancyStruct, e: MyFancyEnum, c: MyCLikeEnum, u: MyUnion, sp: MyFancyStruct_Prepended, ep: MyFancyEnum_Prepended, cp: MyCLikeEnum_Prepended, up: MyUnion_Prepended) {}

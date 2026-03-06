@@ -21,7 +21,7 @@ union Bar {
     zz: *mut Option<fn () -> ()>,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(
 	a: Option<&Opaque>,
     b: Option<&mut Opaque>,

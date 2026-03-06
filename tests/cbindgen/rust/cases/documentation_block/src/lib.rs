@@ -26,13 +26,13 @@ Attention:
 - Milk
 - Eggs
 */
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root() {}
 
 /**
 Some docs.
 */
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub static FOO: u32 = 4;
 
 mod abc {
@@ -47,6 +47,6 @@ mod abc {
       - within
       - Lists
     */
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     pub extern "C" fn block_function() {}
 }

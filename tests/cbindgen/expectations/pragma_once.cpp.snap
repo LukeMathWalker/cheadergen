@@ -1,0 +1,18 @@
+---
+source: tests/tests.rs
+expression: "pragma_once.cpp"
+snapshot_kind: text
+---
+#pragma once
+
+#include <cstdarg>
+#include <cstdint>
+#include <cstdlib>
+#include <ostream>
+#include <new>
+
+extern "C" {
+
+void root();
+
+}  // extern "C"

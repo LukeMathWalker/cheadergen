@@ -8,7 +8,7 @@ pub struct TraitObject {
     pub vtable: *mut (),
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(ptr: *const (), t: TraitObject) -> *mut () {
     std::ptr::null_mut()
 }

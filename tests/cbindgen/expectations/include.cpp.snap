@@ -1,0 +1,11 @@
+---
+source: tests/tests.rs
+expression: "include.cpp"
+snapshot_kind: text
+---
+#include <cstdarg>
+#include <cstdint>
+#include <cstdlib>
+#include <ostream>
+#include <new>
+#include <math.h>

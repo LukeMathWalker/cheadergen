@@ -18,7 +18,7 @@ pub struct NonZeroAliases {
     pub j: *const Option<Option<NonZeroI64>>,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root_nonzero_aliases(
     test: NonZeroAliases,
     a: NonZeroU8,
@@ -47,7 +47,7 @@ pub struct NonZeroGenerics {
     pub j: *const Option<Option<NonZero<i64>>>,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root_nonzero_generics(
     test: NonZeroGenerics,
     a: NonZero<u8>,

@@ -11,5 +11,5 @@ impl Foo {
     pub const ZO: f32 = 3.14;
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(x: Foo) { }

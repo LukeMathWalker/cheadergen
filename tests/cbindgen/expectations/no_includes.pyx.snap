@@ -1,0 +1,9 @@
+---
+source: tests/tests.rs
+expression: "no_includes.pyx"
+snapshot_kind: text
+---
+
+cdef extern from *:
+
+  void root();

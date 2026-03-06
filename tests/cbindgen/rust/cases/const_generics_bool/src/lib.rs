@@ -35,27 +35,27 @@ impl<K, V, const IS_MAP: bool> HashTable<K, V, IS_MAP>
 // with alias
 type MySet = HashTable<Str, c_char, false>;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn new_set() -> *mut MySet {
     Box::into_raw(Box::new(HashSet::new()))
 }
 
 type SetCallback = unsafe extern "C" fn(key: Str);
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn set_for_each(set: *const MySet, callback: SetCallback) {
     todo!();
 }
 
 // without alias
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn new_map() -> *mut HashTable<Str, u64, true> {
     Box::into_raw(Box::new(HashMap::new()))
 }
 
 type MapCallback = unsafe extern "C" fn(key: Str, val: u64);
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn map_for_each(map: *const HashTable<Str, u64, true>, callback: MapCallback) {
     todo!();
 }

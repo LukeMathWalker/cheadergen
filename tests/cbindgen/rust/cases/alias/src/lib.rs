@@ -27,7 +27,7 @@ type DoubleFoo = Foo<f64>;
 type Unit = i32;
 type SpecialStatus = Status;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(
     x: IntFoo,
     y: DoubleFoo,

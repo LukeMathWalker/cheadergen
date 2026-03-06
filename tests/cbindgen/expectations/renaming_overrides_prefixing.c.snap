@@ -1,0 +1,18 @@
+---
+source: tests/tests.rs
+expression: "renaming_overrides_prefixing.c"
+snapshot_kind: text
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct StyleA StyleA;
+
+typedef struct {
+  int32_t x;
+  float y;
+} B;
+
+void root(const StyleA *a, B b);

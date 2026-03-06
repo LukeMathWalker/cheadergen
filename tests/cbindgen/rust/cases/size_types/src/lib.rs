@@ -15,5 +15,5 @@ enum IE {
     IV,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(_: Usize, _: Isize, _: UE, _: IE) {}

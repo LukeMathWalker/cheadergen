@@ -32,7 +32,7 @@ struct TupleRenamed(i32, f32);
 #[repr(C)]
 struct TupleNamed(i32, f32);
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(
     a: *mut Opaque,
     b: Normal,

@@ -2,23 +2,23 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[deprecated]
 pub extern "C" fn deprecated_without_note() {}
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[deprecated = "This is a note"]
 pub extern "C" fn deprecated_without_bracket() {}
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[deprecated(note = "This is a note")]
 pub extern "C" fn deprecated_with_note() {}
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[deprecated(note = "This is a note", since = "1.0.0")]
 pub extern "C" fn deprecated_with_note_and_since() {}
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[deprecated(note = "This quote \" requires to be quoted, and this [\n] requires to be escaped")]
 pub extern "C" fn deprecated_with_note_which_requires_to_be_escaped() {}
 
@@ -66,7 +66,7 @@ pub struct DeprecatedStructWithNote {
     pub a: i32,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn dummy(
     a: DeprecatedEnum,
     b: DeprecatedEnumWithNote,

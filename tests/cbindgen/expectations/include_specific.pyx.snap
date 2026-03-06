@@ -1,0 +1,8 @@
+---
+source: tests/tests.rs
+expression: "include_specific.pyx"
+snapshot_kind: text
+---
+
+cdef extern from *:
+  pass

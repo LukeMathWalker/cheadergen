@@ -13,7 +13,7 @@ struct TakeUntil<'a, const V: char>
     point: usize,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn until_nul(start: *const u8, len: usize) -> TakeUntil<'a, '\0'> {
     TakeUntil {
         marker: PhantomData,

@@ -58,7 +58,7 @@ type LayoutSize2D = TypedSize2D<f32, LayoutUnit>;
 type LayoutPoint2D = TypedPoint2D<f32, LayoutUnit>;
 type LayoutRect = TypedRect<f32, LayoutUnit>;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(
     length_a: TypedLength<f32, UnknownUnit>,
     length_b: TypedLength<f32, LayoutUnit>,

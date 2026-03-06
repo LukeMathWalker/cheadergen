@@ -19,7 +19,7 @@ struct StructInfo {
     num_fields: usize,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(
     x: TypeInfo,
 ) {}

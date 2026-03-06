@@ -11,5 +11,5 @@ repository = "https://github.com/LukeMathWalker/cheadergen"
 [dependencies]
 
 [dev-dependencies]
-pretty_assertions = "1"
+insta = "1"
 tempfile = "3"

@@ -15,5 +15,5 @@ pub struct Book {
     pub author: CArrayString<40>,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(a: *mut Book) {}

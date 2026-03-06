@@ -65,5 +65,5 @@ pub enum PositionAreaKeyword {
     Bottom = ((PositionAreaAxis::Vertical as u8) << AXIS_SHIFT) | PositionAreaTrack::End as u8,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn root(_: PositionAreaKeyword, _: PositionAreaTrack, _: PositionAreaAxis) {}

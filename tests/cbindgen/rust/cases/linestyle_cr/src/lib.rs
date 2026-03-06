@@ -8,5 +8,5 @@ struct Dummy {
     y: f32,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(d: Dummy) {}

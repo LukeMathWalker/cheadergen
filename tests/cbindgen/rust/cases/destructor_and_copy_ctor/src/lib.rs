@@ -97,5 +97,5 @@ pub enum Qux {
 }
 
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(a: &Foo<u32>, b: &Baz<i32>, c: &Taz, d: Tazz, e: &Tazzz, f: &Tazzzz, g: &Qux) {}

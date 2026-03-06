@@ -7,8 +7,6 @@ use std::process::Command;
 use std::sync::LazyLock;
 use std::{env, fs, str};
 
-use pretty_assertions::assert_eq;
-
 fn compute_metadata(workspace: &Path) -> PathBuf {
     let output = Command::new("cargo")
         .arg("metadata")
@@ -209,6 +207,18 @@ fn compile(
 
 const SKIP_WARNING_AS_ERROR_SUFFIX: &str = ".skip_warning_as_error";
 
+/// Extract the raw content from an insta `.snap` file by stripping the YAML header.
+fn read_snap_content(snap_path: &Path) -> String {
+    let raw = fs::read_to_string(snap_path).unwrap();
+    let rest = raw
+        .strip_prefix("---\n")
+        .expect("invalid snap file: missing opening ---");
+    let idx = rest
+        .find("\n---\n")
+        .expect("invalid snap file: missing closing ---");
+    rest[idx + "\n---\n".len()..].to_string()
+}
+
 fn run_generate_test(
     name: &str,
     path: &Path,
@@ -249,25 +259,31 @@ fn run_generate_test(
     let source_file =
         format!("{name}{style_ext}{lang_ext}").replace(SKIP_WARNING_AS_ERROR_SUFFIX, "");
 
-    let expected_file = expectations_dir.join(&source_file);
-
     let bindings_content = run_cbindgen(path, language, cpp_compat, style, metadata);
+    let output = str::from_utf8(&bindings_content).expect("non-utf8 cbindgen output");
 
-    assert!(
-        expected_file.exists(),
-        "No expectation file found at {expected_file:?}"
-    );
+    // Linestyle tests: insta normalizes line endings, so fall back to direct comparison.
+    if name.starts_with("linestyle_") {
+        let expected_file = expectations_dir.join(&source_file);
+        assert!(
+            expected_file.exists(),
+            "No expectation file found at {expected_file:?}"
+        );
+        let expected = fs::read_to_string(&expected_file).unwrap();
+        assert_eq!(output, expected, "Output mismatch for {source_file}");
+        return;
+    }
 
-    let expected = fs::read(&expected_file).unwrap();
-    assert_eq!(
-        str::from_utf8(&bindings_content).unwrap_or("<non-utf8>"),
-        str::from_utf8(&expected).unwrap_or("<non-utf8>"),
-        "Output mismatch for {source_file}"
-    );
+    let mut settings = insta::Settings::clone_current();
+    settings.set_snapshot_path(&expectations_dir);
+    settings.set_prepend_module_to_snapshot(false);
+    settings.bind(|| {
+        insta::assert_snapshot!(source_file, output);
+    });
 }
 
 fn run_compile_check(
-    expectation: &Path,
+    snap_or_raw: &Path,
     language: Language,
     style: Option<Style>,
     skip_warning_as_error: bool,
@@ -281,8 +297,26 @@ fn run_compile_check(
     let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
     let tests_path = Path::new(&crate_dir).join("tests");
 
+    // For .snap files, extract the content and write to a temp file with the right extension.
+    // For raw files (linestyle), use them directly.
+    let is_snap = snap_or_raw.extension().is_some_and(|ext| ext == "snap");
+
+    let source_file = if is_snap {
+        let content = read_snap_content(snap_or_raw);
+        let ext = match language {
+            Language::C => "c",
+            Language::Cxx => "cpp",
+            Language::Cython => "pyx",
+        };
+        let source_file = tmp_dir.path().join(format!("test.{ext}"));
+        fs::write(&source_file, &content).unwrap();
+        source_file
+    } else {
+        snap_or_raw.to_path_buf()
+    };
+
     compile(
-        expectation,
+        &source_file,
         &tests_path,
         tmp_dir.path(),
         language,
@@ -293,7 +327,7 @@ fn run_compile_check(
 
     if language == Language::C && cpp_compat {
         compile(
-            expectation,
+            &source_file,
             &tests_path,
             tmp_dir.path(),
             Language::Cxx,
@@ -317,7 +351,13 @@ macro_rules! compile_variant {
     ($fn_name:ident, $expectation:expr, $lang:expr, $style:expr, $skip_warn:expr, $cpp_compat:expr) => {
         #[test]
         fn $fn_name() {
-            run_compile_check(Path::new($expectation), $lang, $style, $skip_warn, $cpp_compat);
+            run_compile_check(
+                Path::new($expectation),
+                $lang,
+                $style,
+                $skip_warn,
+                $cpp_compat,
+            );
         }
     };
 }
@@ -353,8 +393,7 @@ fn test_manifest_up_to_date() {
 
     if actual_cbindgen != KNOWN_CBINDGEN_CASES {
         let new_manifest = actual_cbindgen.join("\n") + "\n";
-        fs::write(&cbindgen_manifest_path, &new_manifest)
-            .expect("failed to write .test_manifest");
+        fs::write(&cbindgen_manifest_path, &new_manifest).expect("failed to write .test_manifest");
         panic!(
             "cbindgen test manifest is stale — re-run cargo test to pick up new/removed crates.\n\
              Known: {KNOWN_CBINDGEN_CASES:?}\n\

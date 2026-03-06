@@ -10,5 +10,5 @@ pub type Foo = FastHashMap<i32, i32>;
 
 pub type Bar = Result<Foo, ()>;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(a: &Foo, b: &Bar) {}

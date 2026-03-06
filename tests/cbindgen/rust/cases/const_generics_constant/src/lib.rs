@@ -18,5 +18,5 @@ impl FontWeight {
     pub const NORMAL: FontWeight = FontWeight(FontWeightFixedPoint { value: 400 << FONT_WEIGHT_FRACTION_BITS });
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(w: FontWeight) {}

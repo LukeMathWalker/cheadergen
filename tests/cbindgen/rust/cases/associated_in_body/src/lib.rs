@@ -58,5 +58,5 @@ impl NativeTileId {
     };
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(flags: AlignFlags, tile: NativeTileId) {}

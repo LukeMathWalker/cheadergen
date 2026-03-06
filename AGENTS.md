@@ -44,12 +44,22 @@ just lint
 ### Testing
 
 ```bash
+# Run all tests
 just test
+# Run only cbindgen tests (generate + compile)
+just test-cbindgen
+# Run only generation tests, no compilation (faster feedback loop)
+just test-generate
 ```
 
 Tests require the `nightly` toolchain (`rustup toolchain install nightly`).
 The test suite uses `cbindgen` to generate C/C++ headers from mini-crates under `tests/rust/cases/`
 and compares the output against expected headers in `tests/expectations/`.
+
+Use `just test-generate` when iterating on header generation logic — it skips compilation
+and runs significantly faster. Use `just test-cbindgen` to scope down to the cbindgen suite
+without running cheadergen tests. All three commands accept extra nextest args,
+e.g. `just test -- -E 'test(~alias)'`.
 
 ## Licensing
 

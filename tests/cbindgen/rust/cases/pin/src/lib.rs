@@ -8,5 +8,5 @@ struct PinTest {
     pinned_ref: Pin<&mut i32>
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(s: Pin<&mut i32>, p: PinTest) {}

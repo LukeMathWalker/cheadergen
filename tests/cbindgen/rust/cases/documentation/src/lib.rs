@@ -20,9 +20,9 @@
 ///    marker you need to add at least a single whitespace inbetween the tripple
 ///    slash doc-comment marker and the rest.
 ///
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root() {}
 
 /// Some docs.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub static FOO: u32 = 4;

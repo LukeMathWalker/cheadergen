@@ -12,5 +12,5 @@
 #[doc = "like headings and lists."]
 #[doc = ""]
 #[doc = "Line ends with two new lines\n\nShould break to next paragraph"]
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root() {}

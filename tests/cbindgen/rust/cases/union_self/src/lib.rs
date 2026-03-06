@@ -14,5 +14,5 @@ pub union Bar {
     subexpressions: Foo<Self>,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(b: Bar) {}

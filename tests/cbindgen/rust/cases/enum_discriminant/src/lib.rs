@@ -15,5 +15,5 @@ enum E {
     H = false as i8,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(_: &E) {}

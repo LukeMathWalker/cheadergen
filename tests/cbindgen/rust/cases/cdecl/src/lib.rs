@@ -19,13 +19,13 @@ type L = [*const i32; 16];
 type M = [fn (i32, i32) -> bool; 16];
 type N = [fn (i32, i32) -> (); 16];
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn O() -> fn ()
 { }
 
 type P = fn (named1st: i32, bool, named3rd: bool, _: i32);
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(
     a: A,
     b: B,

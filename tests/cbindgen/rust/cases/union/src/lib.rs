@@ -23,7 +23,7 @@ union NormalWithZST {
     w: PhantomData<i32>,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(
     a: *mut Opaque,
     b: Normal,

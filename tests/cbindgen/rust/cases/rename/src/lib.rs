@@ -32,14 +32,14 @@ enum E {
 
 type F = A;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub static G: i32 = 10;
 
 pub const H: i32 = 10;
 
 pub const I: isize = 10 as *mut F as isize;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(
     a: *const A,
     b: B,

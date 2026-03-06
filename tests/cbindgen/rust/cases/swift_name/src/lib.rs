@@ -14,99 +14,99 @@ pub struct SelfTypeTestStruct {
 
 impl SelfTypeTestStruct {
   #[export_name="SelfTypeTestStruct_should_exist_ref"]
-  #[no_mangle]
+  #[unsafe(no_mangle)]
   pub extern fn should_exist_ref(&self) {
     println!("should_exist_ref");
   }
 
   #[export_name="SelfTypeTestStruct_should_exist_ref_mut"]
-  #[no_mangle]
+  #[unsafe(no_mangle)]
   pub extern fn should_exist_ref_mut(&mut self) {
     println!("should_exist_ref_mut");
   }
 
   #[export_name="SelfTypeTestStruct_should_not_exist_box"]
-  #[no_mangle]
+  #[unsafe(no_mangle)]
   pub extern fn should_not_exist_box(self: Box<SelfTypeTestStruct>) {
     println!("should_not_exist_box");
   }
 
   #[export_name="SelfTypeTestStruct_should_not_exist_return_box"]
-  #[no_mangle]
+  #[unsafe(no_mangle)]
   pub extern fn should_not_exist_box() -> Box<Self> {
     println!("should_not_exist_box");
   }
 
   #[export_name="SelfTypeTestStruct_should_exist_annotated_self"]
-  #[no_mangle]
+  #[unsafe(no_mangle)]
   pub extern fn should_exist_annotated_self(self: Self) {
     println!("should_exist_annotated_self");
   }
 
   #[export_name="SelfTypeTestStruct_should_exist_annotated_mut_self"]
-  #[no_mangle]
+  #[unsafe(no_mangle)]
   #[allow(unused_mut)]
   pub extern fn should_exist_annotated_mut_self(mut self: Self) {
     println!("should_exist_annotated_mut_self");
   }
 
   #[export_name="SelfTypeTestStruct_should_exist_annotated_by_name"]
-  #[no_mangle]
+  #[unsafe(no_mangle)]
   pub extern fn should_exist_annotated_by_name(self: SelfTypeTestStruct) {
     println!("should_exist_annotated_by_name");
   }
 
   #[export_name="SelfTypeTestStruct_should_exist_annotated_mut_by_name"]
-  #[no_mangle]
+  #[unsafe(no_mangle)]
   #[allow(unused_mut)]
   pub extern fn should_exist_annotated_mut_by_name(mut self: SelfTypeTestStruct) {
     println!("should_exist_annotated_mut_by_name");
   }
 
   #[export_name="SelfTypeTestStruct_should_exist_unannotated"]
-  #[no_mangle]
+  #[unsafe(no_mangle)]
   pub extern fn should_exist_unannotated(self) {
     println!("should_exist_unannotated");
   }
 
   #[export_name="SelfTypeTestStruct_should_exist_mut_unannotated"]
-  #[no_mangle]
+  #[unsafe(no_mangle)]
   #[allow(unused_mut)]
   pub extern fn should_exist_mut_unannotated(mut self) {
     println!("should_exist_mut_unannotated");
   }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[allow(unused_variables)]
 pub extern fn free_function_should_exist_ref(test_struct: &SelfTypeTestStruct) {
   println!("free_function_should_exist_ref");
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[allow(unused_variables)]
 pub extern fn free_function_should_exist_ref_mut(test_struct: &mut SelfTypeTestStruct) {
   println!("free_function_should_exist_ref_mut");
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern fn unnamed_argument(_: &mut SelfTypeTestStruct) {
   println!("unnamed_argument");
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[allow(unused_variables)]
 pub extern fn free_function_should_not_exist_box(boxed: Box<SelfTypeTestStruct>) {
   println!("free_function_should_not_exist_box");
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[allow(unused_variables)]
 pub extern fn free_function_should_exist_annotated_by_name(test_struct: SelfTypeTestStruct) {
   println!("free_function_should_exist_annotated_by_name");
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[allow(unused_mut)]
 #[allow(unused_variables)]
 pub extern fn free_function_should_exist_annotated_mut_by_name(mut test_struct: SelfTypeTestStruct) {

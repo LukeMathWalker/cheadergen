@@ -38,5 +38,5 @@ struct Foo {
     x: [i32; FOO],
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(x: Foo) {}

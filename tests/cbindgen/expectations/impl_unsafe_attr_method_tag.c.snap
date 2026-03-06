@@ -1,0 +1,17 @@
+---
+source: tests/tests.rs
+expression: "impl_unsafe_attr_method_tag.c"
+snapshot_kind: text
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+struct DummyStruct {
+  int32_t dummy_field;
+};
+
+struct DummyStruct new_dummy(void);
+
+struct DummyStruct new_dummy_param(int32_t dummy_field);

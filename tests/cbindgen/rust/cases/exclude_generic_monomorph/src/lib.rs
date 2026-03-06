@@ -10,5 +10,5 @@ pub struct Bar {
   foo: Option<Foo>,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(f: Bar) {}

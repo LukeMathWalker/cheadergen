@@ -1,0 +1,18 @@
+---
+source: tests/tests.rs
+expression: "global_variable.cpp"
+snapshot_kind: text
+---
+#include <cstdarg>
+#include <cstdint>
+#include <cstdlib>
+#include <ostream>
+#include <new>
+
+extern "C" {
+
+extern char MUT_GLOBAL_ARRAY[128];
+
+extern const char CONST_GLOBAL_ARRAY[128];
+
+}  // extern "C"

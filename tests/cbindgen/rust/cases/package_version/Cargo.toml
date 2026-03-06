@@ -2,6 +2,7 @@
 name = "package_version"
 version = "0.1.0"
 authors = ["hitbear"]
+edition.workspace = true
 
 [features]
 cbindgen = []

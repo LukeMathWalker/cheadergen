@@ -16,7 +16,7 @@ pub enum Bar {
     FooParen(i32, Foo),
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(bar: Bar) -> Foo {
     unimplemented!();
 }

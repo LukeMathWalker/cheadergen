@@ -39,7 +39,7 @@ pub enum K {
     Baz
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn foo(
     h: H,
     i: I,

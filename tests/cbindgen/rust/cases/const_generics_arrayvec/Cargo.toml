@@ -2,3 +2,4 @@
 name = "const_generics_arrayvec"
 version = "0.1.0"
 authors = ["cbindgen"]
+edition.workspace = true

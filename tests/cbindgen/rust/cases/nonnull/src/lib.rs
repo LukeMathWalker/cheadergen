@@ -19,5 +19,5 @@ pub struct Foo<T> {
     i: Option<NonNull<NonNull<i32>>>,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(arg: NonNull<i32>, foo: *mut Foo<u64>, d: NonNull<NonNull<Opaque>>) { }

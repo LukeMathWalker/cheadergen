@@ -14,5 +14,5 @@ pub struct BindGroupLayoutEntry {
     pub ty: BindingType, // This is the repr(u32) enum
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(entry: BindGroupLayoutEntry) {}

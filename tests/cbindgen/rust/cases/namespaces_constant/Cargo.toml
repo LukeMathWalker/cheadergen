@@ -2,3 +2,4 @@
 name = "namespaces_constant"
 version = "0.1.0"
 authors = ["cbindgen"]
+edition.workspace = true

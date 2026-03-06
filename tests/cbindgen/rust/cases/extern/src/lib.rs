@@ -8,12 +8,12 @@ struct Normal {
     y: f32,
 }
 
-extern "C" {
+unsafe extern "C" {
     fn foo() -> i32;
 
     fn bar(a: Normal);
 }
 
-extern {
+unsafe extern {
     fn baz() -> i32;
 }

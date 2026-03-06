@@ -12,8 +12,8 @@ struct A;
 
 struct B;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn foo(a: List<A>) { }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn bar(b: List<B>) { }

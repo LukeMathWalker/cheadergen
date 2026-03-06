@@ -5,7 +5,7 @@
 
 pub const MY_CONST: u8 = 4;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn ExternFunction() {
 }
 

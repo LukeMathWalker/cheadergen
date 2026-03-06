@@ -23,5 +23,5 @@ pub enum C {
     C3,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(a: A, b: B, c: C) {}

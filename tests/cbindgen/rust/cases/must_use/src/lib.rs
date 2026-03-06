@@ -16,7 +16,7 @@ pub enum MaybeOwnedPtr<T> {
     None,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[must_use]
 pub extern "C" fn maybe_consume(input: OwnedPtr<i32>) -> MaybeOwnedPtr<i32> {
 }

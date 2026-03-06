@@ -1,0 +1,13 @@
+---
+source: tests/tests.rs
+expression: "abi_string.c"
+snapshot_kind: text
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+void c(void);
+
+void c_unwind(void);

@@ -16,7 +16,7 @@ pub struct Bar<T, P> {
 
 pub type Baz<T> = Foo<T>;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn foo_root(f: Foo<i16>, b: Bar<i32, u32>, z: Baz<i64>) {}
 
 // Issue #993
@@ -25,5 +25,5 @@ pub struct NeverUsedWithDefault<T = ()> {
     field: T,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn with_i32(x: NeverUsedWithDefault<i32>) {}

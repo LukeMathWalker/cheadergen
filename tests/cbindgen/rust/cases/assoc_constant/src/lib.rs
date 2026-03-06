@@ -14,5 +14,5 @@ impl Foo {
     const DONT_EXPORT_PRIV: i32 = 30;
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(x: Foo) { }

@@ -50,7 +50,7 @@ pub enum I {
     SomethingElse
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(
     a: A,
     b: B,

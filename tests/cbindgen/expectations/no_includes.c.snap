@@ -1,0 +1,6 @@
+---
+source: tests/tests.rs
+expression: "no_includes.c"
+snapshot_kind: text
+---
+void root(void);

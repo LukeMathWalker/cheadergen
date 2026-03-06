@@ -63,7 +63,7 @@ impl EnumWithAssociatedConstantInImpl {
     pub const TEN: TransparentPrimitiveWrappingStructure = TransparentPrimitiveWrappingStructure { only_field: 10 };
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(
     a: TransparentComplexWrappingStructTuple,
     b: TransparentPrimitiveWrappingStructTuple,

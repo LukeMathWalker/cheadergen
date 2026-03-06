@@ -13,6 +13,6 @@ enum E<'a> {
     U(&'a u8),
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root<'a>(_a: A<'a>, _e: E<'a>)
 { }

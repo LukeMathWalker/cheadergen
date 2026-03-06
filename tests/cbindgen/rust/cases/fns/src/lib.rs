@@ -11,10 +11,10 @@ pub struct Fns {
   namedArgsWildcards: fn(_: i32, named: i16, _: i64) -> i8,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(_fns: Fns) {}
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn no_return() -> ! {
     loop {}
 }

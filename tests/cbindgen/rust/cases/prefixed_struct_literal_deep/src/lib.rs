@@ -20,5 +20,5 @@ pub const VAL: Foo = Foo {
     bar: Bar { a: 323 },
 };
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(x: Foo) {}

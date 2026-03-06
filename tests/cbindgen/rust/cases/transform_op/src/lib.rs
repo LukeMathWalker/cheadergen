@@ -38,7 +38,7 @@ pub enum Taz {
     Taz3,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn foo(
     foo: *const Foo<i32>,
     bar: *const Bar<i32>,

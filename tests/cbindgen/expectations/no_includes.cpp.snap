@@ -1,0 +1,11 @@
+---
+source: tests/tests.rs
+expression: "no_includes.cpp"
+snapshot_kind: text
+---
+
+extern "C" {
+
+void root();
+
+}  // extern "C"

@@ -15,5 +15,5 @@ pub struct HasBitfields {
     bar: u64,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(_: &HasBitfields) {}

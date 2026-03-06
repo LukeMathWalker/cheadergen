@@ -1,0 +1,10 @@
+---
+source: tests/tests.rs
+expression: "infinite-recursion-typedef-monomorph.cpp"
+snapshot_kind: text
+---
+#include <cstdarg>
+#include <cstdint>
+#include <cstdlib>
+#include <ostream>
+#include <new>

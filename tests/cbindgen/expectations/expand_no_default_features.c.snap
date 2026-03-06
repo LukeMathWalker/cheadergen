@@ -1,0 +1,15 @@
+---
+source: tests/tests.rs
+expression: "expand_no_default_features.c"
+snapshot_kind: text
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct {
+
+} Foo;
+
+void root(Foo a);

@@ -16,7 +16,7 @@ pub enum Bar {
     Thing,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(
     x: Boo,
     y: Bar,

@@ -1,0 +1,12 @@
+---
+source: tests/tests.rs
+expression: "const_conflict.cpp"
+snapshot_kind: text
+---
+#include <cstdarg>
+#include <cstdint>
+#include <cstdlib>
+#include <ostream>
+#include <new>
+
+constexpr static const uint32_t Foo_FOO = 42;

@@ -2,6 +2,7 @@
 name = "expand-default-features"
 version = "0.1.0"
 authors = ["cbindgen"]
+edition.workspace = true
 
 [features]
 default = ["extra_headers"]

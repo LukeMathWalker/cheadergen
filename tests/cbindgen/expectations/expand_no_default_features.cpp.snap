@@ -1,0 +1,20 @@
+---
+source: tests/tests.rs
+expression: "expand_no_default_features.cpp"
+snapshot_kind: text
+---
+#include <cstdarg>
+#include <cstdint>
+#include <cstdlib>
+#include <ostream>
+#include <new>
+
+struct Foo {
+
+};
+
+extern "C" {
+
+void root(Foo a);
+
+}  // extern "C"

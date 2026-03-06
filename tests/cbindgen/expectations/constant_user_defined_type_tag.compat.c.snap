@@ -1,0 +1,25 @@
+---
+source: tests/tests.rs
+expression: "constant_user_defined_type_tag.compat.c"
+snapshot_kind: text
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+enum E {
+  V,
+};
+
+struct S {
+  uint8_t field;
+};
+
+typedef uint8_t A;
+
+#define C1 (S){ .field = 0 }
+
+#define C2 V
+
+#define C3 0

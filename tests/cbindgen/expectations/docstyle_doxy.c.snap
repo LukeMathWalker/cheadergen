@@ -1,0 +1,14 @@
+---
+source: tests/tests.rs
+expression: "docstyle_doxy.c"
+snapshot_kind: text
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+/**
+ * The root of all evil.
+ */
+void root(void);

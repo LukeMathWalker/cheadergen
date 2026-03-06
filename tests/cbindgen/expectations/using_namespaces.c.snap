@@ -1,0 +1,11 @@
+---
+source: tests/tests.rs
+expression: "using_namespaces.c"
+snapshot_kind: text
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+void root(void);

@@ -85,16 +85,16 @@ impl ConditionalField {
 }
 
 #[cfg(all(unix, x11))]
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(a: FooHandle, c: C)
 { }
 
 #[cfg(any(windows, target_pointer_width="32"))]
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(a: BarHandle, c: C)
 { }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn cond(a: ConditionalField)
 { }
 
@@ -106,15 +106,15 @@ struct Normal {
 }
 
 #[cfg(windows)]
-extern "C" {
+unsafe extern "C" {
     fn foo() -> i32;
 
     fn bar(a: Normal);
 }
 
 #[cfg(windows)]
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub static mut global_array_with_different_sizes: [i32; 2] = [123, 456];
 #[cfg(unix)]
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub static mut global_array_with_different_sizes: [i32; 1] = [7890];

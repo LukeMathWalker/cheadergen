@@ -14,11 +14,11 @@ pub enum AbsoluteFontWeight {
     Bold,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(x: NamedLenArray, y: ValuedLenArray, z: AbsoluteFontWeight) {}
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub const X: i64 = 22 << 22;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub const Y: i64 = X + X;

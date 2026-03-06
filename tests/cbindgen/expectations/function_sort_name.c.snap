@@ -1,0 +1,17 @@
+---
+source: tests/tests.rs
+expression: "function_sort_name.c"
+snapshot_kind: text
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+void A(void);
+
+void B(void);
+
+void C(void);
+
+void D(void);

@@ -1,0 +1,15 @@
+---
+source: tests/tests.rs
+expression: "inner_mod.c"
+snapshot_kind: text
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct {
+  float x;
+} Foo;
+
+void root(Foo a);

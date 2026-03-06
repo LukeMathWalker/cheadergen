@@ -3,16 +3,16 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /// cbindgen:ignore
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root() {}
 
 /// cbindgen:ignore
 ///
 /// Something else.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn another_root() {}
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn no_ignore_root() {}
 
 /// cbindgen:ignore
@@ -23,7 +23,7 @@ pub struct IgnoreStructWithImpl;
 
 /// cbindgen:ignore
 impl IgnoreStructWithImpl {
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     pub extern "C" fn ignore_associated_method() {}
 
     pub const IGNORE_INNER_CONST: u32 = 0;
@@ -38,10 +38,10 @@ pub struct NoIgnoreStructWithImpl;
 
 impl NoIgnoreStructWithImpl {
     /// cbindgen:ignore
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     pub extern "C" fn ignore_associated_method() {}
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     pub extern "C" fn no_ignore_associated_method() {}
 
     /// cbindgen:ignore

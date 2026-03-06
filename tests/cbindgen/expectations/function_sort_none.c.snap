@@ -1,0 +1,17 @@
+---
+source: tests/tests.rs
+expression: "function_sort_none.c"
+snapshot_kind: text
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+void C(void);
+
+void B(void);
+
+void D(void);
+
+void A(void);

@@ -2,3 +2,4 @@
 name = "layout_packed_opaque"
 version = "0.1.0"
 authors = ["cbindgen"]
+edition.workspace = true

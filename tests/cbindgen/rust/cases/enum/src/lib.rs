@@ -145,7 +145,7 @@ enum R {
     IRBaz,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(
     opaque: *mut Opaque,
     a: A,

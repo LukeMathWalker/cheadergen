@@ -3,6 +3,6 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /// The root of all evil.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root() {
 }

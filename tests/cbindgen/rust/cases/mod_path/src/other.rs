@@ -14,5 +14,5 @@ pub struct DoNotExportMe {
 
 pub const EXPORT_ME_TOO: u8 = 0x2a;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn export_me(val: *mut ExportMe) { }

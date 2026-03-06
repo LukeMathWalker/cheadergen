@@ -1,0 +1,9 @@
+---
+source: tests/tests.rs
+expression: "infinite_recursion_typedef_monomorph.compat.c"
+snapshot_kind: text
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>

@@ -143,10 +143,21 @@ fn collect_variants(
 
     let skip_warning_as_error = path_segment.contains(".skip_warning_as_error");
 
+    let is_linestyle = path_segment.starts_with("linestyle_");
+
     for variant in variants {
         let expectation_file = variant.file_pattern.replace("{name}", base_name);
-        let expectation_path = expectations_dir.join(&expectation_file);
-        if expectation_path.exists() {
+
+        // Linestyle tests keep raw files; everything else uses .snap files.
+        let resolved_path = if is_linestyle {
+            let p = expectations_dir.join(&expectation_file);
+            if p.exists() { Some(p) } else { None }
+        } else {
+            let snap = expectations_dir.join(format!("{expectation_file}.snap"));
+            if snap.exists() { Some(snap) } else { None }
+        };
+
+        if let Some(resolved_path) = resolved_path {
             // Generate test
             let gen_line = format!(
                 "generate_variant!(r#{}, {:?}, {:?}, {}, {}, {});",
@@ -165,7 +176,7 @@ fn collect_variants(
             let compile_line = format!(
                 "compile_variant!(r#{}, {:?}, {}, {}, {}, {});",
                 identifier_base,
-                expectation_path,
+                resolved_path,
                 variant.lang,
                 variant.style,
                 skip_warning_as_error,

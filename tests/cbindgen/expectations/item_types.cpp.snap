@@ -1,0 +1,15 @@
+---
+source: tests/tests.rs
+expression: "item_types.cpp"
+snapshot_kind: text
+---
+#include <cstdarg>
+#include <cstdint>
+#include <cstdlib>
+#include <ostream>
+#include <new>
+
+enum class OnlyThisShouldBeGenerated : uint8_t {
+  Foo,
+  Bar,
+};

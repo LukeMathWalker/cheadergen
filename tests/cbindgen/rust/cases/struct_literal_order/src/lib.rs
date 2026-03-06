@@ -28,5 +28,5 @@ impl BAC {
     pub const cba: BAC = BAC { c: 3, b: 1, a: 2.0 };
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(a1: ABC, a2: BAC) {}

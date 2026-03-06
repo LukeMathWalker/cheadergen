@@ -1,0 +1,10 @@
+---
+source: tests/tests.rs
+expression: "cython_options.cpp"
+snapshot_kind: text
+---
+#include <cstdarg>
+#include <cstdint>
+#include <cstdlib>
+#include <ostream>
+#include <new>

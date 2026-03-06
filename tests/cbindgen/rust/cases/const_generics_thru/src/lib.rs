@@ -14,12 +14,12 @@ pub struct Outer<const N: usize> {
     pub inner: Inner<N>, // don't declare two different structs named `Inner_N`
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn one() -> Outer<1> {
     Outer { inner: Inner { bytes: [0] } }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn two() -> Outer<2> {
     Outer { inner: Inner { bytes: [0, 0] } }
 }

@@ -20,5 +20,5 @@ impl Bar {
     pub const FIELD_RELATED_CONSTANT: u32 = 0;
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(a: Foo, b: Bar) {}

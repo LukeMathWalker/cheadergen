@@ -9,6 +9,6 @@ mod foo {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn root(a: foo::Foo)
 { }
