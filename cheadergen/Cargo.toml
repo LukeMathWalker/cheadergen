@@ -9,4 +9,11 @@ categories = ["external-ffi-bindings", "development-tools::ffi"]
 repository = "https://github.com/LukeMathWalker/cheadergen"
 
 [dependencies]
+anyhow = "1"
+camino = "1"
 clap = { version = "4", features = ["derive"] }
+fs-err = "3"
+guppy = { workspace = true }
+rustdoc_ext = { workspace = true }
+rustdoc_processor = { workspace = true }
+rustdoc_types = { workspace = true }
