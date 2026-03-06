@@ -9,6 +9,7 @@ categories = ["external-ffi-bindings", "development-tools::ffi"]
 repository = "https://github.com/LukeMathWalker/cheadergen"
 
 [dependencies]
+clap = { version = "4", features = ["derive"] }
 
 [dev-dependencies]
 insta = "1"
