@@ -80,7 +80,8 @@ fn main() -> ExitCode {
         eprintln!("Error: {e:?}");
         return ExitCode::FAILURE;
     }
-    ExitCode::SUCCESS
+    // We haven't generated any header (yet)
+    ExitCode::FAILURE
 }
 
 fn run(cli: &Cli) -> anyhow::Result<()> {

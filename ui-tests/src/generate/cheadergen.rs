@@ -51,14 +51,16 @@ pub(crate) static WORKSPACE_METADATA: LazyLock<PathBuf> = LazyLock::new(|| {
     )
 });
 
-pub(crate) fn run_cbindgen(
+pub(crate) fn run_cheadergen(
     path: &Path,
     language: Language,
     cpp_compat: bool,
     style: Option<Style>,
     metadata: &Path,
-) -> Vec<u8> {
-    let mut command = Command::new("cbindgen");
+) -> std::process::Output {
+    let cheadergen = env::var("CARGO_BIN_EXE_cheadergen")
+        .expect("CARGO_BIN_EXE_cheadergen not set — add cheadergen as a dev-dependency");
+    let mut command = Command::new(cheadergen);
 
     command.arg("--metadata").arg(metadata);
 
@@ -87,16 +89,7 @@ pub(crate) fn run_cbindgen(
     command.arg(path);
 
     println!("Running: {command:?}");
-    let output = command
+    command
         .output()
-        .expect("failed to execute cbindgen — is it installed and on PATH?");
-
-    assert!(
-        output.status.success(),
-        "cbindgen failed for {:?} with error: {}",
-        path,
-        str::from_utf8(&output.stderr).unwrap_or_default()
-    );
-
-    output.stdout
+        .expect("failed to execute cheadergen — is it built?")
 }

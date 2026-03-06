@@ -147,6 +147,7 @@ fn collect_variants(
 
     for variant in variants {
         let expectation_file = variant.file_pattern.replace("{name}", base_name);
+        let variant_path = variant.module_path.join("/");
 
         // Linestyle tests keep raw files; everything else uses .snap files.
         let resolved_path = if is_linestyle {
@@ -160,9 +161,10 @@ fn collect_variants(
         if let Some(resolved_path) = resolved_path {
             // Generate test
             let gen_line = format!(
-                "generate_variant!(r#{}, {:?}, {:?}, {}, {}, {});",
+                "generate_variant!(r#{}, {:?}, {:?}, {:?}, {}, {}, {});",
                 identifier_base,
                 path_segment,
+                variant_path,
                 case_path,
                 variant.lang,
                 variant.style,
@@ -174,8 +176,10 @@ fn collect_variants(
 
             // Compile test
             let compile_line = format!(
-                "compile_variant!(r#{}, {:?}, {}, {}, {}, {});",
+                "compile_variant!(r#{}, {:?}, {:?}, {:?}, {}, {}, {}, {});",
                 identifier_base,
+                path_segment,
+                variant_path,
                 resolved_path,
                 variant.lang,
                 variant.style,

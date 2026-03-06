@@ -7,18 +7,21 @@ use std::path::Path;
 use ui_tests::*;
 
 macro_rules! generate_variant {
-    ($fn_name:ident, $name:expr, $file:tt, $lang:expr, $style:expr, $cpp_compat:expr) => {
+    ($fn_name:ident, $name:expr, $variant_path:expr, $file:tt, $lang:expr, $style:expr, $cpp_compat:expr) => {
         #[test]
         fn $fn_name() {
-            run_generate_test($name, Path::new($file), $lang, $style, $cpp_compat);
+            run_xfail_generate_test($name, $variant_path, Path::new($file), $lang, $style, $cpp_compat);
         }
     };
 }
 
 macro_rules! compile_variant {
-    ($fn_name:ident, $expectation:expr, $lang:expr, $style:expr, $skip_warn:expr, $cpp_compat:expr) => {
+    ($fn_name:ident, $name:expr, $variant_path:expr, $expectation:expr, $lang:expr, $style:expr, $skip_warn:expr, $cpp_compat:expr) => {
         #[test]
         fn $fn_name() {
+            if is_xfail($name, $variant_path) {
+                return;
+            }
             run_compile_check(
                 Path::new($expectation),
                 $lang,
