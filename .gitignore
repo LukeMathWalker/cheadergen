@@ -27,6 +27,13 @@ metadata.json
 # Generated test manifest for staleness detection
 .test_manifest
 
+# Compilation test cache (local-only)
+*.snap.hash
+*.snap.hash-cxx
+*.c.hash
+*.cpp.hash
+*.pyx.hash
+
 # Added by cargo
 
 /target

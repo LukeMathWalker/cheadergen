@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::LazyLock;
@@ -219,6 +220,88 @@ fn read_snap_content(snap_path: &Path) -> String {
     rest[idx + "\n---\n".len()..].to_string()
 }
 
+const COMPILE_CACHE_VERSION: &str = "v1";
+
+fn compile_cache_enabled() -> bool {
+    env::var("CHEADERGEN_NO_COMPILE_CACHE").is_err()
+}
+
+fn compute_compile_hash(
+    snap_or_raw: &Path,
+    language: Language,
+    style: Option<Style>,
+    skip_warning_as_error: bool,
+    cpp_compat: bool,
+    compile_as_cxx: bool,
+) -> u64 {
+    let mut hasher = std::hash::DefaultHasher::new();
+    COMPILE_CACHE_VERSION.hash(&mut hasher);
+
+    // File content
+    let content = fs::read(snap_or_raw).unwrap_or_default();
+    content.hash(&mut hasher);
+
+    // Compilation parameters
+    language.hash(&mut hasher);
+    style.hash(&mut hasher);
+    skip_warning_as_error.hash(&mut hasher);
+    cpp_compat.hash(&mut hasher);
+    compile_as_cxx.hash(&mut hasher);
+
+    // Compiler path
+    let effective_lang = if compile_as_cxx { Language::Cxx } else { language };
+    let compiler = match effective_lang {
+        Language::Cxx => env::var("CXX").unwrap_or_else(|_| "g++".to_owned()),
+        Language::C => env::var("CC").unwrap_or_else(|_| "gcc".to_owned()),
+        Language::Cython => env::var("CYTHON").unwrap_or_else(|_| "cython".to_owned()),
+    };
+    compiler.hash(&mut hasher);
+
+    // Extra flags
+    match effective_lang {
+        Language::Cxx => {
+            if let Ok(flags) = env::var("CXXFLAGS") {
+                flags.hash(&mut hasher);
+            }
+        }
+        Language::C => {
+            if let Ok(flags) = env::var("CFLAGS") {
+                flags.hash(&mut hasher);
+            }
+        }
+        Language::Cython => {}
+    }
+
+    // testing-helpers.h content (relevant for C/C++ compiles)
+    if matches!(effective_lang, Language::C | Language::Cxx) {
+        let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+        let helpers_path = Path::new(&crate_dir).join("tests/testing-helpers.h");
+        if let Ok(helpers) = fs::read(&helpers_path) {
+            helpers.hash(&mut hasher);
+        }
+    }
+
+    hasher.finish()
+}
+
+fn cache_path_for(snap_or_raw: &Path, cpp_compat_cxx: bool) -> PathBuf {
+    let mut p = snap_or_raw.as_os_str().to_owned();
+    if cpp_compat_cxx {
+        p.push(".hash-cxx");
+    } else {
+        p.push(".hash");
+    }
+    PathBuf::from(p)
+}
+
+fn read_cached_hash(path: &Path) -> Option<u64> {
+    fs::read_to_string(path).ok()?.trim().parse().ok()
+}
+
+fn write_cached_hash(path: &Path, hash: u64) {
+    let _ = fs::write(path, hash.to_string());
+}
+
 fn run_generate_test(
     name: &str,
     path: &Path,
@@ -289,6 +372,35 @@ fn run_compile_check(
     skip_warning_as_error: bool,
     cpp_compat: bool,
 ) {
+    let use_cache = compile_cache_enabled();
+
+    // Check primary compilation cache.
+    let primary_hash = compute_compile_hash(
+        snap_or_raw, language, style, skip_warning_as_error, cpp_compat, false,
+    );
+    let primary_cache = cache_path_for(snap_or_raw, false);
+    let primary_cached =
+        use_cache && read_cached_hash(&primary_cache).is_some_and(|h| h == primary_hash);
+
+    // Check secondary (cpp_compat C++ re-compilation) cache.
+    let secondary_needed = language == Language::C && cpp_compat;
+    let secondary_hash = if secondary_needed {
+        compute_compile_hash(
+            snap_or_raw, language, style, skip_warning_as_error, cpp_compat, true,
+        )
+    } else {
+        0
+    };
+    let secondary_cache = cache_path_for(snap_or_raw, true);
+    let secondary_cached = secondary_needed
+        && use_cache
+        && read_cached_hash(&secondary_cache).is_some_and(|h| h == secondary_hash);
+
+    // If everything is cached, skip entirely.
+    if primary_cached && (!secondary_needed || secondary_cached) {
+        return;
+    }
+
     let tmp_dir = tempfile::Builder::new()
         .prefix("cheadergen-test-output")
         .tempdir()
@@ -315,17 +427,22 @@ fn run_compile_check(
         snap_or_raw.to_path_buf()
     };
 
-    compile(
-        &source_file,
-        &tests_path,
-        tmp_dir.path(),
-        language,
-        style,
-        skip_warning_as_error,
-        cpp_compat,
-    );
+    if !primary_cached {
+        compile(
+            &source_file,
+            &tests_path,
+            tmp_dir.path(),
+            language,
+            style,
+            skip_warning_as_error,
+            cpp_compat,
+        );
+        if use_cache {
+            write_cached_hash(&primary_cache, primary_hash);
+        }
+    }
 
-    if language == Language::C && cpp_compat {
+    if secondary_needed && !secondary_cached {
         compile(
             &source_file,
             &tests_path,
@@ -335,6 +452,9 @@ fn run_compile_check(
             skip_warning_as_error,
             cpp_compat,
         );
+        if use_cache {
+            write_cached_hash(&secondary_cache, secondary_hash);
+        }
     }
 }
 
