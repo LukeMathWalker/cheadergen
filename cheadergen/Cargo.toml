@@ -1,0 +1,12 @@
+[package]
+name = "cheadergen"
+version = "0.1.0"
+edition = "2024"
+description = "A tool for generating C bindings to Rust code."
+license = "Apache-2.0"
+keywords = ["bindings", "ffi", "code-generation"]
+categories = ["external-ffi-bindings", "development-tools::ffi"]
+repository = "https://github.com/LukeMathWalker/cheadergen"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }

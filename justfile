@@ -5,7 +5,7 @@ fmt action="fmt":
 
 # Run linter
 lint:
-    cargo clippy --all-targets -- -D warnings
+    cargo clippy --workspace --all-targets -- -D warnings
 
 # Run tests
 # Use `just test <nextest args>` to pass filters and flags
@@ -13,15 +13,15 @@ lint:
 #   just test -E 'test(=cbindgen::generate::c::plain::alias)'
 # to run a single test.
 test +args="":
-    cargo +nightly nextest run {{ args }}
+    cargo +nightly nextest run -p ui-tests {{ args }}
 
 # Run only cbindgen tests
 test-cbindgen +args="":
-    cargo +nightly nextest run -E 'test(~^cbindgen::)' {{ args }}
+    cargo +nightly nextest run -p ui-tests -E 'test(~^cbindgen::)' {{ args }}
 
 # Run only generation tests (no compilation)
 test-generate +args="":
-    cargo +nightly nextest run -E 'test(~::generate::)' {{ args }}
+    cargo +nightly nextest run -p ui-tests -E 'test(~::generate::)' {{ args }}
 
 # Run all checks
 verify: lint (fmt "check") test

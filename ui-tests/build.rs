@@ -297,24 +297,25 @@ fn main() {
     let mut dst = File::create(Path::new(&out_dir).join("tests.rs")).unwrap();
 
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    let tests_dir = manifest_dir.join("tests");
 
     let mut root = ModNode::new();
 
     let cbindgen = TestSuite {
         name: "cbindgen",
-        cases_dir: manifest_dir.join("tests/cbindgen/rust/cases"),
-        expectations_dir: manifest_dir.join("tests/cbindgen/expectations"),
+        cases_dir: tests_dir.join("cbindgen/rust/cases"),
+        expectations_dir: tests_dir.join("cbindgen/expectations"),
         extra_dirs: vec![
-            manifest_dir.join("tests/cbindgen/rust/workspace"),
-            manifest_dir.join("tests/cbindgen/rust/external_workspace_child"),
+            tests_dir.join("cbindgen/rust/workspace"),
+            tests_dir.join("cbindgen/rust/external_workspace_child"),
         ],
-        manifest_path: Some(manifest_dir.join("tests/cbindgen/.test_manifest")),
+        manifest_path: Some(tests_dir.join("cbindgen/.test_manifest")),
     };
 
     let cheadergen = TestSuite {
         name: "cheadergen",
-        cases_dir: manifest_dir.join("tests/cheadergen/rust/cases"),
-        expectations_dir: manifest_dir.join("tests/cheadergen/expectations"),
+        cases_dir: tests_dir.join("cheadergen/rust/cases"),
+        expectations_dir: tests_dir.join("cheadergen/expectations"),
         extra_dirs: vec![],
         manifest_path: None,
     };

@@ -4,7 +4,7 @@ experimental = ["setup-scripts"]
 dir = "target/nextest"
 
 [scripts.setup.compute-metadata]
-command = ["tests/setup-metadata.sh"]
+command = ["ui-tests/tests/setup-metadata.sh"]
 
 [[profile.default.scripts]]
 filter = 'test(~::generate::)'
