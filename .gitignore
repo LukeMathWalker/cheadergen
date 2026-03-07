@@ -37,6 +37,7 @@ metadata.json
 # Coverage reports
 lcov.info
 codecov.json
+*.profraw
 
 # Added by cargo
 
