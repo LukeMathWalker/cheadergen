@@ -25,7 +25,7 @@ pub fn invoke_cheadergen(
     cpp_compat: bool,
 ) -> std::process::Output {
     let path_str = path.to_str().unwrap();
-    let metadata = if path_str.contains("cheadergen") {
+    let metadata = if path_str.contains("tests/cheadergen/") {
         &*CHEADERGEN_CASES_METADATA
     } else if path_str.contains("/cases/") {
         &*CBINDGEN_CASES_METADATA

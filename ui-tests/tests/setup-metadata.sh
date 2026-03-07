@@ -22,5 +22,5 @@ cargo metadata --all-features --format-version 1 \
     > "$SCRIPT_DIR/cheadergen/rust/cases/metadata.json"
 
 echo "CBINDGEN_CASES_METADATA=$SCRIPT_DIR/cbindgen/rust/cases/metadata.json" >> "$NEXTEST_ENV"
-echo "CBINDGEN_WORKSPACE_METADATA=$SCRIPT_DIR/cbindgen/rust/cases/metadata.json" >> "$NEXTEST_ENV"
+echo "CBINDGEN_WORKSPACE_METADATA=$SCRIPT_DIR/cbindgen/rust/workspace/metadata.json" >> "$NEXTEST_ENV"
 echo "CHEADERGEN_CASES_METADATA=$SCRIPT_DIR/cheadergen/rust/cases/metadata.json" >> "$NEXTEST_ENV"

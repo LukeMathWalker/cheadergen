@@ -1,5 +1,0 @@
----
-source: tests/tests.rs
-expression: "simple_struct.pyx"
-snapshot_kind: text
----

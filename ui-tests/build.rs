@@ -132,6 +132,7 @@ fn collect_variants(
     path_segment: &str,
     case_path: &Path,
     xfail: &HashSet<String>,
+    emit_generate_without_snap: bool,
 ) {
     let expectations_dir = case_path.join("expectations");
     let base_name = path_segment
@@ -159,15 +160,17 @@ fn collect_variants(
             if snap.exists() { Some(snap) } else { None }
         };
 
-        if let Some(resolved_path) = resolved_path {
-            let xfail_key = format!("{} {}", path_segment, variant_path);
-            let xfail_token = if xfail.contains(&xfail_key) {
-                "xfail, "
-            } else {
-                ""
-            };
+        let xfail_key = format!("{} {}", path_segment, variant_path);
+        let xfail_token = if xfail.contains(&xfail_key) {
+            "xfail, "
+        } else {
+            ""
+        };
 
-            // Generate test
+        // Emit generate test when a snapshot exists, or unconditionally for
+        // non-linestyle suites that opt in (cheadergen). Cbindgen generate
+        // tests are only emitted when a snapshot file exists.
+        if resolved_path.is_some() || (emit_generate_without_snap && !is_linestyle) {
             let gen_line = format!(
                 "generate_variant!({xfail_token}r#{}, {:?}, {:?}, {:?}, {}, {}, {});",
                 identifier_base,
@@ -181,8 +184,10 @@ fn collect_variants(
             let mut gen_path: Vec<&str> = vec![suite, "generate"];
             gen_path.extend_from_slice(variant.module_path);
             root.insert(&gen_path, gen_line);
+        }
 
-            // Compile test
+        // Compile test requires the snapshot content, so only emit when it exists.
+        if let Some(resolved_path) = resolved_path {
             let compile_line = format!(
                 "compile_variant!({xfail_token}r#{}, {:?}, {:?}, {:?}, {}, {}, {}, {});",
                 identifier_base,
@@ -206,6 +211,7 @@ struct TestSuite<'a> {
     cases_dir: PathBuf,
     extra_dirs: Vec<PathBuf>,
     manifest_path: Option<PathBuf>,
+    emit_generate_without_snap: bool,
 }
 
 fn process_suite(
@@ -251,6 +257,7 @@ fn process_suite(
             &path_segment,
             &entry.path(),
             xfail,
+            suite.emit_generate_without_snap,
         );
 
         case_names.push(path_segment);
@@ -295,7 +302,15 @@ fn process_suite(
 
         let path_segment = dir.file_name().unwrap().to_str().unwrap().to_owned();
 
-        collect_variants(root, variants, suite.name, &path_segment, dir, xfail);
+        collect_variants(
+            root,
+            variants,
+            suite.name,
+            &path_segment,
+            dir,
+            xfail,
+            suite.emit_generate_without_snap,
+        );
     }
 
     case_names
@@ -329,6 +344,7 @@ fn main() {
             tests_dir.join("cbindgen/rust/external_workspace_child"),
         ],
         manifest_path: Some(tests_dir.join("cbindgen/.test_manifest")),
+        emit_generate_without_snap: false,
     };
 
     let cheadergen = TestSuite {
@@ -336,6 +352,7 @@ fn main() {
         cases_dir: tests_dir.join("cheadergen/rust/cases"),
         extra_dirs: vec![],
         manifest_path: None,
+        emit_generate_without_snap: true,
     };
 
     let empty_xfail = HashSet::new();

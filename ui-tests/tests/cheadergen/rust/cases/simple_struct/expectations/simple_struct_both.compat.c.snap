@@ -1,5 +1,0 @@
----
-source: tests/tests.rs
-expression: "simple_struct_both.compat.c"
-snapshot_kind: text
----
