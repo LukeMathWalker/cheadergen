@@ -36,7 +36,7 @@ test-cbindgen-xfail +args="":
 coverage format="html":
     #!/usr/bin/env bash
     set -euo pipefail
-    source <(cargo llvm-cov show-env --sh --no-cfg-coverage --no-cfg-coverage)
+    source <(cargo llvm-cov show-env --sh --no-cfg-coverage)
     cargo llvm-cov clean --workspace
     just test
     report_args=()
