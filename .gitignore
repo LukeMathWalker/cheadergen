@@ -34,6 +34,10 @@ metadata.json
 *.cpp.hash
 *.pyx.hash
 
+# Coverage reports
+lcov.info
+codecov.json
+
 # Added by cargo
 
 /target

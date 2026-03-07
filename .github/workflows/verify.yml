@@ -17,15 +17,23 @@ jobs:
       - uses: extractions/setup-just@v2
       - run: just lint
 
-  test:
+  coverage:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: nightly
+          components: llvm-tools-preview
+      - uses: taiki-e/install-action@cargo-llvm-cov
+      - uses: taiki-e/install-action@nextest
       - uses: extractions/setup-just@v2
-      - run: just test
+      - run: just coverage codecov
+      - uses: codecov/codecov-action@v5
+        with:
+          files: codecov.json
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
 
   fmt:
     runs-on: ubuntu-latest
