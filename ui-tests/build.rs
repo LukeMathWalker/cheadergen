@@ -8,6 +8,18 @@ use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+fn read_xfail(case_path: &Path) -> HashSet<String> {
+    let xfail_path = case_path.join("xfail.txt");
+    println!("cargo:rerun-if-changed={}", xfail_path.display());
+    fs::read_to_string(&xfail_path)
+        .unwrap_or_default()
+        .lines()
+        .map(|l| l.split('#').next().unwrap().trim())
+        .filter(|l| !l.is_empty())
+        .map(|l| l.to_owned())
+        .collect()
+}
+
 struct Variant {
     module_path: &'static [&'static str],
     lang: &'static str,
@@ -131,7 +143,6 @@ fn collect_variants(
     suite: &str,
     path_segment: &str,
     case_path: &Path,
-    xfail: &HashSet<String>,
     emit_generate_without_snap: bool,
 ) {
     let expectations_dir = case_path.join("expectations");
@@ -147,6 +158,8 @@ fn collect_variants(
 
     let is_linestyle = path_segment.starts_with("linestyle_");
 
+    let local_xfail = read_xfail(case_path);
+
     for variant in variants {
         let expectation_file = variant.file_pattern.replace("{name}", base_name);
         let variant_path = variant.module_path.join("/");
@@ -160,8 +173,7 @@ fn collect_variants(
             if snap.exists() { Some(snap) } else { None }
         };
 
-        let xfail_key = format!("{} {}", path_segment, variant_path);
-        let xfail_token = if xfail.contains(&xfail_key) {
+        let xfail_token = if local_xfail.contains(&variant_path) {
             "xfail, "
         } else {
             ""
@@ -220,7 +232,6 @@ fn process_suite(
     root: &mut ModNode,
     variants: &[Variant],
     const_name: &str,
-    xfail: &HashSet<String>,
 ) -> Vec<String> {
     // Watch the cases workspace definition.
     println!(
@@ -234,6 +245,11 @@ fn process_suite(
         let entry = entry.expect("Couldn't read test entry");
 
         if !entry.file_type().unwrap().is_dir() {
+            continue;
+        }
+
+        // Skip directories that aren't crates (e.g. `target/`).
+        if !entry.path().join("Cargo.toml").exists() {
             continue;
         }
 
@@ -256,7 +272,6 @@ fn process_suite(
             suite.name,
             &path_segment,
             &entry.path(),
-            xfail,
             suite.emit_generate_without_snap,
         );
 
@@ -308,7 +323,6 @@ fn process_suite(
             suite.name,
             &path_segment,
             dir,
-            xfail,
             suite.emit_generate_without_snap,
         );
     }
@@ -324,17 +338,6 @@ fn main() {
     let tests_dir = manifest_dir.join("tests");
 
     let mut root = ModNode::new();
-
-    // Parse xfail sets for each suite.
-    let xfail_path = tests_dir.join("cbindgen/xfail.txt");
-    println!("cargo:rerun-if-changed={}", xfail_path.display());
-    let cbindgen_xfail: HashSet<String> = fs::read_to_string(&xfail_path)
-        .unwrap_or_default()
-        .lines()
-        .map(|l| l.trim())
-        .filter(|l| !l.is_empty() && !l.starts_with('#'))
-        .map(|l| l.to_owned())
-        .collect();
 
     let cbindgen = TestSuite {
         name: "cbindgen",
@@ -355,15 +358,12 @@ fn main() {
         emit_generate_without_snap: true,
     };
 
-    let empty_xfail = HashSet::new();
-
     process_suite(
         &cbindgen,
         &mut dst,
         &mut root,
         VARIANTS,
         "KNOWN_CBINDGEN_CASES",
-        &cbindgen_xfail,
     );
 
     if cheadergen.cases_dir.is_dir() {
@@ -373,7 +373,6 @@ fn main() {
             &mut root,
             VARIANTS,
             "KNOWN_CHEADERGEN_CASES",
-            &empty_xfail,
         );
     } else {
         writeln!(dst).unwrap();

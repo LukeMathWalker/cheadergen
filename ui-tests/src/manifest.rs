@@ -12,7 +12,9 @@ fn collect_case_dirs(cases_dir: &Path) -> Vec<String> {
         .expect("failed to read cases dir")
         .filter_map(|entry| {
             let entry = entry.ok()?;
-            if entry.file_type().ok()?.is_dir() {
+            if entry.file_type().ok()?.is_dir()
+                && entry.path().join("Cargo.toml").exists()
+            {
                 Some(entry.file_name().to_str()?.to_owned())
             } else {
                 None
