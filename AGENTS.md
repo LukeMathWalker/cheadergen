@@ -50,9 +50,10 @@ just test
 just test-cbindgen
 # Run only generation tests, no compilation (faster feedback loop)
 just test-generate
+# Run xfail cbindgen tests (expected failures)
+just test-cbindgen-xfail
 ```
 
-Tests require the `nightly` toolchain (`rustup toolchain install nightly`).
 The test suite uses `cbindgen` to generate C/C++ headers from mini-crates under `tests/rust/cases/`
 and compares the output against expected headers in `tests/expectations/`.
 

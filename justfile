@@ -13,15 +13,19 @@ lint:
 #   just test -E 'test(=cbindgen::generate::c::plain::alias)'
 # to run a single test.
 test +args="":
-    cargo +nightly nextest run -p ui-tests {{ args }}
+    cargo nextest run --no-tests pass {{ args }}
 
 # Run only cbindgen tests
 test-cbindgen +args="":
-    cargo +nightly nextest run -p ui-tests -E 'test(~^cbindgen::)' {{ args }}
+    cargo nextest run -p ui-tests --no-tests pass -E 'test(~^cbindgen::)' {{ args }}
 
 # Run only generation tests (no compilation)
 test-generate +args="":
-    cargo +nightly nextest run -p ui-tests -E 'test(~::generate::)' {{ args }}
+    cargo nextest run -p ui-tests --no-tests pass -E 'test(~::generate::)' {{ args }}
+
+# Run xfail cbindgen tests (expected failures)
+test-cbindgen-xfail +args="":
+    cargo nextest run -p ui-tests --run-ignored ignored-only -E 'test(~^cbindgen::)' {{ args }}
 
 # Compute project coverage by running tests with instrumentation enabled
 # Report formats: html (default), codecov, lcov, text
@@ -32,7 +36,7 @@ test-generate +args="":
 coverage format="html":
     #!/usr/bin/env bash
     set -euo pipefail
-    source <(cargo +nightly llvm-cov show-env --sh --no-cfg-coverage --no-cfg-coverage-nightly)
+    source <(cargo llvm-cov show-env --sh --no-cfg-coverage --no-cfg-coverage)
     cargo llvm-cov clean --workspace
     just test
     report_args=()

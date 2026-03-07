@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::env;
 use std::fs::{self, File};
 use std::io::Write;
@@ -132,6 +132,7 @@ fn collect_variants(
     expectations_dir: &Path,
     path_segment: &str,
     case_path: &Path,
+    xfail: &HashSet<String>,
 ) {
     let base_name = path_segment
         .strip_suffix(".skip_warning_as_error")
@@ -159,9 +160,16 @@ fn collect_variants(
         };
 
         if let Some(resolved_path) = resolved_path {
+            let xfail_key = format!("{} {}", path_segment, variant_path);
+            let xfail_token = if xfail.contains(&xfail_key) {
+                "xfail, "
+            } else {
+                ""
+            };
+
             // Generate test
             let gen_line = format!(
-                "generate_variant!(r#{}, {:?}, {:?}, {:?}, {}, {}, {});",
+                "generate_variant!({xfail_token}r#{}, {:?}, {:?}, {:?}, {}, {}, {});",
                 identifier_base,
                 path_segment,
                 variant_path,
@@ -176,7 +184,7 @@ fn collect_variants(
 
             // Compile test
             let compile_line = format!(
-                "compile_variant!(r#{}, {:?}, {:?}, {:?}, {}, {}, {}, {});",
+                "compile_variant!({xfail_token}r#{}, {:?}, {:?}, {:?}, {}, {}, {}, {});",
                 identifier_base,
                 path_segment,
                 variant_path,
@@ -207,6 +215,7 @@ fn process_suite(
     root: &mut ModNode,
     variants: &[Variant],
     const_name: &str,
+    xfail: &HashSet<String>,
 ) -> Vec<String> {
     // Watch the cases workspace definition.
     println!(
@@ -244,6 +253,7 @@ fn process_suite(
             &suite.expectations_dir,
             &path_segment,
             &entry.path(),
+            xfail,
         );
 
         case_names.push(path_segment);
@@ -290,6 +300,7 @@ fn process_suite(
             &suite.expectations_dir,
             &path_segment,
             dir,
+            xfail,
         );
     }
 
@@ -304,6 +315,17 @@ fn main() {
     let tests_dir = manifest_dir.join("tests");
 
     let mut root = ModNode::new();
+
+    // Parse xfail sets for each suite.
+    let xfail_path = tests_dir.join("cbindgen/xfail.txt");
+    println!("cargo:rerun-if-changed={}", xfail_path.display());
+    let cbindgen_xfail: HashSet<String> = fs::read_to_string(&xfail_path)
+        .unwrap_or_default()
+        .lines()
+        .map(|l| l.trim())
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .map(|l| l.to_owned())
+        .collect();
 
     let cbindgen = TestSuite {
         name: "cbindgen",
@@ -324,10 +346,26 @@ fn main() {
         manifest_path: None,
     };
 
-    process_suite(&cbindgen, &mut dst, &mut root, VARIANTS, "KNOWN_CBINDGEN_CASES");
+    let empty_xfail = HashSet::new();
+
+    process_suite(
+        &cbindgen,
+        &mut dst,
+        &mut root,
+        VARIANTS,
+        "KNOWN_CBINDGEN_CASES",
+        &cbindgen_xfail,
+    );
 
     if cheadergen.cases_dir.is_dir() {
-        process_suite(&cheadergen, &mut dst, &mut root, VARIANTS, "KNOWN_CHEADERGEN_CASES");
+        process_suite(
+            &cheadergen,
+            &mut dst,
+            &mut root,
+            VARIANTS,
+            "KNOWN_CHEADERGEN_CASES",
+            &empty_xfail,
+        );
     } else {
         writeln!(dst).unwrap();
         writeln!(dst, "const KNOWN_CHEADERGEN_CASES: &[&str] = &[];").unwrap();
