@@ -318,6 +318,7 @@ dependencies = [
  "clap",
  "fs-err",
  "guppy",
+ "pathdiff",
  "rustdoc_ext",
  "rustdoc_processor",
  "rustdoc_types",

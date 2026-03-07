@@ -9,8 +9,8 @@ use std::fs;
 use std::path::Path;
 
 use cache::{
-    cache_path_for, compile_cache_enabled, compute_compile_hash, read_cached_hash, read_snap_content,
-    write_cached_hash,
+    cache_path_for, compile_cache_enabled, compute_compile_hash, read_cached_hash,
+    read_snap_content, write_cached_hash,
 };
 use invoke::compile;
 
@@ -27,7 +27,12 @@ pub fn run_compile_check(
 
     // Check primary compilation cache.
     let primary_hash = compute_compile_hash(
-        snap_or_raw, language, style, skip_warning_as_error, cpp_compat, false,
+        snap_or_raw,
+        language,
+        style,
+        skip_warning_as_error,
+        cpp_compat,
+        false,
     );
     let primary_cache = cache_path_for(snap_or_raw, false);
     let primary_cached =
@@ -37,7 +42,12 @@ pub fn run_compile_check(
     let secondary_needed = language == Language::C && cpp_compat;
     let secondary_hash = if secondary_needed {
         compute_compile_hash(
-            snap_or_raw, language, style, skip_warning_as_error, cpp_compat, true,
+            snap_or_raw,
+            language,
+            style,
+            skip_warning_as_error,
+            cpp_compat,
+            true,
         )
     } else {
         0

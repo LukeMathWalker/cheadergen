@@ -1,0 +1,4 @@
+[package]
+name = "simple_struct"
+version = "0.1.0"
+edition.workspace = true

@@ -1,0 +1,5 @@
+---
+source: tests/tests.rs
+expression: "simple_struct_tag.pyx"
+snapshot_kind: text
+---

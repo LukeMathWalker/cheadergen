@@ -295,14 +295,7 @@ fn process_suite(
 
         let path_segment = dir.file_name().unwrap().to_str().unwrap().to_owned();
 
-        collect_variants(
-            root,
-            variants,
-            suite.name,
-            &path_segment,
-            dir,
-            xfail,
-        );
+        collect_variants(root, variants, suite.name, &path_segment, dir, xfail);
     }
 
     case_names

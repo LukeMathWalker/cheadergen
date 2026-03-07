@@ -38,16 +38,23 @@ fn get_metadata(env_var: &str, workspace: &Path) -> PathBuf {
     }
 }
 
-pub(crate) static CASES_METADATA: LazyLock<PathBuf> = LazyLock::new(|| {
+pub(crate) static CBINDGEN_CASES_METADATA: LazyLock<PathBuf> = LazyLock::new(|| {
     get_metadata(
-        "CHEADERGEN_CASES_METADATA",
+        "CBINDGEN_CASES_METADATA",
         &tests_dir().join("cbindgen/rust/cases"),
     )
 });
 
-pub(crate) static WORKSPACE_METADATA: LazyLock<PathBuf> = LazyLock::new(|| {
+pub(crate) static CHEADERGEN_CASES_METADATA: LazyLock<PathBuf> = LazyLock::new(|| {
     get_metadata(
-        "CHEADERGEN_WORKSPACE_METADATA",
+        "CHEADERGEN_CASES_METADATA",
+        &tests_dir().join("cheadergen/rust/cases"),
+    )
+});
+
+pub(crate) static CBINDGEN_WORKSPACE_METADATA: LazyLock<PathBuf> = LazyLock::new(|| {
+    get_metadata(
+        "CBINDGEN_WORKSPACE_METADATA",
         &tests_dir().join("cbindgen/rust/workspace"),
     )
 });

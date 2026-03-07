@@ -37,7 +37,11 @@ pub(crate) fn compute_compile_hash(
     compile_as_cxx.hash(&mut hasher);
 
     // Compiler path
-    let effective_lang = if compile_as_cxx { Language::Cxx } else { language };
+    let effective_lang = if compile_as_cxx {
+        Language::Cxx
+    } else {
+        language
+    };
     let compiler = match effective_lang {
         Language::Cxx => env::var("CXX").unwrap_or_else(|_| "g++".to_owned()),
         Language::C => env::var("CC").unwrap_or_else(|_| "gcc".to_owned()),

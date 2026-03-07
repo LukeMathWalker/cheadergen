@@ -8,7 +8,9 @@ use std::path::Path;
 use std::{fs, str};
 
 use crate::{Language, Style};
-use cheadergen::{CASES_METADATA, WORKSPACE_METADATA, run_cheadergen};
+use cheadergen::{
+    CBINDGEN_CASES_METADATA, CBINDGEN_WORKSPACE_METADATA, CHEADERGEN_CASES_METADATA, run_cheadergen,
+};
 
 const SKIP_WARNING_AS_ERROR_SUFFIX: &str = ".skip_warning_as_error";
 
@@ -23,10 +25,12 @@ pub fn invoke_cheadergen(
     cpp_compat: bool,
 ) -> std::process::Output {
     let path_str = path.to_str().unwrap();
-    let metadata = if path_str.contains("/cases/") {
-        &*CASES_METADATA
+    let metadata = if path_str.contains("cheadergen") {
+        &*CHEADERGEN_CASES_METADATA
+    } else if path_str.contains("/cases/") {
+        &*CBINDGEN_CASES_METADATA
     } else {
-        &*WORKSPACE_METADATA
+        &*CBINDGEN_WORKSPACE_METADATA
     };
     run_cheadergen(path, language, cpp_compat, style, metadata)
 }

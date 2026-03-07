@@ -1,0 +1,5 @@
+---
+source: tests/tests.rs
+expression: "simple_struct.c"
+snapshot_kind: text
+---

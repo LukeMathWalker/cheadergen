@@ -13,6 +13,7 @@ anyhow = "1"
 camino = "1"
 clap = { version = "4", features = ["derive"] }
 fs-err = "3"
+pathdiff = "0.2"
 guppy = { workspace = true }
 rustdoc_ext = { workspace = true }
 rustdoc_processor = { workspace = true }

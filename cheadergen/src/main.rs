@@ -109,6 +109,7 @@ fn run(cli: &Cli) -> anyhow::Result<()> {
     let package_id = if let Some(ref input) = cli.input {
         let input = input.canonicalize()?;
         let input = camino::Utf8PathBuf::try_from(input)?;
+        let input = pathdiff::diff_utf8_paths(input, workspace.root()).expect("Failed to compute the relative path to target crate, with respect to the workspace root");
         workspace
             .member_by_path(&input)
             .map_err(|e| anyhow::anyhow!("Could not find workspace member for {input}: {e}"))?
