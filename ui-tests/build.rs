@@ -129,11 +129,11 @@ fn collect_variants(
     root: &mut ModNode,
     variants: &[Variant],
     suite: &str,
-    expectations_dir: &Path,
     path_segment: &str,
     case_path: &Path,
     xfail: &HashSet<String>,
 ) {
+    let expectations_dir = case_path.join("expectations");
     let base_name = path_segment
         .strip_suffix(".skip_warning_as_error")
         .unwrap_or(path_segment);
@@ -204,7 +204,6 @@ fn collect_variants(
 struct TestSuite<'a> {
     name: &'a str,
     cases_dir: PathBuf,
-    expectations_dir: PathBuf,
     extra_dirs: Vec<PathBuf>,
     manifest_path: Option<PathBuf>,
 }
@@ -223,12 +222,6 @@ fn process_suite(
         suite.cases_dir.join("Cargo.toml").display()
     );
 
-    // Watch the expectations directory so new/removed files trigger regeneration.
-    println!(
-        "cargo:rerun-if-changed={}",
-        suite.expectations_dir.display()
-    );
-
     let mut case_names: Vec<String> = Vec::new();
 
     for entry in fs::read_dir(&suite.cases_dir).unwrap() {
@@ -245,12 +238,16 @@ fn process_suite(
             "cargo:rerun-if-changed={}",
             entry.path().join("Cargo.toml").display()
         );
+        // Watch per-case expectations directory.
+        println!(
+            "cargo:rerun-if-changed={}",
+            entry.path().join("expectations").display()
+        );
 
         collect_variants(
             root,
             variants,
             suite.name,
-            &suite.expectations_dir,
             &path_segment,
             &entry.path(),
             xfail,
@@ -290,6 +287,11 @@ fn process_suite(
             "cargo:rerun-if-changed={}",
             dir.join("Cargo.toml").display()
         );
+        // Watch per-case expectations directory.
+        println!(
+            "cargo:rerun-if-changed={}",
+            dir.join("expectations").display()
+        );
 
         let path_segment = dir.file_name().unwrap().to_str().unwrap().to_owned();
 
@@ -297,7 +299,6 @@ fn process_suite(
             root,
             variants,
             suite.name,
-            &suite.expectations_dir,
             &path_segment,
             dir,
             xfail,
@@ -330,7 +331,6 @@ fn main() {
     let cbindgen = TestSuite {
         name: "cbindgen",
         cases_dir: tests_dir.join("cbindgen/rust/cases"),
-        expectations_dir: tests_dir.join("cbindgen/expectations"),
         extra_dirs: vec![
             tests_dir.join("cbindgen/rust/workspace"),
             tests_dir.join("cbindgen/rust/external_workspace_child"),
@@ -341,7 +341,6 @@ fn main() {
     let cheadergen = TestSuite {
         name: "cheadergen",
         cases_dir: tests_dir.join("cheadergen/rust/cases"),
-        expectations_dir: tests_dir.join("cheadergen/expectations"),
         extra_dirs: vec![],
         manifest_path: None,
     };

@@ -7,7 +7,7 @@ pub(crate) mod cheadergen;
 use std::path::Path;
 use std::{fs, str};
 
-use crate::{Language, Style, tests_dir};
+use crate::{Language, Style};
 use cheadergen::{CASES_METADATA, WORKSPACE_METADATA, run_cheadergen};
 
 const SKIP_WARNING_AS_ERROR_SUFFIX: &str = ".skip_warning_as_error";
@@ -55,14 +55,7 @@ fn compare_snapshot(
     cpp_compat: bool,
     stdout: &[u8],
 ) {
-    let tests_path = tests_dir();
-
-    let path_str = path.to_str().unwrap();
-    let expectations_dir = if path_str.contains("/cbindgen/") {
-        tests_path.join("cbindgen/expectations")
-    } else {
-        tests_path.join("cheadergen/expectations")
-    };
+    let expectations_dir = path.join("expectations");
 
     let style_ext = style
         .map(|style| match style {

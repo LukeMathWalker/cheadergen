@@ -17,7 +17,7 @@ test +args="":
 
 # Run only cbindgen tests
 test-cbindgen +args="":
-    cargo nextest run -p ui-tests --no-tests pass -E 'test(~^cbindgen::)' {{ args }}
+    cargo nextest run -p ui-tests --no-tests pass -E 'test(~cbindgen::)' {{ args }}
 
 # Run only generation tests (no compilation)
 test-generate +args="":
@@ -25,7 +25,7 @@ test-generate +args="":
 
 # Run xfail cbindgen tests (expected failures)
 test-cbindgen-xfail +args="":
-    cargo nextest run -p ui-tests --run-ignored ignored-only -E 'test(~^cbindgen::)' {{ args }}
+    cargo nextest run -p ui-tests --run-ignored ignored-only -E 'test(~cbindgen::)' {{ args }}
 
 # Compute project coverage by running tests with instrumentation enabled
 # Report formats: html (default), codecov, lcov, text
