@@ -1,4 +1,0 @@
-c/compat
-c/plain
-cpp/plain
-cython/plain

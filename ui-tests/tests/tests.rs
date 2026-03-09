@@ -11,6 +11,13 @@ macro_rules! generate_variant {
         #[test]
         #[ignore]
         fn $fn_name() {
+            generate_variant!(@xfail_body $($rest)*);
+        }
+    };
+    (skip, $fn_name:ident, $($rest:tt)*) => {
+        #[test]
+        #[ignore]
+        fn $fn_name() {
             generate_variant!(@body $($rest)*);
         }
     };
@@ -21,12 +28,22 @@ macro_rules! generate_variant {
         }
     };
     (@body $name:expr, $variant_path:expr, $file:tt, $lang:expr, $style:expr, $cpp_compat:expr) => {
-        run_xfail_generate_test($name, $variant_path, Path::new($file), $lang, $style, $cpp_compat)
+        run_generate_test($name, Path::new($file), $lang, $style, $cpp_compat)
+    };
+    (@xfail_body $name:expr, $variant_path:expr, $file:tt, $lang:expr, $style:expr, $cpp_compat:expr) => {
+        run_expected_failure_test($name, $variant_path, Path::new($file), $lang, $style, $cpp_compat)
     };
 }
 
 macro_rules! compile_variant {
     (xfail, $fn_name:ident, $($rest:tt)*) => {
+        #[test]
+        #[ignore]
+        fn $fn_name() {
+            compile_variant!(@body $($rest)*);
+        }
+    };
+    (skip, $fn_name:ident, $($rest:tt)*) => {
         #[test]
         #[ignore]
         fn $fn_name() {

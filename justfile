@@ -86,5 +86,9 @@ uncovered pattern="":
     }
     ' lcov.info
 
+# Run ui-tests commands (e.g. `just ui-tests new <name>`)
+ui-tests +args:
+    cargo run -p ui-tests -- {{ args }}
+
 # Run all checks
 verify: lint (fmt "check") test

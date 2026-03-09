@@ -62,6 +62,15 @@ and runs significantly faster. Use `just test-cbindgen` to scope down to the cbi
 without running cheadergen tests. All three commands accept extra nextest args,
 e.g. `just test -- -E 'test(~alias)'`.
 
+### Scaffolding new test cases
+
+```bash
+just ui-tests new <name>
+```
+
+Creates a new cheadergen test case under `ui-tests/tests/cheadergen/rust/cases/<name>/`
+with a starter `Cargo.toml`, `src/lib.rs`, and `test.toml`.
+
 ## Licensing
 
 cheadergen's own code is licensed under APACHE-2.0.

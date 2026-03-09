@@ -2,22 +2,57 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::env;
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-fn read_xfail(case_path: &Path) -> HashSet<String> {
-    let xfail_path = case_path.join("xfail.txt");
-    println!("cargo:rerun-if-changed={}", xfail_path.display());
-    fs::read_to_string(&xfail_path)
-        .unwrap_or_default()
-        .lines()
-        .map(|l| l.split('#').next().unwrap().trim())
-        .filter(|l| !l.is_empty())
-        .map(|l| l.to_owned())
-        .collect()
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum VariantStatus {
+    Normal,
+    Xfail,
+    Skip,
+    Exclude,
+}
+
+fn read_test_manifest(case_path: &Path) -> HashMap<String, VariantStatus> {
+    let toml_path = case_path.join("test.toml");
+    println!("cargo:rerun-if-changed={}", toml_path.display());
+    let content = fs::read_to_string(&toml_path)
+        .unwrap_or_else(|e| panic!("missing {}: {e}", toml_path.display()));
+    let raw: HashMap<String, String> =
+        toml::from_str(&content).unwrap_or_else(|e| panic!("invalid {}: {e}", toml_path.display()));
+    let result: HashMap<String, VariantStatus> = raw
+        .into_iter()
+        .map(|(key, value)| {
+            let status = match value.as_str() {
+                "xfail" => VariantStatus::Xfail,
+                "skip" => VariantStatus::Skip,
+                "exclude" => VariantStatus::Exclude,
+                other => panic!(
+                    "invalid status {:?} for variant {:?} in {}: expected xfail, skip, or exclude",
+                    other,
+                    key,
+                    toml_path.display()
+                ),
+            };
+            (key, status)
+        })
+        .collect();
+
+    let valid_keys: HashSet<String> = VARIANTS.iter().map(|v| v.module_path.join("/")).collect();
+    let unknown: Vec<_> = result.keys().filter(|k| !valid_keys.contains(k.as_str())).collect();
+    if !unknown.is_empty() {
+        panic!(
+            "unknown variant(s) {:?} in {}\nvalid variants: {:?}",
+            unknown,
+            toml_path.display(),
+            valid_keys,
+        );
+    }
+
+    result
 }
 
 struct Variant {
@@ -158,11 +193,27 @@ fn collect_variants(
 
     let is_linestyle = path_segment.starts_with("linestyle_");
 
-    let local_xfail = read_xfail(case_path);
+    let manifest = read_test_manifest(case_path);
 
     for variant in variants {
         let expectation_file = variant.file_pattern.replace("{name}", base_name);
         let variant_path = variant.module_path.join("/");
+
+        let status = manifest
+            .get(&variant_path)
+            .copied()
+            .unwrap_or(VariantStatus::Normal);
+
+        if status == VariantStatus::Exclude {
+            continue;
+        }
+
+        let status_token = match status {
+            VariantStatus::Xfail => "xfail, ",
+            VariantStatus::Skip => "skip, ",
+            VariantStatus::Normal => "",
+            VariantStatus::Exclude => unreachable!(),
+        };
 
         // Linestyle tests keep raw files; everything else uses .snap files.
         let resolved_path = if is_linestyle {
@@ -173,18 +224,12 @@ fn collect_variants(
             if snap.exists() { Some(snap) } else { None }
         };
 
-        let xfail_token = if local_xfail.contains(&variant_path) {
-            "xfail, "
-        } else {
-            ""
-        };
-
         // Emit generate test when a snapshot exists, or unconditionally for
         // non-linestyle suites that opt in (cheadergen). Cbindgen generate
         // tests are only emitted when a snapshot file exists.
         if resolved_path.is_some() || (emit_generate_without_snap && !is_linestyle) {
             let gen_line = format!(
-                "generate_variant!({xfail_token}r#{}, {:?}, {:?}, {:?}, {}, {}, {});",
+                "generate_variant!({status_token}r#{}, {:?}, {:?}, {:?}, {}, {}, {});",
                 identifier_base,
                 path_segment,
                 variant_path,
@@ -201,7 +246,7 @@ fn collect_variants(
         // Compile test requires the snapshot content, so only emit when it exists.
         if let Some(resolved_path) = resolved_path {
             let compile_line = format!(
-                "compile_variant!({xfail_token}r#{}, {:?}, {:?}, {:?}, {}, {}, {}, {});",
+                "compile_variant!({status_token}r#{}, {:?}, {:?}, {:?}, {}, {}, {}, {});",
                 identifier_base,
                 path_segment,
                 variant_path,
@@ -248,8 +293,8 @@ fn process_suite(
             continue;
         }
 
-        // Skip directories that aren't crates (e.g. `target/`).
-        if !entry.path().join("Cargo.toml").exists() {
+        // Skip directories that aren't test cases (e.g. `target/`).
+        if !entry.path().join("test.toml").exists() {
             continue;
         }
 
