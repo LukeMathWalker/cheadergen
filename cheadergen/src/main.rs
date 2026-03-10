@@ -7,6 +7,7 @@ use rustdoc_processor::CrateCollection;
 use rustdoc_processor::cache::RustdocGlobalFsCache;
 use rustdoc_processor::compute::NoProgress;
 use rustdoc_processor::indexing::NoAnnotations;
+use rustdoc_types::{Abi, Attribute, ItemEnum};
 
 /// The nightly toolchain used for `cargo rustdoc` JSON generation.
 /// Must match the FORMAT_VERSION expected by `rustdoc_types`.
@@ -178,5 +179,59 @@ fn run(cli: &Cli) -> anyhow::Result<()> {
         );
     }
 
+    // Collect all free functions with C ABI and exported statics.
+    let mut extern_c_fn_ids = Vec::new();
+    let mut exported_static_ids = Vec::new();
+
+    for id in krate.import_index.items.keys() {
+        let Some(item) = krate.core.krate.index.get(id) else {
+            continue;
+        };
+        match &item.inner {
+            ItemEnum::Function(func) if matches!(func.header.abi, Abi::C { .. }) => {
+                extern_c_fn_ids.push(*id);
+            }
+            ItemEnum::Static(_) if has_export_attr(&item.attrs) => {
+                exported_static_ids.push(*id);
+            }
+            _ => {}
+        }
+    }
+
+    if !cli.quiet {
+        eprintln!("Found {} extern \"C\" function(s):", extern_c_fn_ids.len());
+        for id in &extern_c_fn_ids {
+            let name = krate
+                .core
+                .krate
+                .index
+                .get(id)
+                .and_then(|item| item.name.clone())
+                .unwrap_or_else(|| "<unnamed>".to_string());
+            eprintln!("  - {name}");
+        }
+        eprintln!(
+            "Found {} exported static(s):",
+            exported_static_ids.len()
+        );
+        for id in &exported_static_ids {
+            let name = krate
+                .core
+                .krate
+                .index
+                .get(id)
+                .and_then(|item| item.name.clone())
+                .unwrap_or_else(|| "<unnamed>".to_string());
+            eprintln!("  - {name}");
+        }
+    }
+
     Ok(())
+}
+
+/// Returns `true` if the item has `#[no_mangle]` or `#[export_name = "..."]`.
+fn has_export_attr(attrs: &[Attribute]) -> bool {
+    attrs
+        .iter()
+        .any(|a| matches!(a, Attribute::NoMangle | Attribute::ExportName(_)))
 }

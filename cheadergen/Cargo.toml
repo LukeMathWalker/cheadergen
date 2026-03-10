@@ -16,4 +16,5 @@ fs-err = "3"
 pathdiff = "0.2"
 guppy = { workspace = true }
 rustdoc_processor = { workspace = true }
+rustdoc_types = { workspace = true }
 xdg-home = "1"

@@ -224,6 +224,7 @@ dependencies = [
  "guppy",
  "pathdiff",
  "rustdoc_processor",
+ "rustdoc_types",
  "xdg-home",
 ]
 
