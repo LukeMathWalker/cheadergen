@@ -23,6 +23,10 @@ test-cbindgen +args="":
 test-generate +args="":
     cargo nextest run -p ui-tests --no-tests pass -E 'test(~::generate::)' {{ args }}
 
+# Run only symbol tests
+test-symbol +args="":
+    cargo nextest run -p ui-tests --no-tests pass -E 'test(~::symbol::)' {{ args }}
+
 # Run xfail cbindgen tests (expected failures)
 test-cbindgen-xfail +args="":
     cargo nextest run -p ui-tests --run-ignored ignored-only -E 'test(~cbindgen::)' {{ args }}

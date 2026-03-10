@@ -10,7 +10,7 @@ use std::env;
 use std::path::{Path, PathBuf};
 
 pub use compile::run_compile_check;
-pub use generate::{invoke_cheadergen, run_generate_test, run_symbol_test};
+pub use generate::{invoke_cheadergen, run_expected_failure_test, run_generate_test, run_symbol_test};
 pub use manifest::check_manifest_up_to_date;
 
 pub fn tests_dir() -> PathBuf {
@@ -40,18 +40,3 @@ pub fn style_str(style: Style) -> &'static str {
     }
 }
 
-pub fn run_expected_failure_test(
-    case_name: &str,
-    variant_path: &str,
-    path: &Path,
-    language: Language,
-    style: Option<Style>,
-    cpp_compat: bool,
-) {
-    let output = invoke_cheadergen(case_name, path, language, style, cpp_compat);
-    assert!(
-        !output.status.success(),
-        "xfail test `{case_name} {variant_path}` unexpectedly passed (exit code 0) — \
-         remove it from the case's test.toml"
-    );
-}

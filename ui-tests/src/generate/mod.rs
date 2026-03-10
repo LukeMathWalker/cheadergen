@@ -87,6 +87,30 @@ pub fn run_symbol_test(name: &str, path: &Path) {
     });
 }
 
+pub fn run_expected_failure_test(
+    name: &str,
+    variant_path: &str,
+    path: &Path,
+    language: Language,
+    style: Option<Style>,
+    cpp_compat: bool,
+) {
+    let output = invoke_cheadergen(name, path, language, style, cpp_compat);
+    if !output.status.success() {
+        return;
+    }
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        compare_snapshot(name, path, language, style, cpp_compat, &output.stdout);
+    }));
+    if result.is_ok() {
+        panic!(
+            "xfail test `{name} {variant_path}` now fully passes — \
+             remove it from the case's test.toml"
+        );
+    }
+    // Snapshot mismatch: still an expected failure, test passes.
+}
+
 fn compare_snapshot(
     name: &str,
     path: &Path,
