@@ -1,0 +1,8 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 86
+expression: symbol_content
+---
+{
+root;
+};

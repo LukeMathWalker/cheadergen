@@ -1,0 +1,11 @@
+---
+source: tests/tests.rs
+expression: "static.c.sym"
+snapshot_kind: text
+---
+{
+root;
+NUMBER;
+FOO;
+BAR;
+};

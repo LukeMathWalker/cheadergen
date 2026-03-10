@@ -1,0 +1,9 @@
+---
+source: tests/tests.rs
+expression: "mod_2015.c.sym"
+snapshot_kind: text
+---
+{
+export_me;
+from_really_nested_mod;
+};

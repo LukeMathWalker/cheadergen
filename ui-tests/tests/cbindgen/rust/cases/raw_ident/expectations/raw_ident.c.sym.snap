@@ -1,0 +1,9 @@
+---
+source: tests/tests.rs
+expression: "raw_ident.c.sym"
+snapshot_kind: text
+---
+{
+fn;
+STATIC;
+};

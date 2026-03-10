@@ -1,0 +1,8 @@
+---
+source: tests/tests.rs
+expression: "expand_dep_v2.c.sym"
+snapshot_kind: text
+---
+{
+get_x;
+};

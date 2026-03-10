@@ -1,0 +1,9 @@
+---
+source: tests/tests.rs
+expression: "ignore.c.sym"
+snapshot_kind: text
+---
+{
+no_ignore_root;
+no_ignore_associated_method;
+};

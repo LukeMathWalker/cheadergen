@@ -1,0 +1,10 @@
+---
+source: tests/tests.rs
+expression: "extern.c.sym"
+snapshot_kind: text
+---
+{
+foo;
+bar;
+baz;
+};

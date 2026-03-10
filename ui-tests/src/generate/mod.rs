@@ -10,6 +10,7 @@ use std::{fs, str};
 use crate::{Language, Style};
 use cheadergen::{
     CBINDGEN_CASES_METADATA, CBINDGEN_WORKSPACE_METADATA, CHEADERGEN_CASES_METADATA, run_cheadergen,
+    run_cheadergen_symbols,
 };
 
 const SKIP_WARNING_AS_ERROR_SUFFIX: &str = ".skip_warning_as_error";
@@ -49,6 +50,41 @@ pub fn run_generate_test(
         str::from_utf8(&output.stderr).unwrap_or_default()
     );
     compare_snapshot(name, path, language, style, cpp_compat, &output.stdout);
+}
+
+pub fn run_symbol_test(name: &str, path: &Path) {
+    let path_str = path.to_str().unwrap();
+    let metadata = if path_str.contains("tests/cheadergen/") {
+        &*CHEADERGEN_CASES_METADATA
+    } else if path_str.contains("/cases/") {
+        &*CBINDGEN_CASES_METADATA
+    } else {
+        &*CBINDGEN_WORKSPACE_METADATA
+    };
+
+    let symbol_file = tempfile::NamedTempFile::new().expect("failed to create temp file");
+    let symbol_path = symbol_file.path().to_owned();
+
+    let output = run_cheadergen_symbols(path, &symbol_path, metadata);
+    assert!(
+        output.status.success(),
+        "cheadergen --symbol-file failed for {path:?} with error: {}",
+        str::from_utf8(&output.stderr).unwrap_or_default()
+    );
+
+    let base_name = name
+        .strip_suffix(SKIP_WARNING_AS_ERROR_SUFFIX)
+        .unwrap_or(name);
+    let symbol_content = fs::read_to_string(&symbol_path).expect("failed to read symbol file");
+    let snap_name = format!("{base_name}.c.sym");
+
+    let expectations_dir = path.join("expectations");
+    let mut settings = insta::Settings::clone_current();
+    settings.set_snapshot_path(&expectations_dir);
+    settings.set_prepend_module_to_snapshot(false);
+    settings.bind(|| {
+        insta::assert_snapshot!(snap_name, symbol_content);
+    });
 }
 
 fn compare_snapshot(

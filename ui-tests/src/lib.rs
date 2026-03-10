@@ -10,7 +10,7 @@ use std::env;
 use std::path::{Path, PathBuf};
 
 pub use compile::run_compile_check;
-pub use generate::{invoke_cheadergen, run_generate_test};
+pub use generate::{invoke_cheadergen, run_generate_test, run_symbol_test};
 pub use manifest::check_manifest_up_to_date;
 
 pub fn tests_dir() -> PathBuf {

@@ -1,0 +1,13 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 86
+expression: symbol_content
+---
+{
+test_camel_case;
+test_gecko_case;
+test_pascal_case;
+test_prefix;
+test_screaming_snake_case;
+test_snake_case;
+};

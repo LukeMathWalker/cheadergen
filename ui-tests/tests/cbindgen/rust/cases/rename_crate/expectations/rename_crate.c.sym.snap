@@ -1,0 +1,10 @@
+---
+source: tests/tests.rs
+expression: "rename_crate.c.sym"
+snapshot_kind: text
+---
+{
+root;
+renamed_func;
+no_extern_func;
+};

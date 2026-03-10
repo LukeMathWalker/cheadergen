@@ -1,0 +1,9 @@
+---
+source: tests/tests.rs
+expression: "monomorph_2.c.sym"
+snapshot_kind: text
+---
+{
+foo;
+bar;
+};

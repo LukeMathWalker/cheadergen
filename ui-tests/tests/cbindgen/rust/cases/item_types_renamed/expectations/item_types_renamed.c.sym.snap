@@ -1,0 +1,7 @@
+---
+source: tests/tests.rs
+expression: "item_types_renamed.c.sym"
+snapshot_kind: text
+---
+{
+};

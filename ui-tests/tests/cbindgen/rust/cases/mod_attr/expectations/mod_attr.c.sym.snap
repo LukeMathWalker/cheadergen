@@ -1,0 +1,9 @@
+---
+source: tests/tests.rs
+expression: "mod_attr.c.sym"
+snapshot_kind: text
+---
+{
+foo;
+bar;
+};

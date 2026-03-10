@@ -59,6 +59,35 @@ pub(crate) static CBINDGEN_WORKSPACE_METADATA: LazyLock<PathBuf> = LazyLock::new
     )
 });
 
+pub(crate) fn run_cheadergen_symbols(
+    path: &Path,
+    symbol_file: &Path,
+    metadata: &Path,
+) -> std::process::Output {
+    let cheadergen = env::var("CARGO_BIN_EXE_cheadergen")
+        .expect("CARGO_BIN_EXE_cheadergen not set — add cheadergen as a dev-dependency");
+    let mut command = Command::new(cheadergen);
+    command.env("LLVM_PROFILE_FILE", "target/profraw/%p_%m.profraw");
+
+    command.arg("--metadata").arg(metadata);
+    command.arg("--no-header");
+    command.arg("--symbol-file").arg(symbol_file);
+    command.arg("--lang").arg("c");
+    command.arg("--style").arg("type");
+
+    let config = path.with_extension("toml");
+    if config.exists() {
+        command.arg("--config").arg(config);
+    }
+
+    command.arg(path);
+
+    println!("Running: {command:?}");
+    command
+        .output()
+        .expect("failed to execute cheadergen — is it built?")
+}
+
 pub(crate) fn run_cheadergen(
     path: &Path,
     language: Language,

@@ -1,0 +1,8 @@
+---
+source: tests/tests.rs
+expression: "transform_op.c.sym"
+snapshot_kind: text
+---
+{
+foo;
+};

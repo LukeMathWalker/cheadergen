@@ -1,0 +1,9 @@
+---
+source: tests/tests.rs
+expression: "cmse.c.sym"
+snapshot_kind: text
+---
+{
+foo;
+bar;
+};

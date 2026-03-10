@@ -1,0 +1,8 @@
+---
+source: tests/tests.rs
+expression: "asserted_cast.c.sym"
+snapshot_kind: text
+---
+{
+foo;
+};

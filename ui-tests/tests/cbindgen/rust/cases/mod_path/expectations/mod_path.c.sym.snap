@@ -1,0 +1,8 @@
+---
+source: tests/tests.rs
+expression: "mod_path.c.sym"
+snapshot_kind: text
+---
+{
+export_me;
+};

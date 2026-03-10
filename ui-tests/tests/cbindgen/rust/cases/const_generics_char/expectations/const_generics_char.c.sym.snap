@@ -1,0 +1,8 @@
+---
+source: tests/tests.rs
+expression: "const_generics_char.c.sym"
+snapshot_kind: text
+---
+{
+until_nul;
+};

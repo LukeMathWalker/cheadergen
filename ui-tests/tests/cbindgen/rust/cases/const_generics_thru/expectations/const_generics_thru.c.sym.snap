@@ -1,0 +1,9 @@
+---
+source: tests/tests.rs
+expression: "const_generics_thru.c.sym"
+snapshot_kind: text
+---
+{
+one;
+two;
+};

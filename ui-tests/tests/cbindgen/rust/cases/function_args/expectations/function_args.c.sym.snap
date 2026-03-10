@@ -1,0 +1,10 @@
+---
+source: tests/tests.rs
+expression: "function_args.c.sym"
+snapshot_kind: text
+---
+{
+unnamed;
+pointer_test;
+print_from_rust;
+};

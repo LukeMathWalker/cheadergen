@@ -1,0 +1,15 @@
+---
+source: tests/tests.rs
+expression: "nullable_attribute.c.sym"
+snapshot_kind: text
+---
+{
+value_arg;
+mutltiple_args;
+ref_arg;
+mut_ref_arg;
+optional_ref_arg;
+optional_mut_ref_arg;
+nullable_const_ptr;
+nullable_mut_ptr;
+};

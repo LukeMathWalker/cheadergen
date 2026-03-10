@@ -1,0 +1,9 @@
+---
+source: tests/tests.rs
+expression: "mangle.c.sym"
+snapshot_kind: text
+---
+{
+root;
+unsafe_root;
+};

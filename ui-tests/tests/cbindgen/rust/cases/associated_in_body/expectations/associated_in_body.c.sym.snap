@@ -1,0 +1,8 @@
+---
+source: tests/tests.rs
+expression: "associated_in_body.c.sym"
+snapshot_kind: text
+---
+{
+root;
+};

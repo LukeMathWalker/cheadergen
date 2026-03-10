@@ -1,0 +1,8 @@
+---
+source: tests/tests.rs
+expression: "constant.c.sym"
+snapshot_kind: text
+---
+{
+root;
+};

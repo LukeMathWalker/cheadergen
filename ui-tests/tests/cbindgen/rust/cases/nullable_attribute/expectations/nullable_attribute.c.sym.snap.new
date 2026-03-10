@@ -1,0 +1,15 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 86
+expression: symbol_content
+---
+{
+mut_ref_arg;
+mutltiple_args;
+nullable_const_ptr;
+nullable_mut_ptr;
+optional_mut_ref_arg;
+optional_ref_arg;
+ref_arg;
+value_arg;
+};

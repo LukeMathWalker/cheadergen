@@ -1,0 +1,8 @@
+---
+source: tests/tests.rs
+expression: "lifetime_arg.c.sym"
+snapshot_kind: text
+---
+{
+root;
+};

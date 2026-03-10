@@ -1,0 +1,14 @@
+---
+source: tests/tests.rs
+expression: "cfg.c.sym"
+snapshot_kind: text
+---
+{
+root;
+root;
+cond;
+foo;
+bar;
+global_array_with_different_sizes;
+global_array_with_different_sizes;
+};

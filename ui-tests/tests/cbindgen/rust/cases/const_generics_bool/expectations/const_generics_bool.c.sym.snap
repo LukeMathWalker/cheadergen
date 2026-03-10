@@ -1,0 +1,11 @@
+---
+source: tests/tests.rs
+expression: "const_generics_bool.c.sym"
+snapshot_kind: text
+---
+{
+new_set;
+set_for_each;
+new_map;
+map_for_each;
+};

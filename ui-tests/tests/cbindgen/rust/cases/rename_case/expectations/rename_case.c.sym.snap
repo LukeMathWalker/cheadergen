@@ -1,0 +1,13 @@
+---
+source: tests/tests.rs
+expression: "rename_case.c.sym"
+snapshot_kind: text
+---
+{
+test_camel_case;
+test_pascal_case;
+test_snake_case;
+test_screaming_snake_case;
+test_gecko_case;
+test_prefix;
+};

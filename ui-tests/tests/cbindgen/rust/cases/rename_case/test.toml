@@ -2,3 +2,4 @@
 "c/plain" = "xfail"
 "cpp/plain" = "xfail"
 "cython/plain" = "xfail"
+"symbol" = "xfail"

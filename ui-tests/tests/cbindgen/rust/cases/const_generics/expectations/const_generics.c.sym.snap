@@ -1,0 +1,8 @@
+---
+source: tests/tests.rs
+expression: "const_generics.c.sym"
+snapshot_kind: text
+---
+{
+root;
+};

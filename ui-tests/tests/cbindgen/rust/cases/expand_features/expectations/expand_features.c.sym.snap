@@ -1,0 +1,10 @@
+---
+source: tests/tests.rs
+expression: "expand_features.c.sym"
+snapshot_kind: text
+---
+{
+extra_debug_fn;
+cbindgen;
+root;
+};

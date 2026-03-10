@@ -1,0 +1,10 @@
+---
+source: tests/tests.rs
+expression: "const_generics_byte.c.sym"
+snapshot_kind: text
+---
+{
+init_parens_parser;
+destroy_parens_parser;
+init_braces_parser;
+};

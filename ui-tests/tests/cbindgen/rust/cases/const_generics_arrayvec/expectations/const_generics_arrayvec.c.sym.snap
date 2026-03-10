@@ -1,0 +1,8 @@
+---
+source: tests/tests.rs
+expression: "const_generics_arrayvec.c.sym"
+snapshot_kind: text
+---
+{
+push;
+};

@@ -1,0 +1,10 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 86
+expression: symbol_content
+---
+{
+drop_box;
+drop_box_opt;
+root;
+};

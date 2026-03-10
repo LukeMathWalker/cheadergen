@@ -75,14 +75,30 @@ struct Cli {
     /// Path to a pre-generated `cargo metadata` JSON file.
     #[arg(long)]
     metadata: Option<PathBuf>,
+
+    /// Path to write a symbol file listing exported dynamic symbols.
+    #[arg(long)]
+    symbol_file: Option<PathBuf>,
+
+    /// Suppress header output. Must be used with --symbol-file.
+    #[arg(long)]
+    no_header: bool,
 }
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
 
+    if cli.no_header && cli.symbol_file.is_none() {
+        eprintln!("Error: --no-header requires --symbol-file");
+        return ExitCode::FAILURE;
+    }
+
     if let Err(e) = run(&cli) {
         eprintln!("Error: {e:?}");
         return ExitCode::FAILURE;
+    }
+    if cli.no_header {
+        return ExitCode::SUCCESS;
     }
     // We haven't generated any header (yet)
     ExitCode::FAILURE
@@ -224,6 +240,42 @@ fn run(cli: &Cli) -> anyhow::Result<()> {
                 .unwrap_or_else(|| "<unnamed>".to_string());
             eprintln!("  - {name}");
         }
+    }
+
+    // Write symbol file if requested.
+    if let Some(ref symbol_file) = cli.symbol_file {
+        let mut symbols: Vec<String> = Vec::new();
+        for id in &extern_c_fn_ids {
+            if let Some(name) = krate
+                .core
+                .krate
+                .index
+                .get(id)
+                .and_then(|item| item.name.clone())
+            {
+                symbols.push(name);
+            }
+        }
+        for id in &exported_static_ids {
+            if let Some(name) = krate
+                .core
+                .krate
+                .index
+                .get(id)
+                .and_then(|item| item.name.clone())
+            {
+                symbols.push(name);
+            }
+        }
+        symbols.sort();
+
+        let mut out = String::from("{\n");
+        for sym in &symbols {
+            out.push_str(sym);
+            out.push_str(";\n");
+        }
+        out.push_str("};\n");
+        fs_err::write(symbol_file, &out)?;
     }
 
     Ok(())

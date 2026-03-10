@@ -1,0 +1,11 @@
+---
+source: tests/tests.rs
+expression: "function_sort_none.c.sym"
+snapshot_kind: text
+---
+{
+C;
+B;
+D;
+A;
+};

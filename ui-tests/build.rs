@@ -41,7 +41,8 @@ fn read_test_manifest(case_path: &Path) -> HashMap<String, VariantStatus> {
         })
         .collect();
 
-    let valid_keys: HashSet<String> = VARIANTS.iter().map(|v| v.module_path.join("/")).collect();
+    let mut valid_keys: HashSet<String> = VARIANTS.iter().map(|v| v.module_path.join("/")).collect();
+    valid_keys.insert("symbol".to_owned());
     let unknown: Vec<_> = result
         .keys()
         .filter(|k| !valid_keys.contains(k.as_str()))
@@ -262,6 +263,30 @@ fn collect_variants(
             let mut compile_path: Vec<&str> = vec![suite, "compile"];
             compile_path.extend_from_slice(variant.module_path);
             root.insert(&compile_path, compile_line);
+        }
+    }
+
+    // Emit a symbol test (once per case, not per variant) if a .sym.snap exists.
+    let sym_snap = expectations_dir.join(format!("{base_name}.c.sym.snap"));
+    if sym_snap.exists() {
+        let symbol_status = manifest
+            .get("symbol")
+            .copied()
+            .unwrap_or(VariantStatus::Normal);
+
+        if symbol_status != VariantStatus::Exclude {
+            let symbol_status_token = match symbol_status {
+                VariantStatus::Xfail => "xfail, ",
+                VariantStatus::Skip => "skip, ",
+                VariantStatus::Normal => "",
+                VariantStatus::Exclude => unreachable!(),
+            };
+
+            let sym_line = format!(
+                "symbol_test!({symbol_status_token}r#{}, {:?}, {:?});",
+                identifier_base, path_segment, case_path,
+            );
+            root.insert(&[suite, "symbol"], sym_line);
         }
     }
 }
