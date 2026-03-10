@@ -27,6 +27,9 @@ metadata.json
 # Generated test manifest for staleness detection
 .test_manifest
 
+# Insta snapshot pending review
+*.snap.new
+
 # Compilation test cache (local-only)
 *.snap.hash
 *.snap.hash-cxx
