@@ -5,5 +5,7 @@ resolver = "3"
 [workspace.dependencies]
 rustdoc_types = { git = "https://github.com/LukeMathWalker/pavex", package = "rustdoc_types" }
 rustdoc_ext = { git = "https://github.com/LukeMathWalker/pavex" }
+rustdoc_ir = { git = "https://github.com/LukeMathWalker/pavex" }
 rustdoc_processor = { git = "https://github.com/LukeMathWalker/pavex" }
+rustdoc_resolver = { git = "https://github.com/LukeMathWalker/pavex" }
 guppy = "0.17"

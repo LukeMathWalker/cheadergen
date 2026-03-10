@@ -96,6 +96,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
+name = "bimap"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "230c5f1ca6a325a32553f8640d31ac9b49f2411e901e427570154868b46da4f7"
+
+[[package]]
 name = "bincode"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -223,7 +229,9 @@ dependencies = [
  "fs-err",
  "guppy",
  "pathdiff",
+ "rustdoc_ir",
  "rustdoc_processor",
+ "rustdoc_resolver",
  "rustdoc_types",
  "xdg-home",
 ]
@@ -997,16 +1005,34 @@ checksum = "357703d41365b4b27c590e3ed91eabb1b663f07c4c084095e60cbed4362dff0d"
 [[package]]
 name = "rustdoc_ext"
 version = "0.2.10"
-source = "git+https://github.com/LukeMathWalker/pavex#d5035f705cb42d8fe9923b5ef753e9ab5022b118"
+source = "git+https://github.com/LukeMathWalker/pavex#34c3043d8f69da9ec8da09789e2817a48915737f"
 dependencies = [
  "guppy",
  "rustdoc_types",
 ]
 
 [[package]]
+name = "rustdoc_ir"
+version = "0.2.10"
+source = "git+https://github.com/LukeMathWalker/pavex#34c3043d8f69da9ec8da09789e2817a48915737f"
+dependencies = [
+ "ahash",
+ "anyhow",
+ "bimap",
+ "guppy",
+ "indexmap",
+ "rustdoc_ext",
+ "rustdoc_types",
+ "serde",
+ "syn",
+ "thiserror",
+ "tracing",
+]
+
+[[package]]
 name = "rustdoc_processor"
 version = "0.2.10"
-source = "git+https://github.com/LukeMathWalker/pavex#d5035f705cb42d8fe9923b5ef753e9ab5022b118"
+source = "git+https://github.com/LukeMathWalker/pavex#34c3043d8f69da9ec8da09789e2817a48915737f"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1040,9 +1066,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "rustdoc_resolver"
+version = "0.2.10"
+source = "git+https://github.com/LukeMathWalker/pavex#34c3043d8f69da9ec8da09789e2817a48915737f"
+dependencies = [
+ "ahash",
+ "anyhow",
+ "guppy",
+ "once_cell",
+ "rustdoc_ext",
+ "rustdoc_ir",
+ "rustdoc_processor",
+ "rustdoc_types",
+ "thiserror",
+ "tracing",
+]
+
+[[package]]
 name = "rustdoc_types"
 version = "0.2.10"
-source = "git+https://github.com/LukeMathWalker/pavex#d5035f705cb42d8fe9923b5ef753e9ab5022b118"
+source = "git+https://github.com/LukeMathWalker/pavex#34c3043d8f69da9ec8da09789e2817a48915737f"
 dependencies = [
  "bincode",
  "rkyv",

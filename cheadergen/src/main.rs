@@ -1,12 +1,16 @@
+mod codegen;
+
 use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::{ArgAction, Parser, ValueEnum};
 use guppy::MetadataCommand;
+use rustdoc_ir::Type;
 use rustdoc_processor::CrateCollection;
 use rustdoc_processor::cache::RustdocGlobalFsCache;
 use rustdoc_processor::compute::NoProgress;
 use rustdoc_processor::indexing::NoAnnotations;
+use rustdoc_resolver::resolve_free_function;
 use rustdoc_types::{Abi, Attribute, ItemEnum};
 
 /// The nightly toolchain used for `cargo rustdoc` JSON generation.
@@ -97,11 +101,7 @@ fn main() -> ExitCode {
         eprintln!("Error: {e:?}");
         return ExitCode::FAILURE;
     }
-    if cli.no_header {
-        return ExitCode::SUCCESS;
-    }
-    // We haven't generated any header (yet)
-    ExitCode::FAILURE
+    ExitCode::SUCCESS
 }
 
 fn run(cli: &Cli) -> anyhow::Result<()> {
@@ -278,6 +278,44 @@ fn run(cli: &Cli) -> anyhow::Result<()> {
         fs_err::write(symbol_file, &out)?;
     }
 
+    // Resolve each extern "C" function into the IR and generate the header.
+    if !cli.no_header {
+        let mut resolved_fns = Vec::new();
+        for id in &extern_c_fn_ids {
+            let item = krate
+                .core
+                .krate
+                .index
+                .get(id)
+                .ok_or_else(|| anyhow::anyhow!("Missing item for id {:?}", id))?;
+            let free_fn = resolve_free_function(&item, krate, &collection)
+                .map_err(|e| anyhow::anyhow!("Failed to resolve function: {e}"))?;
+
+            // Bail if any input or output type contains a PathType — we don't handle those yet.
+            for input in &free_fn.header.inputs {
+                reject_path_types(&input.type_, &free_fn.path.function_name, &input.name)?;
+            }
+            if let Some(output) = &free_fn.header.output {
+                reject_path_types(output, &free_fn.path.function_name, &"return type")?;
+            }
+
+            resolved_fns.push(free_fn);
+        }
+
+        if !cli.quiet {
+            eprintln!("Resolved {} function(s) to IR", resolved_fns.len());
+        }
+
+        let mut header = String::new();
+        codegen::generate_c_header(&mut resolved_fns, &mut header);
+
+        if let Some(ref output_path) = cli.output {
+            fs_err::write(output_path, &header)?;
+        } else {
+            print!("{header}");
+        }
+    }
+
     Ok(())
 }
 
@@ -286,4 +324,32 @@ fn has_export_attr(attrs: &[Attribute]) -> bool {
     attrs
         .iter()
         .any(|a| matches!(a, Attribute::NoMangle | Attribute::ExportName(_)))
+}
+
+/// Bail if `ty` contains a [`rustdoc_ir::PathType`] anywhere — we don't handle named/user-defined
+/// types yet.
+fn reject_path_types(
+    ty: &Type,
+    fn_name: &str,
+    context: &dyn std::fmt::Display,
+) -> anyhow::Result<()> {
+    match ty {
+        Type::Path(p) => {
+            anyhow::bail!(
+                "`{fn_name}`: {context} uses named type `{}`, which is not yet supported",
+                p.base_type.join("::")
+            );
+        }
+        Type::Reference(r) => reject_path_types(&r.inner, fn_name, context),
+        Type::RawPointer(r) => reject_path_types(&r.inner, fn_name, context),
+        Type::Tuple(t) => {
+            for element in &t.elements {
+                reject_path_types(element, fn_name, context)?;
+            }
+            Ok(())
+        }
+        Type::Slice(s) => reject_path_types(&s.element_type, fn_name, context),
+        Type::Array(a) => reject_path_types(&a.element_type, fn_name, context),
+        Type::ScalarPrimitive(_) | Type::Generic(_) => Ok(()),
+    }
 }
