@@ -42,7 +42,10 @@ fn read_test_manifest(case_path: &Path) -> HashMap<String, VariantStatus> {
         .collect();
 
     let valid_keys: HashSet<String> = VARIANTS.iter().map(|v| v.module_path.join("/")).collect();
-    let unknown: Vec<_> = result.keys().filter(|k| !valid_keys.contains(k.as_str())).collect();
+    let unknown: Vec<_> = result
+        .keys()
+        .filter(|k| !valid_keys.contains(k.as_str()))
+        .collect();
     if !unknown.is_empty() {
         panic!(
             "unknown variant(s) {:?} in {}\nvalid variants: {:?}",

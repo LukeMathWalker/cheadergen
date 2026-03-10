@@ -27,7 +27,9 @@ fn main() {
         process::exit(1);
     }
     if cbindgen_case.exists() {
-        eprintln!("Error: cbindgen test case '{name}' already exists — pick a different name to avoid confusion");
+        eprintln!(
+            "Error: cbindgen test case '{name}' already exists — pick a different name to avoid confusion"
+        );
         process::exit(1);
     }
 
@@ -74,13 +76,19 @@ pub extern \"C\" fn todo_new() -> TODO {
     println!("Created test case at {}", cheadergen_case.display());
     println!();
     println!("Next steps:");
-    println!("  1. Edit {}/src/lib.rs with your test code", cheadergen_case.display());
+    println!(
+        "  1. Edit {}/src/lib.rs with your test code",
+        cheadergen_case.display()
+    );
     println!("  2. Run `just test-generate` to generate expectation snapshots");
     println!("  3. Review and accept the snapshots");
 }
 
 fn is_valid_crate_name(name: &str) -> bool {
     !name.is_empty()
-        && name.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+        && name
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
         && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
 }

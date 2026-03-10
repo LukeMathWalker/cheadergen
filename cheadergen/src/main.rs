@@ -3,7 +3,10 @@ use std::process::ExitCode;
 
 use clap::{ArgAction, Parser, ValueEnum};
 use guppy::MetadataCommand;
-use rustdoc_processor::compute::{NoProgress, compute_crate_docs};
+use rustdoc_processor::CrateCollection;
+use rustdoc_processor::cache::RustdocGlobalFsCache;
+use rustdoc_processor::compute::NoProgress;
+use rustdoc_processor::indexing::NoAnnotations;
 
 /// The nightly toolchain used for `cargo rustdoc` JSON generation.
 /// Must match the FORMAT_VERSION expected by `rustdoc_types`.
@@ -101,58 +104,77 @@ fn run(cli: &Cli) -> anyhow::Result<()> {
     let toolchain =
         std::env::var("CHEADERGEN_DOCS_TOOLCHAIN").unwrap_or_else(|_| DOCS_TOOLCHAIN.to_string());
 
-    let workspace = package_graph.workspace();
+    // Resolve package info before moving `package_graph` into `CrateCollection`.
+    let (package_id, package_name, project_fingerprint) = {
+        let workspace = package_graph.workspace();
 
-    // Resolve the target package: if `cli.input` points to a directory inside the workspace,
-    // find the workspace member whose directory matches. Otherwise, use the sole workspace member
-    // (or error if ambiguous).
-    let package_id = if let Some(ref input) = cli.input {
-        let input = input.canonicalize()?;
-        let input = camino::Utf8PathBuf::try_from(input)?;
-        let input = pathdiff::diff_utf8_paths(input, workspace.root()).expect("Failed to compute the relative path to target crate, with respect to the workspace root");
-        workspace
-            .member_by_path(&input)
-            .map_err(|e| anyhow::anyhow!("Could not find workspace member for {input}: {e}"))?
-            .id()
-            .clone()
-    } else {
-        let mut members = workspace.iter();
-        let first = members
-            .next()
-            .ok_or_else(|| anyhow::anyhow!("No workspace members found"))?;
-        if members.next().is_some() {
-            anyhow::bail!("Multiple workspace members found. Pass a path to select one.");
-        }
-        first.id().clone()
+        // Resolve the target package: if `cli.input` points to a directory inside the workspace,
+        // find the workspace member whose directory matches. Otherwise, use the sole workspace
+        // member (or error if ambiguous).
+        let package_id = if let Some(ref input) = cli.input {
+            let input = input.canonicalize()?;
+            let input = camino::Utf8PathBuf::try_from(input)?;
+            let input = pathdiff::diff_utf8_paths(input, workspace.root()).expect("Failed to compute the relative path to target crate, with respect to the workspace root");
+            workspace
+                .member_by_path(&input)
+                .map_err(|e| anyhow::anyhow!("Could not find workspace member for {input}: {e}"))?
+                .id()
+                .clone()
+        } else {
+            let mut members = workspace.iter();
+            let first = members
+                .next()
+                .ok_or_else(|| anyhow::anyhow!("No workspace members found"))?;
+            if members.next().is_some() {
+                anyhow::bail!("Multiple workspace members found. Pass a path to select one.");
+            }
+            first.id().clone()
+        };
+
+        let package_name = package_graph.metadata(&package_id)?.name().to_string();
+        let project_fingerprint = workspace.root().to_string();
+        (package_id, package_name, project_fingerprint)
     };
-
-    let package_name = package_graph.metadata(&package_id)?.name().to_string();
 
     if !cli.quiet {
         eprintln!("Computing rustdoc JSON for `{package_name}` using toolchain `{toolchain}`...");
     }
 
-    let crate_docs = compute_crate_docs(
+    let cache_dir = xdg_home::home_dir()
+        .ok_or_else(|| anyhow::anyhow!("Failed to get the user's home directory"))?
+        .join(".cheadergen/cache");
+    let disk_cache = RustdocGlobalFsCache::new(
+        rustdoc_processor::CRATE_VERSION,
         &toolchain,
+        true,
         &package_graph,
-        std::iter::once(package_id.clone()),
-        workspace.root().as_std_path(),
-        &NoProgress,
+        &cache_dir,
     )?;
 
-    let krate = crate_docs
-        .get(&package_id)
-        .ok_or_else(|| anyhow::anyhow!("No documentation returned for `{package_name}`"))?;
+    let collection = CrateCollection::new(
+        NoAnnotations,
+        toolchain,
+        package_graph,
+        project_fingerprint,
+        disk_cache,
+        Box::new(NoProgress),
+    );
+    collection
+        .bootstrap(std::iter::empty())
+        .expect("Failed to bootstrap the crate collection");
+
+    let krate = collection
+        .get_or_compute(&package_id)
+        .map_err(|e| anyhow::anyhow!(e))?;
 
     if !cli.quiet {
-        let item_count = krate.index.len();
-        let root_name = krate
-            .index
-            .get(&krate.root)
+        let root_item = krate.core.krate.index.get(&krate.core.krate.root_item_id);
+        let root_name = root_item
+            .as_ref()
             .and_then(|item| item.name.as_deref())
             .unwrap_or("<unknown>");
         eprintln!(
-            "Successfully loaded rustdoc JSON for `{package_name}`: {item_count} items, root module `{root_name}`"
+            "Successfully loaded rustdoc JSON for `{package_name}`: root module `{root_name}`"
         );
     }
 
