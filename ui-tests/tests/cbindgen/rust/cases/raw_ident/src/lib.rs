@@ -19,6 +19,8 @@ pub extern "C" fn r#fn(r#arg: r#Struct) {
 }
 
 pub mod r#mod {
+    use crate::r#Enum;
+
     #[unsafe(no_mangle)]
     pub static r#STATIC: r#Enum = r#Enum::r#b;
 }

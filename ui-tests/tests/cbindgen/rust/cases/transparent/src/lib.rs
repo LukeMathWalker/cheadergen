@@ -2,6 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+use std::marker::PhantomData;
+
 struct DummyStruct;
 
 // Transparent struct tuple wrapping a struct.
@@ -24,14 +26,14 @@ struct TransparentPrimitiveWrappingStructure { only_field: u32 }
 #[repr(transparent)]
 struct TransparentComplexWrapper<T> {
     only_non_zero_sized_field: DummyStruct,
-    marker: PhantomData<T>,
+    marker: PhantomData<*const T>,
 }
 
 // Transparent struct wrapper with a marker wrapping a primitive.
 #[repr(transparent)]
 struct TransparentPrimitiveWrapper<T> {
     only_non_zero_sized_field: u32,
-    marker: PhantomData<T>,
+    marker: PhantomData<*const T>,
 }
 
 // Associated constant declared before struct declaration.

@@ -11,7 +11,7 @@ pub struct Foo<T> {
 #[repr(C)]
 pub union Bar {
     something: i32,
-    subexpressions: Foo<Self>,
+    subexpressions: std::mem::ManuallyDrop<Foo<Self>>,
 }
 
 #[unsafe(no_mangle)]

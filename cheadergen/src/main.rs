@@ -5,6 +5,7 @@ use std::process::ExitCode;
 
 use clap::{ArgAction, Parser, ValueEnum};
 use guppy::MetadataCommand;
+use guppy::graph::PackageGraph;
 use rustdoc_ir::Type;
 use rustdoc_processor::CrateCollection;
 use rustdoc_processor::cache::RustdocGlobalFsCache;
@@ -41,6 +42,20 @@ enum Style {
 #[derive(Debug, Parser)]
 #[command(version, about)]
 struct Cli {
+    #[command(subcommand)]
+    command: Command,
+}
+
+#[derive(Debug, clap::Subcommand)]
+enum Command {
+    /// Generate C/C++ headers from a Rust crate.
+    Generate(GenerateArgs),
+    /// Pre-warm the rustdoc JSON cache for all workspace members.
+    WarmCache(WarmCacheArgs),
+}
+
+#[derive(Debug, Parser)]
+struct GenerateArgs {
     /// Path to the Rust crate directory (defaults to current directory).
     input: Option<PathBuf>,
 
@@ -89,40 +104,134 @@ struct Cli {
     no_header: bool,
 }
 
+#[derive(Debug, Parser)]
+struct WarmCacheArgs {
+    /// Path to the workspace directory (defaults to current directory).
+    input: Option<PathBuf>,
+
+    /// Path to a pre-generated `cargo metadata` JSON file.
+    #[arg(long)]
+    metadata: Option<PathBuf>,
+
+    /// Suppress all output.
+    #[arg(short, long)]
+    quiet: bool,
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
 
-    if cli.no_header && cli.symbol_file.is_none() {
-        eprintln!("Error: --no-header requires --symbol-file");
-        return ExitCode::FAILURE;
-    }
+    match cli.command {
+        Command::Generate(args) => {
+            if args.no_header && args.symbol_file.is_none() {
+                eprintln!("Error: --no-header requires --symbol-file");
+                return ExitCode::FAILURE;
+            }
 
-    if let Err(e) = run(&cli) {
-        eprintln!("Error: {e:?}");
-        return ExitCode::FAILURE;
+            if let Err(e) = generate(&args) {
+                eprintln!("Error: {e:?}");
+                ExitCode::FAILURE
+            } else {
+                ExitCode::SUCCESS
+            }
+        }
+        Command::WarmCache(args) => {
+            if let Err(e) = warm_cache(&args) {
+                eprintln!("Error: {e:?}");
+                ExitCode::FAILURE
+            } else {
+                ExitCode::SUCCESS
+            }
+        }
     }
-    ExitCode::SUCCESS
 }
 
-fn run(cli: &Cli) -> anyhow::Result<()> {
-    // Get cargo's metadata — either cached or from a fresh invocation
-    let metadata = if let Some(ref metadata_path) = cli.metadata {
+/// Load cargo metadata and build a package graph.
+fn load_package_graph(
+    metadata_path: Option<&PathBuf>,
+    input: Option<&PathBuf>,
+) -> anyhow::Result<PackageGraph> {
+    let metadata = if let Some(metadata_path) = metadata_path {
         let json = fs_err::read_to_string(metadata_path)?;
         guppy::CargoMetadata::parse_json(&json)?
     } else {
         let mut cmd = MetadataCommand::new();
-        if let Some(ref input) = cli.input {
+        if let Some(input) = input {
             cmd.current_dir(input);
         }
         cmd.exec()?
     };
-    let package_graph = metadata.build_graph()?;
+    Ok(metadata.build_graph()?)
+}
 
+/// Resolve the toolchain and create a `CrateCollection`.
+fn create_collection(
+    package_graph: PackageGraph,
+) -> anyhow::Result<CrateCollection<NoAnnotations>> {
     let toolchain =
         std::env::var("CHEADERGEN_DOCS_TOOLCHAIN").unwrap_or_else(|_| DOCS_TOOLCHAIN.to_string());
 
+    let project_fingerprint = package_graph.workspace().root().to_string();
+
+    let cache_dir = xdg_home::home_dir()
+        .ok_or_else(|| anyhow::anyhow!("Failed to get the user's home directory"))?
+        .join(".cheadergen/cache");
+    let disk_cache = RustdocGlobalFsCache::new(
+        rustdoc_processor::CRATE_VERSION,
+        &toolchain,
+        true,
+        &package_graph,
+        &cache_dir,
+    )?;
+
+    let collection = CrateCollection::new(
+        NoAnnotations,
+        toolchain,
+        package_graph,
+        project_fingerprint,
+        disk_cache,
+        Box::new(NoProgress),
+    );
+    collection
+        .bootstrap(std::iter::empty())
+        .expect("Failed to bootstrap the crate collection");
+
+    Ok(collection)
+}
+
+fn warm_cache(args: &WarmCacheArgs) -> anyhow::Result<()> {
+    let package_graph = load_package_graph(args.metadata.as_ref(), args.input.as_ref())?;
+
+    let workspace_member_ids: Vec<_> = package_graph
+        .workspace()
+        .iter()
+        .map(|pkg| pkg.id().clone())
+        .collect();
+
+    if !args.quiet {
+        eprintln!(
+            "Warming rustdoc cache for {} workspace member(s)...",
+            workspace_member_ids.len()
+        );
+    }
+
+    let collection = create_collection(package_graph)?;
+    collection
+        .compute_batch(workspace_member_ids.into_iter())
+        .map_err(|e| anyhow::anyhow!(e))?;
+
+    if !args.quiet {
+        eprintln!("Cache warm-up complete.");
+    }
+
+    Ok(())
+}
+
+fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
+    let package_graph = load_package_graph(cli.metadata.as_ref(), cli.input.as_ref())?;
+
     // Resolve package info before moving `package_graph` into `CrateCollection`.
-    let (package_id, package_name, project_fingerprint) = {
+    let (package_id, package_name) = {
         let workspace = package_graph.workspace();
 
         // Resolve the target package: if `cli.input` points to a directory inside the workspace,
@@ -149,36 +258,17 @@ fn run(cli: &Cli) -> anyhow::Result<()> {
         };
 
         let package_name = package_graph.metadata(&package_id)?.name().to_string();
-        let project_fingerprint = workspace.root().to_string();
-        (package_id, package_name, project_fingerprint)
+        (package_id, package_name)
     };
+
+    let toolchain =
+        std::env::var("CHEADERGEN_DOCS_TOOLCHAIN").unwrap_or_else(|_| DOCS_TOOLCHAIN.to_string());
 
     if !cli.quiet {
         eprintln!("Computing rustdoc JSON for `{package_name}` using toolchain `{toolchain}`...");
     }
 
-    let cache_dir = xdg_home::home_dir()
-        .ok_or_else(|| anyhow::anyhow!("Failed to get the user's home directory"))?
-        .join(".cheadergen/cache");
-    let disk_cache = RustdocGlobalFsCache::new(
-        rustdoc_processor::CRATE_VERSION,
-        &toolchain,
-        true,
-        &package_graph,
-        &cache_dir,
-    )?;
-
-    let collection = CrateCollection::new(
-        NoAnnotations,
-        toolchain,
-        package_graph,
-        project_fingerprint,
-        disk_cache,
-        Box::new(NoProgress),
-    );
-    collection
-        .bootstrap(std::iter::empty())
-        .expect("Failed to bootstrap the crate collection");
+    let collection = create_collection(package_graph)?;
 
     let krate = collection
         .get_or_compute(&package_id)
@@ -226,10 +316,7 @@ fn run(cli: &Cli) -> anyhow::Result<()> {
                 .unwrap_or_else(|| "<unnamed>".to_string());
             eprintln!("  - {name}");
         }
-        eprintln!(
-            "Found {} exported static(s):",
-            exported_static_ids.len()
-        );
+        eprintln!("Found {} exported static(s):", exported_static_ids.len());
         for id in &exported_static_ids {
             let name = krate
                 .core

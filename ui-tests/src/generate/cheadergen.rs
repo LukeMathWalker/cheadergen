@@ -69,6 +69,7 @@ pub(crate) fn run_cheadergen_symbols(
     let mut command = Command::new(cheadergen);
     command.env("LLVM_PROFILE_FILE", "target/profraw/%p_%m.profraw");
 
+    command.arg("generate");
     command.arg("--metadata").arg(metadata);
     command.arg("--no-header");
     command.arg("--symbol-file").arg(symbol_file);
@@ -100,6 +101,7 @@ pub(crate) fn run_cheadergen(
     let mut command = Command::new(cheadergen);
     command.env("LLVM_PROFILE_FILE", "target/profraw/%p_%m.profraw");
 
+    command.arg("generate");
     command.arg("--metadata").arg(metadata);
 
     match language {

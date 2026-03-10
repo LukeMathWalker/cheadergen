@@ -24,3 +24,10 @@ cargo metadata --all-features --format-version 1 \
 echo "CBINDGEN_CASES_METADATA=$SCRIPT_DIR/cbindgen/rust/cases/metadata.json" >> "$NEXTEST_ENV"
 echo "CBINDGEN_WORKSPACE_METADATA=$SCRIPT_DIR/cbindgen/rust/workspace/metadata.json" >> "$NEXTEST_ENV"
 echo "CHEADERGEN_CASES_METADATA=$SCRIPT_DIR/cheadergen/rust/cases/metadata.json" >> "$NEXTEST_ENV"
+
+# Pre-warm the rustdoc JSON cache for all workspace members to avoid
+# cargo target-dir lock contention when tests run in parallel.
+CHEADERGEN="$WORKSPACE_ROOT/target/debug/cheadergen"
+"$CHEADERGEN" warm-cache --metadata "$SCRIPT_DIR/cbindgen/rust/cases/metadata.json"
+"$CHEADERGEN" warm-cache --metadata "$SCRIPT_DIR/cbindgen/rust/workspace/metadata.json"
+"$CHEADERGEN" warm-cache --metadata "$SCRIPT_DIR/cheadergen/rust/cases/metadata.json"

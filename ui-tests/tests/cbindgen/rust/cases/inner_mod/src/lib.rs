@@ -4,7 +4,7 @@
 
 mod foo {
     #[repr(C)]
-    struct Foo {
+    pub struct Foo {
         x: f32,
     }
 }

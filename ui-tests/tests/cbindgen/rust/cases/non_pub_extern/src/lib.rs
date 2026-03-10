@@ -5,13 +5,13 @@
 #[unsafe(no_mangle)]
 static FIRST: u32 = 10;
 
-#[export_name = "RENAMED"]
+#[unsafe(export_name = "RENAMED")]
 static SECOND: u32 = 42;
 
 #[unsafe(no_mangle)]
 extern "C" fn first()
 { }
 
-#[export_name = "renamed"]
+#[unsafe(export_name = "renamed")]
 extern fn second()
 { }

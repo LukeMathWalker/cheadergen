@@ -2,6 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+use std::marker::PhantomData;
+
 struct UnknownUnit;
 struct LayoutUnit;
 
@@ -43,7 +45,7 @@ struct TypedTransform2D<T, Src, Dst> {
     m11: T, m12: T,
     m21: T, m22: T,
     m31: T, m32: T,
-    _phantom: PhantomData<U>,
+    _phantom: PhantomData<(Src, Dst)>,
 }
 
 type Length<T> = TypedLength<T, UnknownUnit>;

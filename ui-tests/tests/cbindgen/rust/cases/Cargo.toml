@@ -9,7 +9,8 @@ members = [
     "rename_crate/no_extern",
     "rename_crate/old_dep",
 ]
-exclude = ["target"]
+# `cmse` uses the `cmse-nonsecure-entry` ABI, which is only supported on thumbv8m targets.
+exclude = ["target", "cmse"]
 resolver = "3"
 
 [workspace.package]

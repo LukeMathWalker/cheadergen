@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-pub const LEN: i32 = 22;
+pub const LEN: usize = 22;
 
 pub type NamedLenArray = [i32; LEN];
 pub type ValuedLenArray = [i32; 22];

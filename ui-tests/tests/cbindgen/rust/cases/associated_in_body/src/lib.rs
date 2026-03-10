@@ -2,6 +2,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+use bitflags::bitflags;
+use malloc_size_of_derive::MallocSizeOf;
+
 bitflags! {
     /// Constants shared by multiple CSS Box Alignment properties
     ///
@@ -17,11 +20,11 @@ bitflags! {
         const START = 1 << 1;
         /// 'end'
         const END = 1 << 2;
-        const ALIAS = Self::END.bits;
+        const ALIAS = Self::END.bits();
         /// 'flex-start'
         const FLEX_START = 1 << 3;
-        const MIXED = 1 << 4 | AlignFlags::FLEX_START.bits | AlignFlags::END.bits;
-        const MIXED_SELF = 1 << 5 | AlignFlags::FLEX_START.bits | AlignFlags::END.bits;
+        const MIXED = 1 << 4 | AlignFlags::FLEX_START.bits() | AlignFlags::END.bits();
+        const MIXED_SELF = 1 << 5 | AlignFlags::FLEX_START.bits() | AlignFlags::END.bits();
         #[cfg(windows)]
         const PLATFORM_BIT = 1 << 6;
         #[cfg(unix)]

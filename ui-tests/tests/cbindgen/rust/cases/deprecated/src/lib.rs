@@ -74,5 +74,5 @@ pub extern "C" fn dummy(
     d: DeprecatedStruct,
     e: DeprecatedStructWithNote,
     f: EnumWithDeprecatedStructVariants,
-) -> void {
+) {
 }

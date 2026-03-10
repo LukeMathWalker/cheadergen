@@ -2,6 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+use std::ffi::c_char;
+
 #[unsafe(no_mangle)]
 pub static mut MUT_GLOBAL_ARRAY: [c_char; 128] = [0; 128];
 

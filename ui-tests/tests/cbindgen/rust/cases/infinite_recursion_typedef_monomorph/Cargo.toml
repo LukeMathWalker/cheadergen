@@ -3,3 +3,6 @@ name = "infinite_recursion_typedef_monomorph"
 version = "0.1.0"
 authors = ["cbindgen"]
 edition.workspace = true
+
+[dependencies]
+fallible_collections = "0.5"

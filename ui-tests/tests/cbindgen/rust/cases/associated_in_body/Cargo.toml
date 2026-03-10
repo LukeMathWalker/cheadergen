@@ -3,3 +3,8 @@ name = "associated_in_body"
 version = "0.1.0"
 authors = ["cbindgen"]
 edition.workspace = true
+
+[dependencies]
+bitflags = "2"
+malloc_size_of_derive = "0.1.3"
+malloc_size_of = "0.1.1"

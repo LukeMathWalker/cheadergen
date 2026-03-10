@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#[export_name = "do_the_thing_with_export_name"]
+#[unsafe(export_name = "do_the_thing_with_export_name")]
 pub extern "C" fn do_the_thing() {
   println!("doing the thing!");
 }

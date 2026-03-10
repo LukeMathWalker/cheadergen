@@ -37,7 +37,7 @@ pub static G: i32 = 10;
 
 pub const H: i32 = 10;
 
-pub const I: isize = 10 as *mut F as isize;
+pub const I: isize = 10;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn root(

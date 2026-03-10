@@ -85,7 +85,7 @@ enum J {
     Baz,
 }
 
-#[repr(C, u8, unknown_hint)]
+#[repr(C, u8)]
 enum K {
     Foo(i16),
     Bar { x: u8, y: i16 },

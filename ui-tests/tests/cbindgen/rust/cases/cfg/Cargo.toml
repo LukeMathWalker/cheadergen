@@ -3,3 +3,6 @@ name = "cfg"
 version = "0.1.0"
 authors = ["cbindgen"]
 edition.workspace = true
+
+[dependencies]
+bitflags = "2"
