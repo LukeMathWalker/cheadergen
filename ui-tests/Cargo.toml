@@ -13,6 +13,6 @@ name = "ui-tests"
 path = "src/main.rs"
 
 [build-dependencies]
-toml = "0.8"
+toml = "1.0"
 serde = { version = "1", features = ["derive"] }
 
