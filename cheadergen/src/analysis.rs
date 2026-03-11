@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use rustdoc_ir::{FreeFunction, Type};
 use rustdoc_processor::CrateCollection;
@@ -6,6 +6,12 @@ use rustdoc_processor::indexing::NoAnnotations;
 use rustdoc_processor::queries::Crate;
 use rustdoc_resolver::resolve_free_function;
 use rustdoc_types::{Abi, Attribute, ItemEnum};
+
+/// A user-defined type that needs a C declaration in the header.
+pub struct CTypeDefinition {
+    /// The C name for this type (last path segment from PathType::base_type).
+    pub name: String,
+}
 
 /// Extern "C" function IDs and exported static IDs found in a crate.
 pub struct ExternItems {
@@ -53,14 +59,6 @@ pub fn resolve_functions(
         let free_fn = resolve_free_function(&item, krate, collection)
             .map_err(|e| anyhow::anyhow!("Failed to resolve function: {e}"))?;
 
-        // Bail if any input or output type contains a PathType — we don't handle those yet.
-        for input in &free_fn.header.inputs {
-            reject_path_types(&input.type_, &free_fn.path.function_name, &input.name)?;
-        }
-        if let Some(output) = &free_fn.header.output {
-            reject_path_types(output, &free_fn.path.function_name, &"return type")?;
-        }
-
         resolved_fns.push(free_fn);
     }
     Ok(resolved_fns)
@@ -102,30 +100,37 @@ fn has_export_attr(attrs: &[Attribute]) -> bool {
         .any(|a| matches!(a, Attribute::NoMangle | Attribute::ExportName(_)))
 }
 
-/// Bail if `ty` contains a [`rustdoc_ir::PathType`] anywhere — we don't handle named/user-defined
-/// types yet.
-fn reject_path_types(
-    ty: &Type,
-    fn_name: &str,
-    context: &dyn std::fmt::Display,
-) -> anyhow::Result<()> {
+/// Walk all types in all function signatures and collect unique path types
+/// that need forward declarations in the generated header.
+pub fn collect_type_definitions(functions: &[FreeFunction]) -> Vec<CTypeDefinition> {
+    let mut seen = BTreeMap::new();
+    for func in functions {
+        for input in &func.header.inputs {
+            collect_paths_from_type(&input.type_, &mut seen);
+        }
+        if let Some(output) = &func.header.output {
+            collect_paths_from_type(output, &mut seen);
+        }
+    }
+    seen.into_values().collect()
+}
+
+fn collect_paths_from_type(ty: &Type, seen: &mut BTreeMap<String, CTypeDefinition>) {
     match ty {
         Type::Path(p) => {
-            anyhow::bail!(
-                "`{fn_name}`: {context} uses named type `{}`, which is not yet supported",
-                p.base_type.join("::")
-            );
+            let name = p.base_type.last().expect("empty path").clone();
+            seen.entry(name.clone())
+                .or_insert(CTypeDefinition { name });
         }
-        Type::Reference(r) => reject_path_types(&r.inner, fn_name, context),
-        Type::RawPointer(r) => reject_path_types(&r.inner, fn_name, context),
+        Type::Reference(r) => collect_paths_from_type(&r.inner, seen),
+        Type::RawPointer(r) => collect_paths_from_type(&r.inner, seen),
         Type::Tuple(t) => {
             for element in &t.elements {
-                reject_path_types(element, fn_name, context)?;
+                collect_paths_from_type(element, seen);
             }
-            Ok(())
         }
-        Type::Slice(s) => reject_path_types(&s.element_type, fn_name, context),
-        Type::Array(a) => reject_path_types(&a.element_type, fn_name, context),
-        Type::ScalarPrimitive(_) | Type::Generic(_) => Ok(()),
+        Type::Slice(s) => collect_paths_from_type(&s.element_type, seen),
+        Type::Array(a) => collect_paths_from_type(&a.element_type, seen),
+        Type::ScalarPrimitive(_) | Type::Generic(_) => {}
     }
 }

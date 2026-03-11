@@ -10,4 +10,12 @@ expression: output
 
 typedef struct Point Point;
 
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
 Point point_new(double x, double y);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

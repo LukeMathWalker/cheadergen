@@ -303,13 +303,15 @@ fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
             eprintln!("Resolved {} function(s) to IR", resolved_fns.len());
         }
 
+        let type_defs = analysis::collect_type_definitions(&resolved_fns);
+
         let c_config = match &config {
             config::Config::C(c) => c,
             _ => anyhow::bail!("Only C output is currently supported"),
         };
 
         let mut header = String::new();
-        codegen::generate_c_header(c_config, &mut resolved_fns, &mut header);
+        codegen::generate_c_header(c_config, &type_defs, &mut resolved_fns, &mut header);
 
         if let Some(ref output_path) = cli.output {
             fs_err::write(output_path, &header)?;

@@ -210,7 +210,6 @@ pub struct CConfig {
     /// Options shared with all languages.
     pub common: CommonConfig,
     /// See [`RawCSection::style`]. Defaults to [`Style::Both`].
-    #[allow(dead_code)]
     pub style: Style,
     /// See [`RawCSection::cpp_compat`]. Defaults to `false`.
     pub cpp_compat: bool,

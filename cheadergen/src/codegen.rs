@@ -2,7 +2,8 @@ use std::collections::BTreeSet;
 use std::fmt::Write;
 use std::path::Path;
 
-use crate::config::CConfig;
+use crate::analysis::CTypeDefinition;
+use crate::config::{CConfig, Style};
 use rustdoc_ir::{FreeFunction, ScalarPrimitive, Type};
 
 /// Generate a C header from the resolved functions, writing to `out`.
@@ -11,7 +12,12 @@ use rustdoc_ir::{FreeFunction, ScalarPrimitive, Type};
 /// header, include guard/pragma once, autogen warning, includes,
 /// after_includes, cpp_compat open, declarations, cpp_compat close,
 /// include guard close, trailer.
-pub fn generate_c_header(config: &CConfig, functions: &mut [FreeFunction], out: &mut String) {
+pub fn generate_c_header(
+    config: &CConfig,
+    type_defs: &[CTypeDefinition],
+    functions: &mut [FreeFunction],
+    out: &mut String,
+) {
     // Sort by exported name for deterministic output.
     functions.sort_by(|a, b| exported_name(a).cmp(exported_name(b)));
 
@@ -62,6 +68,12 @@ pub fn generate_c_header(config: &CConfig, functions: &mut [FreeFunction], out: 
         out.push('\n');
     }
 
+    // Type forward declarations.
+    if !type_defs.is_empty() {
+        out.push('\n');
+        write_c_type_definitions(type_defs, &config.style, out);
+    }
+
     let has_functions = !functions.is_empty();
 
     // cpp_compat open (only if there are declarations to wrap).
@@ -75,7 +87,7 @@ pub fn generate_c_header(config: &CConfig, functions: &mut [FreeFunction], out: 
     // Function declarations.
     for func in functions.iter() {
         out.push('\n');
-        write_c_function_decl(func, out);
+        write_c_function_decl(func, &config.style, out);
         out.push('\n');
     }
 
@@ -106,7 +118,7 @@ fn exported_name(func: &FreeFunction) -> &str {
         .unwrap_or(&func.path.function_name)
 }
 
-fn write_c_function_decl(func: &FreeFunction, out: &mut String) {
+fn write_c_function_decl(func: &FreeFunction, style: &Style, out: &mut String) {
     let name = func
         .header
         .symbol_name
@@ -117,7 +129,7 @@ fn write_c_function_decl(func: &FreeFunction, out: &mut String) {
     match &func.header.output {
         None => out.push_str("void"),
         Some(ty) if is_void(ty) => out.push_str("void"),
-        Some(ty) => write_c_type(ty, out),
+        Some(ty) => write_c_type(ty, style, out),
     }
 
     write!(out, " {name}(").unwrap();
@@ -130,7 +142,7 @@ fn write_c_function_decl(func: &FreeFunction, out: &mut String) {
             if i > 0 {
                 out.push_str(", ");
             }
-            write_c_param(&input.type_, input.name.as_str(), out);
+            write_c_param(&input.type_, input.name.as_str(), style, out);
         }
         if func.header.is_c_variadic {
             if !func.header.inputs.is_empty() {
@@ -143,24 +155,24 @@ fn write_c_function_decl(func: &FreeFunction, out: &mut String) {
     out.push_str(");");
 }
 
-fn write_c_param(ty: &Type, name: &str, out: &mut String) {
+fn write_c_param(ty: &Type, name: &str, style: &Style, out: &mut String) {
     // For pointer types, the name goes after the base type and asterisks.
     // For non-pointer types, it's just `type name`.
     let mut type_buf = String::new();
-    write_c_type(ty, &mut type_buf);
+    write_c_type(ty, style, &mut type_buf);
     write!(out, "{type_buf} {name}").unwrap();
 }
 
-fn write_c_type(ty: &Type, out: &mut String) {
+fn write_c_type(ty: &Type, style: &Style, out: &mut String) {
     match ty {
         Type::ScalarPrimitive(p) => out.push_str(scalar_to_c(p)),
         Type::RawPointer(ptr) => {
             if ptr.is_mutable {
-                write_c_type(&ptr.inner, out);
+                write_c_type(&ptr.inner, style, out);
                 out.push('*');
             } else {
                 out.push_str("const ");
-                write_c_type(&ptr.inner, out);
+                write_c_type(&ptr.inner, style, out);
                 out.push('*');
             }
         }
@@ -169,25 +181,41 @@ fn write_c_type(ty: &Type, out: &mut String) {
             // Arrays in parameter position decay to pointers in C, but for type
             // representation we write `type[N]`. This will need refinement for
             // parameters vs typedefs.
-            write_c_type(&a.element_type, out);
+            write_c_type(&a.element_type, style, out);
             write!(out, "[{}]", a.len).unwrap();
         }
         Type::Reference(r) => {
             if r.is_mutable {
-                write_c_type(&r.inner, out);
+                write_c_type(&r.inner, style, out);
                 out.push('*');
             } else {
                 out.push_str("const ");
-                write_c_type(&r.inner, out);
+                write_c_type(&r.inner, style, out);
                 out.push('*');
             }
         }
+        Type::Path(p) => {
+            let name = p.base_type.last().expect("empty path");
+            match style {
+                Style::Tag => write!(out, "struct {name}").unwrap(),
+                Style::Type | Style::Both => out.push_str(name),
+            }
+        }
         // These should have been rejected earlier.
-        Type::Path(_)
-        | Type::Tuple(_)
+        Type::Tuple(_)
         | Type::Slice(_)
         | Type::Generic(_) => {
             unreachable!("unsupported type in C codegen: {ty:?}")
+        }
+    }
+}
+
+fn write_c_type_definitions(type_defs: &[CTypeDefinition], style: &Style, out: &mut String) {
+    for def in type_defs {
+        let name = &def.name;
+        match style {
+            Style::Tag => writeln!(out, "struct {name};").unwrap(),
+            Style::Type | Style::Both => writeln!(out, "typedef struct {name} {name};").unwrap(),
         }
     }
 }
