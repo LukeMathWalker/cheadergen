@@ -15,6 +15,7 @@ fn run_config_error(config_toml: &str, extra_args: &[&str]) -> String {
         .args(extra_args)
         // Ensure consistent output for CLI errors
         .env("RUST_BACKTRACE", "0")
+        .env("RUST_LIB_BACKTRACE", "0")
         .output()
         .expect("failed to run cheadergen");
 
