@@ -1,7 +1,9 @@
+pub mod cbindgen;
+
 use std::path::Path;
 
 use clap::ValueEnum;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 /// The target language for the generated header file.
 ///
@@ -25,7 +27,7 @@ pub enum Language {
 /// This only applies when the target language is [`Language::C`].
 /// C++ does not use typedef-style declarations, so this option is ignored
 /// (and rejected) for [`Language::Cxx`].
-#[derive(Debug, Clone, ValueEnum, Deserialize)]
+#[derive(Debug, Clone, ValueEnum, Deserialize, Serialize)]
 pub enum Style {
     /// Emit both a tag definition and a typedef:
     /// `typedef struct MyType { ... } MyType;`
@@ -50,37 +52,45 @@ pub enum Style {
 ///
 /// Defaults are resolved and language-specific constraints are validated
 /// when converting into a [`Config`] via [`RawConfig::into_config`].
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawConfig {
     /// Verbatim text prepended to the generated file (e.g. a license block).
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub header: Option<String>,
     /// Verbatim text appended to the end of the generated file.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub trailer: Option<String>,
     /// Warning text emitted between major sections to discourage manual edits.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub autogen_warning: Option<String>,
     /// Custom `#ifndef`/`#define` include guard name.
     /// When omitted, no include guard is emitted (see also [`pragma_once`](RawConfig::pragma_once)).
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub include_guard: Option<String>,
     /// Emit `#pragma once` instead of (or in addition to) an include guard.
     /// Defaults to `false`.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub pragma_once: Option<bool>,
     /// System headers to emit as `#include <…>`.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub sys_includes: Vec<String>,
     /// User headers to emit as `#include "…"`.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub includes: Vec<String>,
     /// Suppress the default language-specific includes (e.g. `<stdint.h>` for C).
     /// Defaults to `false`.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub no_includes: Option<bool>,
     /// Verbatim text inserted immediately after the include block.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub after_includes: Option<String>,
 
     /// C-specific configuration section.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub c: Option<RawCSection>,
     /// C++-specific configuration section.
-    #[serde(alias = "c++", alias = "cpp")]
+    #[serde(alias = "c++", alias = "cpp", skip_serializing_if = "Option::is_none")]
     pub cxx: Option<RawCxxSection>,
 }
 
@@ -93,23 +103,34 @@ pub struct RawConfig {
 /// into a shared struct with `#[serde(flatten)]`) so that we can keep
 /// `#[serde(deny_unknown_fields)]` on every struct — giving clear error
 /// messages when a config file contains a typo.
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawCSection {
     /// C declaration style for structs and enums. Defaults to [`Style::Both`].
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub style: Option<Style>,
     /// Wrap C output in an `extern "C"` block for C++ compatibility.
     /// Defaults to `false`.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cpp_compat: Option<bool>,
     // Common option overrides (see struct-level doc for why these are duplicated).
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub header: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub trailer: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub autogen_warning: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub include_guard: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub pragma_once: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sys_includes: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub includes: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub no_includes: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub after_includes: Option<String>,
 }
 
@@ -119,18 +140,27 @@ pub struct RawCSection {
 /// for C++ output only.
 ///
 /// See [`RawCSection`] for why common fields are duplicated here.
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawCxxSection {
     // Common option overrides (see RawCSection doc for why these are duplicated).
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub header: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub trailer: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub autogen_warning: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub include_guard: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub pragma_once: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sys_includes: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub includes: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub no_includes: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub after_includes: Option<String>,
 }
 
