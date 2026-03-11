@@ -43,15 +43,12 @@ If all tests pass, proceed to Step 4.
 
 This project uses insta for snapshot testing. When expected output changes, tests fail and insta writes `.snap.new` files next to the existing `.snap` files.
 
-1. Run `cargo insta pending-snapshots` to list all pending snapshot changes
-2. Read the `.snap.new` files to review the diffs and determine if the changes are expected
-3. Accept or reject snapshots selectively:
-   - Accept specific snapshots: `cargo insta accept --snapshot <name>`
-   - Reject specific snapshots: `cargo insta reject --snapshot <name>`
-   - Accept all at once (only when every change is expected): `cargo insta accept`
-4. Re-run `just test-generate` to confirm the updated snapshots pass
+1. Read the `.snap.new` files to review the diffs and determine if the changes are expected
+2. Accept snapshots by moving the `.snap.new` file over the `.snap` file: `mv foo.snap.new foo.snap`
+   - To reject, simply delete the `.snap.new` file
+3. Re-run `just test-generate` to confirm the updated snapshots pass
 
-IMPORTANT: Do not use `cargo insta review` - it opens an interactive TUI that cannot be used in this environment.
+IMPORTANT: Do not use `cargo insta` commands (`cargo insta review`, `cargo insta accept`, etc.). Always move `.snap.new` files directly.
 
 ### Step 4: Full test suite
 
