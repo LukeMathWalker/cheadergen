@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 use std::fmt::Write;
 use std::path::Path;
 
-use crate::analysis::CTypeDefinition;
+use crate::analysis::{CTypeDefinition, c_type_name};
 use crate::config::{CConfig, Style};
 use rustdoc_ir::{FreeFunction, ScalarPrimitive, Type};
 
@@ -194,11 +194,11 @@ fn write_c_type(ty: &Type, style: &Style, out: &mut String) {
                 out.push('*');
             }
         }
-        Type::Path(p) => {
-            let name = p.base_type.last().expect("empty path");
+        Type::Path(_) => {
+            let name = c_type_name(ty);
             match style {
                 Style::Tag => write!(out, "struct {name}").unwrap(),
-                Style::Type | Style::Both => out.push_str(name),
+                Style::Type | Style::Both => out.push_str(&name),
             }
         }
         // These should have been rejected earlier.
@@ -211,11 +211,15 @@ fn write_c_type(ty: &Type, style: &Style, out: &mut String) {
 }
 
 fn write_c_type_definitions(type_defs: &[CTypeDefinition], style: &Style, out: &mut String) {
-    for def in type_defs {
+    for (i, def) in type_defs.iter().enumerate() {
         let name = &def.name;
         match style {
             Style::Tag => writeln!(out, "struct {name};").unwrap(),
             Style::Type | Style::Both => writeln!(out, "typedef struct {name} {name};").unwrap(),
+        }
+        // Blank line between type declarations (but not after the last one).
+        if i + 1 < type_defs.len() {
+            out.push('\n');
         }
     }
 }

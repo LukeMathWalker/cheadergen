@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use rustdoc_ir::{FreeFunction, Type};
+use rustdoc_ir::{FreeFunction, GenericArgument, Type};
 use rustdoc_processor::CrateCollection;
 use rustdoc_processor::indexing::NoAnnotations;
 use rustdoc_processor::queries::Crate;
@@ -115,10 +115,51 @@ pub fn collect_type_definitions(functions: &[FreeFunction]) -> Vec<CTypeDefiniti
     seen.into_values().collect()
 }
 
+/// Compute the cbindgen-style monomorphized C name for a type.
+///
+/// - Scalars use their Rust name (e.g. `"i32"`, `"bool"`).
+/// - Path types use the last segment plus mangled generic arguments.
+///   Generic arguments at the same level are separated by `__` (double underscore),
+///   and a single `_` separates the base name from the first argument.
+///   Lifetimes are ignored.
+/// - References and raw pointers recurse into the inner type.
+pub fn c_type_name(ty: &Type) -> String {
+    match ty {
+        Type::ScalarPrimitive(p) => p.as_str().to_owned(),
+        Type::Path(p) => {
+            let base = p.base_type.last().expect("empty path");
+            let type_args: Vec<String> = p
+                .generic_arguments
+                .iter()
+                .filter_map(|arg| match arg {
+                    GenericArgument::TypeParameter(t) => Some(c_type_name(t)),
+                    GenericArgument::Lifetime(_) => None,
+                })
+                .collect();
+            if type_args.is_empty() {
+                base.clone()
+            } else {
+                format!("{}_{}", base, type_args.join("__"))
+            }
+        }
+        Type::Reference(r) => c_type_name(&r.inner),
+        Type::RawPointer(r) => c_type_name(&r.inner),
+        Type::Tuple(t) => {
+            // Tuples shouldn't typically appear in monomorphized names,
+            // but handle gracefully.
+            let elems: Vec<String> = t.elements.iter().map(c_type_name).collect();
+            elems.join("__")
+        }
+        Type::Slice(s) => c_type_name(&s.element_type),
+        Type::Array(a) => c_type_name(&a.element_type),
+        Type::Generic(g) => g.name.clone(),
+    }
+}
+
 fn collect_paths_from_type(ty: &Type, seen: &mut BTreeMap<String, CTypeDefinition>) {
     match ty {
-        Type::Path(p) => {
-            let name = p.base_type.last().expect("empty path").clone();
+        Type::Path(_) => {
+            let name = c_type_name(ty);
             seen.entry(name.clone())
                 .or_insert(CTypeDefinition { name });
         }
