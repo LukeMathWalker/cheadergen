@@ -72,7 +72,7 @@ macro_rules! symbol_test {
         #[test]
         #[ignore]
         fn $fn_name() {
-            symbol_test!(@body $($rest)*);
+            symbol_test!(@xfail_body $($rest)*);
         }
     };
     (skip, $fn_name:ident, $($rest:tt)*) => {
@@ -90,6 +90,9 @@ macro_rules! symbol_test {
     };
     (@body $name:expr, $file:tt) => {
         run_symbol_test($name, Path::new($file))
+    };
+    (@xfail_body $name:expr, $file:tt) => {
+        run_expected_symbol_failure_test($name, Path::new($file))
     };
 }
 

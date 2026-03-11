@@ -4,7 +4,7 @@ expression: "rename_crate.c.sym"
 snapshot_kind: text
 ---
 {
-root;
-renamed_func;
 no_extern_func;
+renamed_func;
+root;
 };

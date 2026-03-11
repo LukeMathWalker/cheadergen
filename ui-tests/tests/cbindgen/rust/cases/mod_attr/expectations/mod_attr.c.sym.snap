@@ -4,6 +4,6 @@ expression: "mod_attr.c.sym"
 snapshot_kind: text
 ---
 {
-foo;
 bar;
+foo;
 };

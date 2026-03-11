@@ -4,8 +4,8 @@ expression: "const_generics_bool.c.sym"
 snapshot_kind: text
 ---
 {
+map_for_each;
+new_map;
 new_set;
 set_for_each;
-new_map;
-map_for_each;
 };

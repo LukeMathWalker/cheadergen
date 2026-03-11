@@ -4,6 +4,6 @@ expression: "fns.c.sym"
 snapshot_kind: text
 ---
 {
-root;
 no_return;
+root;
 };

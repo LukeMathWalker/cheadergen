@@ -111,6 +111,18 @@ pub fn run_expected_failure_test(
     // Snapshot mismatch: still an expected failure, test passes.
 }
 
+pub fn run_expected_symbol_failure_test(name: &str, path: &Path) {
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        run_symbol_test(name, path);
+    }));
+    if result.is_ok() {
+        panic!(
+            "xfail symbol test `{name}` now fully passes — \
+             remove the symbol xfail marker from the case's test.toml"
+        );
+    }
+}
+
 fn compare_snapshot(
     name: &str,
     path: &Path,

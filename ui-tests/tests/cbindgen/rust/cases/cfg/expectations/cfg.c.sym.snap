@@ -4,11 +4,11 @@ expression: "cfg.c.sym"
 snapshot_kind: text
 ---
 {
-root;
-root;
+bar;
 cond;
 foo;
-bar;
 global_array_with_different_sizes;
 global_array_with_different_sizes;
+root;
+root;
 };

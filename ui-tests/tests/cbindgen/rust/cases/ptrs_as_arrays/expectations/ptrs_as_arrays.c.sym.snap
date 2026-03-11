@@ -4,9 +4,9 @@ expression: "ptrs_as_arrays.c.sym"
 snapshot_kind: text
 ---
 {
-ptr_as_array;
 ptr_as_array1;
 ptr_as_array2;
-ptr_as_array_wrong_syntax;
+ptr_as_array;
 ptr_as_array_unnamed;
+ptr_as_array_wrong_syntax;
 };

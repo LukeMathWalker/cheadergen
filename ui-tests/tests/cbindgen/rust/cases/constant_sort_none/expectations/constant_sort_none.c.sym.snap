@@ -4,6 +4,6 @@ expression: "constant_sort_none.c.sym"
 snapshot_kind: text
 ---
 {
-D;
 C;
+D;
 };

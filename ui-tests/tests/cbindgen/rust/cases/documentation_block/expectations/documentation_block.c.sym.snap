@@ -4,7 +4,7 @@ expression: "documentation_block.c.sym"
 snapshot_kind: text
 ---
 {
-root;
-block_function;
 FOO;
+block_function;
+root;
 };

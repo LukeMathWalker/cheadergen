@@ -4,7 +4,7 @@ expression: "box.c.sym"
 snapshot_kind: text
 ---
 {
-root;
 drop_box;
 drop_box_opt;
+root;
 };

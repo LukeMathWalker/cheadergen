@@ -4,6 +4,6 @@ expression: "documentation.c.sym"
 snapshot_kind: text
 ---
 {
-root;
 FOO;
+root;
 };

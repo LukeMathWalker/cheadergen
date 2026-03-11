@@ -4,8 +4,8 @@ expression: "non_pub_extern.c.sym"
 snapshot_kind: text
 ---
 {
-first;
-renamed;
 FIRST;
 RENAMED;
+first;
+renamed;
 };

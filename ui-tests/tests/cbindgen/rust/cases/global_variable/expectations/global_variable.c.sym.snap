@@ -4,6 +4,6 @@ expression: "global_variable.c.sym"
 snapshot_kind: text
 ---
 {
-MUT_GLOBAL_ARRAY;
 CONST_GLOBAL_ARRAY;
+MUT_GLOBAL_ARRAY;
 };
