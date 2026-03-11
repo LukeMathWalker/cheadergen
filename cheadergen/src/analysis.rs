@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use rustdoc_ir::{FreeFunction, Type};
 use rustdoc_processor::CrateCollection;
 use rustdoc_processor::indexing::NoAnnotations;
@@ -68,9 +70,9 @@ pub fn resolve_functions(
 pub fn collect_symbols(
     items: &ExternItems,
     krate: &Crate,
-) -> Vec<String> {
-    let mut symbols = Vec::new();
-    for id in &items.fn_ids {
+) -> BTreeSet<String> {
+    let mut symbols = BTreeSet::new();
+    for id in items.fn_ids.iter().chain(&items.static_ids) {
         if let Some(name) = krate
             .core
             .krate
@@ -78,21 +80,9 @@ pub fn collect_symbols(
             .get(id)
             .and_then(|item| item.name.clone())
         {
-            symbols.push(name);
+            symbols.insert(name);
         }
     }
-    for id in &items.static_ids {
-        if let Some(name) = krate
-            .core
-            .krate
-            .index
-            .get(id)
-            .and_then(|item| item.name.clone())
-        {
-            symbols.push(name);
-        }
-    }
-    symbols.sort();
     symbols
 }
 

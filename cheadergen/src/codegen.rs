@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::fmt::Write;
 use std::path::Path;
 
@@ -132,7 +133,7 @@ fn is_void(ty: &Type) -> bool {
 }
 
 /// Write a symbol file listing exported dynamic symbols in `{ sym; ... };` format.
-pub fn write_symbol_file(symbols: &[String], path: &Path) -> anyhow::Result<()> {
+pub fn write_symbol_file(symbols: &BTreeSet<String>, path: &Path) -> anyhow::Result<()> {
     let mut out = String::from("{\n");
     for sym in symbols {
         out.push_str(sym);
