@@ -11,10 +11,10 @@ The `ui-tests` crate contains the project's integration test infrastructure. It 
 
 Two test suites, each under `ui-tests/tests/`:
 
-| Suite | Path | License | Notes |
-|---|---|---|---|
-| **cbindgen** | `tests/cbindgen/rust/cases/` | MPL-2.0 | Vendored from mozilla/cbindgen for compatibility |
-| **cheadergen** | `tests/cheadergen/rust/cases/` | Apache-2.0 | New tests for cheadergen-specific features |
+| Suite          | Path                           | License    | Notes                                            |
+| -------------- | ------------------------------ | ---------- | ------------------------------------------------ |
+| **cbindgen**   | `tests/cbindgen/rust/cases/`   | MPL-2.0    | Vendored from mozilla/cbindgen for compatibility |
+| **cheadergen** | `tests/cheadergen/rust/cases/` | Apache-2.0 | New tests for cheadergen-specific features       |
 
 ## Test Categories
 
@@ -48,17 +48,17 @@ Maps variant keys to statuses. Omitted variants default to normal (must pass).
 
 ### Generation Variants
 
-| Key | Language | Style | C++ compat |
-|---|---|---|---|
-| `"c/plain"` | C | plain | no |
-| `"c/tag"` | C | tag | no |
-| `"c/both"` | C | both | no |
-| `"c/compat"` | C | plain | yes |
-| `"c/tag_compat"` | C | tag | yes |
-| `"c/both_compat"` | C | both | yes |
-| `"cpp/plain"` | C++ | plain | — |
-| `"cython/plain"` | Cython | plain | — |
-| `"cython/tag"` | Cython | tag | — |
+| Key               | Language | Style | C++ compat |
+| ----------------- | -------- | ----- | ---------- |
+| `"c/plain"`       | C        | plain | no         |
+| `"c/tag"`         | C        | tag   | no         |
+| `"c/both"`        | C        | both  | no         |
+| `"c/compat"`      | C        | plain | yes        |
+| `"c/tag_compat"`  | C        | tag   | yes        |
+| `"c/both_compat"` | C        | both  | yes        |
+| `"cpp/plain"`     | C++      | plain | —          |
+| `"cython/plain"`  | Cython   | plain | —          |
+| `"cython/tag"`    | Cython   | tag   | —          |
 
 ### Symbol Key
 
@@ -66,12 +66,12 @@ Maps variant keys to statuses. Omitted variants default to normal (must pass).
 
 ### Status Values
 
-| Status | Meaning |
-|---|---|
-| *(omitted)* | Normal — test is generated and must pass |
-| `"xfail"` | Expected failure — test runs, it must fail |
-| `"skip"` | Ignored — `#[ignore]` attribute, does not run |
-| `"exclude"` | No test function generated at all |
+| Status      | Meaning                                       |
+| ----------- | --------------------------------------------- |
+| _(omitted)_ | Normal — test is generated and must pass      |
+| `"xfail"`   | Expected failure — test runs, it must fail    |
+| `"skip"`    | Ignored — `#[ignore]` attribute, does not run |
+| `"exclude"` | No test function generated at all             |
 
 ### Example
 
