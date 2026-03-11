@@ -1,4 +1,5 @@
 use std::fmt::Write;
+use std::path::Path;
 
 use rustdoc_ir::{FreeFunction, ScalarPrimitive, Type};
 
@@ -128,4 +129,16 @@ fn scalar_to_c(p: &ScalarPrimitive) -> &'static str {
 
 fn is_void(ty: &Type) -> bool {
     matches!(ty, Type::Tuple(t) if t.elements.is_empty())
+}
+
+/// Write a symbol file listing exported dynamic symbols in `{ sym; ... };` format.
+pub fn write_symbol_file(symbols: &[String], path: &Path) -> anyhow::Result<()> {
+    let mut out = String::from("{\n");
+    for sym in symbols {
+        out.push_str(sym);
+        out.push_str(";\n");
+    }
+    out.push_str("};\n");
+    fs_err::write(path, &out)?;
+    Ok(())
 }
