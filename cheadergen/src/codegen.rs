@@ -172,9 +172,18 @@ fn write_c_type(ty: &Type, out: &mut String) {
             write_c_type(&a.element_type, out);
             write!(out, "[{}]", a.len).unwrap();
         }
+        Type::Reference(r) => {
+            if r.is_mutable {
+                write_c_type(&r.inner, out);
+                out.push('*');
+            } else {
+                out.push_str("const ");
+                write_c_type(&r.inner, out);
+                out.push('*');
+            }
+        }
         // These should have been rejected earlier.
         Type::Path(_)
-        | Type::Reference(_)
         | Type::Tuple(_)
         | Type::Slice(_)
         | Type::Generic(_) => {

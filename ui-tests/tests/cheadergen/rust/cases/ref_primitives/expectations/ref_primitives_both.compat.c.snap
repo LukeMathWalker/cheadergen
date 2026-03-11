@@ -1,0 +1,27 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 171
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+bool read_bool(const bool* x);
+
+double read_f64(const double* x);
+
+uint32_t read_u32(const uint32_t* x);
+
+void ref_to_unit(const void* x);
+
+void write_u32(uint32_t* x, uint32_t val);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus
