@@ -2,22 +2,99 @@ use std::collections::BTreeSet;
 use std::fmt::Write;
 use std::path::Path;
 
+use crate::config::CConfig;
 use rustdoc_ir::{FreeFunction, ScalarPrimitive, Type};
 
 /// Generate a C header from the resolved functions, writing to `out`.
-pub fn generate_c_header(functions: &mut [FreeFunction], out: &mut String) {
+///
+/// The output order follows cbindgen conventions:
+/// header, include guard/pragma once, autogen warning, includes,
+/// after_includes, cpp_compat open, declarations, cpp_compat close,
+/// include guard close, trailer.
+pub fn generate_c_header(config: &CConfig, functions: &mut [FreeFunction], out: &mut String) {
     // Sort by exported name for deterministic output.
     functions.sort_by(|a, b| exported_name(a).cmp(exported_name(b)));
 
-    // Standard includes.
-    out.push_str("#include <stdarg.h>\n");
-    out.push_str("#include <stdbool.h>\n");
-    out.push_str("#include <stdint.h>\n");
-    out.push_str("#include <stdlib.h>\n");
+    let common = &config.common;
 
+    // Header (verbatim text at top of file).
+    if let Some(ref header) = common.header {
+        out.push_str(header);
+        out.push('\n');
+    }
+
+    // Include guard or pragma once.
+    if let Some(ref guard) = common.include_guard {
+        writeln!(out, "#ifndef {guard}").unwrap();
+        writeln!(out, "#define {guard}").unwrap();
+        out.push('\n');
+    } else if common.pragma_once {
+        out.push_str("#pragma once\n\n");
+    }
+
+    // Autogen warning.
+    if let Some(ref warning) = common.autogen_warning {
+        out.push_str(warning);
+        out.push_str("\n\n");
+    }
+
+    // Standard includes.
+    if !common.no_includes {
+        out.push_str("#include <stdarg.h>\n");
+        out.push_str("#include <stdbool.h>\n");
+        out.push_str("#include <stdint.h>\n");
+        out.push_str("#include <stdlib.h>\n");
+    }
+
+    // Additional system includes.
+    for inc in &common.sys_includes {
+        writeln!(out, "#include <{inc}>").unwrap();
+    }
+
+    // Additional user includes.
+    for inc in &common.includes {
+        writeln!(out, "#include \"{inc}\"").unwrap();
+    }
+
+    // After includes (verbatim text).
+    if let Some(ref after) = common.after_includes {
+        out.push_str(after);
+        out.push('\n');
+    }
+
+    let has_functions = !functions.is_empty();
+
+    // cpp_compat open (only if there are declarations to wrap).
+    if config.cpp_compat && has_functions {
+        out.push('\n');
+        out.push_str("#ifdef __cplusplus\n");
+        out.push_str("extern \"C\" {\n");
+        out.push_str("#endif // __cplusplus\n");
+    }
+
+    // Function declarations.
     for func in functions.iter() {
         out.push('\n');
         write_c_function_decl(func, out);
+        out.push('\n');
+    }
+
+    // cpp_compat close.
+    if config.cpp_compat && has_functions {
+        out.push_str("\n#ifdef __cplusplus\n");
+        out.push_str("}  // extern \"C\"\n");
+        out.push_str("#endif  // __cplusplus\n");
+    }
+
+    // Include guard close.
+    if let Some(ref guard) = common.include_guard {
+        out.push('\n');
+        writeln!(out, "#endif  /* {guard} */").unwrap();
+    }
+
+    // Trailer (verbatim text at bottom of file).
+    if let Some(ref trailer) = common.trailer {
+        out.push_str(trailer);
         out.push('\n');
     }
 }

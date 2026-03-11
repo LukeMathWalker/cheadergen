@@ -90,11 +90,11 @@ pub struct RawConfig {
 /// Produced by [`RawConfig::into_config`] after resolving defaults and
 /// enforcing language-specific constraints.
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub enum Config {
     /// Configuration for [`Language::C`] output.
     C(CConfig),
     /// Configuration for [`Language::Cxx`] output.
+    #[allow(dead_code)]
     Cxx(CxxConfig),
 }
 
@@ -103,7 +103,6 @@ pub enum Config {
 /// Fields mirror [`RawConfig`] but with defaults resolved
 /// (e.g. `Option<bool>` becomes `bool`).
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct CommonConfig {
     /// See [`RawConfig::header`].
     pub header: Option<String>,
@@ -128,11 +127,11 @@ pub struct CommonConfig {
 /// C-specific configuration, including options that are only meaningful for
 /// [`Language::C`] output (e.g. [`Style`] and `cpp_compat`).
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct CConfig {
     /// Options shared with all languages.
     pub common: CommonConfig,
     /// See [`RawConfig::style`]. Defaults to [`Style::Both`].
+    #[allow(dead_code)]
     pub style: Style,
     /// See [`RawConfig::cpp_compat`]. Defaults to `false`.
     pub cpp_compat: bool,

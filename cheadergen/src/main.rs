@@ -149,7 +149,7 @@ fn warm_cache(args: &WarmCacheArgs) -> anyhow::Result<()> {
 
 fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
     // Load config file (or use defaults).
-    let raw_config = if let Some(ref config_path) = cli.config {
+    let mut raw_config = if let Some(ref config_path) = cli.config {
         config::RawConfig::from_toml_file(config_path)?
     } else {
         config::RawConfig::default()
@@ -162,8 +162,13 @@ fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
         .or(raw_config.language.clone())
         .unwrap_or(config::Language::C);
 
+    // Apply CLI overrides before validation.
+    if cli.cpp_compat {
+        raw_config.cpp_compat = Some(true);
+    }
+
     // Validate config against the resolved language.
-    let _config = raw_config.into_config(&language)?;
+    let config = raw_config.into_config(&language)?;
 
     let package_graph = metadata::load_package_graph(cli.metadata.as_ref(), cli.input.as_ref())?;
 
@@ -270,8 +275,13 @@ fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
             eprintln!("Resolved {} function(s) to IR", resolved_fns.len());
         }
 
+        let c_config = match &config {
+            config::Config::C(c) => c,
+            _ => anyhow::bail!("Only C output is currently supported"),
+        };
+
         let mut header = String::new();
-        codegen::generate_c_header(&mut resolved_fns, &mut header);
+        codegen::generate_c_header(c_config, &mut resolved_fns, &mut header);
 
         if let Some(ref output_path) = cli.output {
             fs_err::write(output_path, &header)?;
