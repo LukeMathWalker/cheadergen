@@ -62,6 +62,9 @@ fn cython_rejected() {
         .arg("generate")
         .arg("--lang")
         .arg("cython")
+        // Ensure consistent output for CLI errors
+        .env("RUST_BACKTRACE", "0")
+        .env("RUST_LIB_BACKTRACE", "0")
         .output()
         .expect("failed to run cheadergen");
 
