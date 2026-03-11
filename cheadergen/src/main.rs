@@ -2,6 +2,7 @@ mod analysis;
 mod codegen;
 mod config;
 mod metadata;
+mod static_item;
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -294,16 +295,19 @@ fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
         codegen::write_symbol_file(&symbols, symbol_file)?;
     }
 
-    // Resolve each extern "C" function into the IR and generate the header.
+    // Resolve each extern "C" function and static into the IR and generate the header.
     if !cli.no_header {
         let mut resolved_fns =
             analysis::resolve_functions(&extern_items.fn_ids, krate, &collection)?;
+        let mut resolved_statics =
+            analysis::resolve_statics(&extern_items.static_ids, krate, &collection)?;
 
         if !cli.quiet {
             eprintln!("Resolved {} function(s) to IR", resolved_fns.len());
+            eprintln!("Resolved {} static(s) to IR", resolved_statics.len());
         }
 
-        let type_defs = analysis::collect_type_definitions(&resolved_fns);
+        let type_defs = analysis::collect_type_definitions(&resolved_fns, &resolved_statics);
 
         let c_config = match &config {
             config::Config::C(c) => c,
@@ -311,7 +315,13 @@ fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
         };
 
         let mut header = String::new();
-        codegen::generate_c_header(c_config, &type_defs, &mut resolved_fns, &mut header);
+        codegen::generate_c_header(
+            c_config,
+            &type_defs,
+            &mut resolved_fns,
+            &mut resolved_statics,
+            &mut header,
+        );
 
         if let Some(ref output_path) = cli.output {
             fs_err::write(output_path, &header)?;

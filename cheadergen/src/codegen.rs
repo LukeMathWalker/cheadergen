@@ -4,6 +4,7 @@ use std::path::Path;
 
 use crate::analysis::{CTypeDefinition, c_type_name};
 use crate::config::{CConfig, Style};
+use crate::static_item::StaticItem;
 use rustdoc_ir::{FreeFunction, ScalarPrimitive, Type};
 
 /// Generate a C header from the resolved functions, writing to `out`.
@@ -16,10 +17,12 @@ pub fn generate_c_header(
     config: &CConfig,
     type_defs: &[CTypeDefinition],
     functions: &mut [FreeFunction],
+    statics: &mut [StaticItem],
     out: &mut String,
 ) {
     // Sort by exported name for deterministic output.
     functions.sort_by(|a, b| exported_name(a).cmp(exported_name(b)));
+    statics.sort_by(|a, b| exported_static_name(a).cmp(exported_static_name(b)));
 
     let common = &config.common;
 
@@ -74,14 +77,21 @@ pub fn generate_c_header(
         write_c_type_definitions(type_defs, &config.style, out);
     }
 
-    let has_functions = !functions.is_empty();
+    let has_declarations = !functions.is_empty() || !statics.is_empty();
 
     // cpp_compat open (only if there are declarations to wrap).
-    if config.cpp_compat && has_functions {
+    if config.cpp_compat && has_declarations {
         out.push('\n');
         out.push_str("#ifdef __cplusplus\n");
         out.push_str("extern \"C\" {\n");
         out.push_str("#endif // __cplusplus\n");
+    }
+
+    // Static declarations (before functions, matching cbindgen order).
+    for s in statics.iter() {
+        out.push('\n');
+        write_c_static_decl(s, &config.style, out);
+        out.push('\n');
     }
 
     // Function declarations.
@@ -92,7 +102,7 @@ pub fn generate_c_header(
     }
 
     // cpp_compat close.
-    if config.cpp_compat && has_functions {
+    if config.cpp_compat && has_declarations {
         out.push_str("\n#ifdef __cplusplus\n");
         out.push_str("}  // extern \"C\"\n");
         out.push_str("#endif  // __cplusplus\n");
@@ -116,6 +126,45 @@ fn exported_name(func: &FreeFunction) -> &str {
         .symbol_name
         .as_deref()
         .unwrap_or(&func.path.function_name)
+}
+
+fn exported_static_name(s: &StaticItem) -> &str {
+    s.symbol_name.as_deref().unwrap_or(&s.name)
+}
+
+fn write_c_static_decl(s: &StaticItem, style: &Style, out: &mut String) {
+    // In "Both" style, declarations use the tag form (same as Tag).
+    let decl_style = match style {
+        Style::Both => Style::Tag,
+        other => other.clone(),
+    };
+
+    out.push_str("extern ");
+    if !s.is_mutable && !is_const_pointer(&s.type_) {
+        out.push_str("const ");
+    }
+    write_c_decl(&s.type_, exported_static_name(s), &decl_style, out);
+    out.push(';');
+}
+
+/// Write a C declaration in cdecl style: handles arrays by placing the name
+/// between the element type and `[N]`, e.g. `char NAME[128]`.
+fn write_c_decl(ty: &Type, name: &str, style: &Style, out: &mut String) {
+    match ty {
+        Type::Array(a) => {
+            write_c_type(&a.element_type, style, out);
+            write!(out, " {name}[{}]", a.len).unwrap();
+        }
+        _ => {
+            write_c_type(ty, style, out);
+            write!(out, " {name}").unwrap();
+        }
+    }
+}
+
+/// Returns `true` if the type is a `*const T` raw pointer.
+fn is_const_pointer(ty: &Type) -> bool {
+    matches!(ty, Type::RawPointer(p) if !p.is_mutable)
 }
 
 fn write_c_function_decl(func: &FreeFunction, style: &Style, out: &mut String) {

@@ -7,6 +7,8 @@ use rustdoc_processor::queries::Crate;
 use rustdoc_resolver::resolve_free_function;
 use rustdoc_types::{Abi, Attribute, ItemEnum};
 
+use crate::static_item::{StaticItem, resolve_static};
+
 /// A user-defined type that needs a C declaration in the header.
 pub struct CTypeDefinition {
     /// The C name for this type (last path segment from PathType::base_type).
@@ -64,6 +66,27 @@ pub fn resolve_functions(
     Ok(resolved_fns)
 }
 
+/// Resolve each exported static ID into a [`StaticItem`].
+pub fn resolve_statics(
+    static_ids: &[rustdoc_types::Id],
+    krate: &Crate,
+    collection: &CrateCollection<NoAnnotations>,
+) -> anyhow::Result<Vec<StaticItem>> {
+    let mut resolved = Vec::new();
+    for id in static_ids {
+        let item = krate
+            .core
+            .krate
+            .index
+            .get(id)
+            .ok_or_else(|| anyhow::anyhow!("Missing item for id {:?}", id))?;
+        let static_item = resolve_static(&item, krate, collection)
+            .map_err(|e| anyhow::anyhow!("Failed to resolve static: {e}"))?;
+        resolved.push(static_item);
+    }
+    Ok(resolved)
+}
+
 /// Extract symbol names from function and static IDs.
 pub fn collect_symbols(
     items: &ExternItems,
@@ -100,9 +123,12 @@ fn has_export_attr(attrs: &[Attribute]) -> bool {
         .any(|a| matches!(a, Attribute::NoMangle | Attribute::ExportName(_)))
 }
 
-/// Walk all types in all function signatures and collect unique path types
-/// that need forward declarations in the generated header.
-pub fn collect_type_definitions(functions: &[FreeFunction]) -> Vec<CTypeDefinition> {
+/// Walk all types in function signatures and static items, collecting unique
+/// path types that need forward declarations in the generated header.
+pub fn collect_type_definitions(
+    functions: &[FreeFunction],
+    statics: &[StaticItem],
+) -> Vec<CTypeDefinition> {
     let mut seen = BTreeMap::new();
     for func in functions {
         for input in &func.header.inputs {
@@ -111,6 +137,9 @@ pub fn collect_type_definitions(functions: &[FreeFunction]) -> Vec<CTypeDefiniti
         if let Some(output) = &func.header.output {
             collect_paths_from_type(output, &mut seen);
         }
+    }
+    for s in statics {
+        collect_paths_from_type(&s.type_, &mut seen);
     }
     seen.into_values().collect()
 }
