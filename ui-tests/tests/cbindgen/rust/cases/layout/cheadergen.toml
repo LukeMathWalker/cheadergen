@@ -1,0 +1,7 @@
+header = """
+#define CBINDGEN_PACKED     __attribute__ ((packed))
+#define CBINDGEN_ALIGNED(n) __attribute__ ((aligned(n)))
+"""
+
+# `[export]` was skipped: not supported by cheadergen
+# `[layout]` was skipped: not supported by cheadergen

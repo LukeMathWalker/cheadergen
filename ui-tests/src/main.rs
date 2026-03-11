@@ -1,16 +1,37 @@
 use std::path::Path;
+use std::process::Command;
 use std::{env, fs, process};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    if args.len() != 3 || args[1] != "new" {
-        eprintln!("Usage: ui-tests new <name>");
-        process::exit(1);
+    match args.get(1).map(|s| s.as_str()) {
+        Some("new") => {
+            if args.len() != 3 {
+                eprintln!("Usage: ui-tests new <name>");
+                process::exit(1);
+            }
+            cmd_new(&args[2]);
+        }
+        Some("translate-configs") => {
+            if args.len() != 2 {
+                eprintln!("Usage: ui-tests translate-configs");
+                process::exit(1);
+            }
+            cmd_translate_configs();
+        }
+        _ => {
+            eprintln!("Usage:");
+            eprintln!("  ui-tests new <name>            Create a new cheadergen test case");
+            eprintln!(
+                "  ui-tests translate-configs     Translate all cbindgen.toml files to cheadergen.toml"
+            );
+            process::exit(1);
+        }
     }
+}
 
-    let name = &args[2];
-
+fn cmd_new(name: &str) {
     if !is_valid_crate_name(name) {
         eprintln!(
             "Error: '{name}' is not a valid crate name (must be alphanumeric + underscore, cannot start with a digit)"
@@ -82,6 +103,94 @@ pub extern \"C\" fn todo_new() -> TODO {
     );
     println!("  2. Run `just test-generate` to generate expectation snapshots");
     println!("  3. Review and accept the snapshots");
+}
+
+fn cmd_translate_configs() {
+    let tests_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests");
+    let cbindgen_rust_dir = tests_dir.join("cbindgen/rust");
+
+    let mut configs = Vec::new();
+    collect_cbindgen_tomls(&cbindgen_rust_dir, &mut configs);
+    configs.sort();
+
+    if configs.is_empty() {
+        println!("No cbindgen.toml files found.");
+        return;
+    }
+
+    println!("Found {} cbindgen.toml file(s)\n", configs.len());
+
+    let mut failures = Vec::new();
+
+    for config in &configs {
+        let parent = config.parent().unwrap();
+        let output = parent.join("cheadergen.toml");
+
+        let result = Command::new("cargo")
+            .args([
+                "run",
+                "-p",
+                "cheadergen",
+                "--",
+                "config",
+                "translate",
+                "--from",
+            ])
+            .arg(config)
+            .arg("--to")
+            .arg(&output)
+            .output();
+
+        match result {
+            Ok(out) if out.status.success() => {
+                println!("  OK: {}", config.display());
+            }
+            Ok(out) => {
+                let stderr = String::from_utf8_lossy(&out.stderr);
+                eprintln!("FAIL: {}", config.display());
+                eprintln!("      {}", stderr.trim());
+                failures.push(config.clone());
+            }
+            Err(e) => {
+                eprintln!("FAIL: {}", config.display());
+                eprintln!("      {e}");
+                failures.push(config.clone());
+            }
+        }
+    }
+
+    println!();
+    if failures.is_empty() {
+        println!(
+            "All {} config(s) translated successfully.",
+            configs.len()
+        );
+    } else {
+        eprintln!(
+            "{}/{} translation(s) failed:",
+            failures.len(),
+            configs.len()
+        );
+        for f in &failures {
+            eprintln!("  - {}", f.display());
+        }
+        process::exit(1);
+    }
+}
+
+fn collect_cbindgen_tomls(dir: &Path, out: &mut Vec<std::path::PathBuf>) {
+    let entries = match fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(_) => return,
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            collect_cbindgen_tomls(&path, out);
+        } else if path.file_name().is_some_and(|n| n == "cbindgen.toml") {
+            out.push(path);
+        }
+    }
 }
 
 fn is_valid_crate_name(name: &str) -> bool {

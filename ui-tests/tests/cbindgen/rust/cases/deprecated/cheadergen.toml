@@ -1,0 +1,14 @@
+header = """
+#define DEPRECATED_FUNC __attribute__((deprecated))
+#define DEPRECATED_STRUCT __attribute__((deprecated))
+#define DEPRECATED_ENUM __attribute__((deprecated))
+#define DEPRECATED_ENUM_VARIANT __attribute__((deprecated))
+#define DEPRECATED_FUNC_WITH_NOTE(...) __attribute__((deprecated(__VA_ARGS__)))
+#define DEPRECATED_STRUCT_WITH_NOTE(...) __attribute__((deprecated(__VA_ARGS__)))
+#define DEPRECATED_ENUM_WITH_NOTE(...) __attribute__((deprecated(__VA_ARGS__)))
+#define DEPRECATED_ENUM_VARIANT_WITH_NOTE(...) __attribute__((deprecated(__VA_ARGS__)))
+"""
+
+# `[fn]` was skipped: not supported by cheadergen
+# `[struct]` was skipped: not supported by cheadergen
+# `[enum]` was skipped: not supported by cheadergen

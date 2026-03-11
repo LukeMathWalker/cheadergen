@@ -1,0 +1,9 @@
+header = """
+#define MUST_USE_FUNC __attribute__((warn_unused_result))
+#define MUST_USE_STRUCT __attribute__((warn_unused))
+#define MUST_USE_ENUM /* nothing */
+"""
+
+# `[fn]` was skipped: not supported by cheadergen
+# `[struct]` was skipped: not supported by cheadergen
+# `[enum]` was skipped: not supported by cheadergen

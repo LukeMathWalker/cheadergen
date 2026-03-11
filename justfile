@@ -98,5 +98,9 @@ uncovered pattern="":
 ui-tests +args:
     cargo run -p ui-tests -- {{ args }}
 
+# Translate all cbindgen.toml configs to cheadergen.toml
+ui-tests-translate-configs:
+    cargo run -p ui-tests -- translate-configs
+
 # Run all checks
 verify: lint (fmt "check") test

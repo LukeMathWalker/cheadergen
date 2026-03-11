@@ -1,0 +1,13 @@
+header = """
+#if 0
+DEF PLATFORM_UNIX = 0
+DEF PLATFORM_WIN = 0
+#endif
+#define PLATFORM_UNIX 1
+"""
+
+# `[export]` was skipped: not supported by cheadergen
+# `[struct]` was skipped: not supported by cheadergen
+# `[const]` was skipped: not supported by cheadergen
+# `[macro_expansion]` was skipped: not supported by cheadergen
+# `[defines]` was skipped: not supported by cheadergen

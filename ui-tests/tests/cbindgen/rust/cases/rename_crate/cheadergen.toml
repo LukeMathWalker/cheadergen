@@ -1,0 +1,8 @@
+header = """
+#if 0
+DEF DEFINE_FREEBSD = 0
+#endif
+"""
+
+# `[parse]` was skipped: not supported by cheadergen
+# `[defines]` was skipped: not supported by cheadergen

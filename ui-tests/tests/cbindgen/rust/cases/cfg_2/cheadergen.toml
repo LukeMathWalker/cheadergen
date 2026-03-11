@@ -1,0 +1,8 @@
+header = """
+#if 0
+DEF DEFINED = 1
+DEF NOT_DEFINED = 0
+#endif
+"""
+
+# `[defines]` was skipped: not supported by cheadergen

@@ -1,0 +1,7 @@
+header = """
+#define NOINLINE __attribute__((noinline))
+#define NODISCARD [[nodiscard]]
+"""
+
+# `[export]` was skipped: not supported by cheadergen
+# `[enum]` was skipped: not supported by cheadergen
