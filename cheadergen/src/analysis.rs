@@ -73,17 +73,26 @@ pub fn collect_symbols(
 ) -> BTreeSet<String> {
     let mut symbols = BTreeSet::new();
     for id in items.fn_ids.iter().chain(&items.static_ids) {
-        if let Some(name) = krate
-            .core
-            .krate
-            .index
-            .get(id)
-            .and_then(|item| item.name.clone())
-        {
-            symbols.insert(name);
+        let Some(item) = krate.core.krate.index.get(id) else {
+            continue;
+        };
+        if let Some(name) = exported_symbol_name(&item) {
+            symbols.insert(name.to_owned());
         }
     }
     symbols
+}
+
+/// Return the linker-visible symbol name for an item.
+///
+/// Priority: `#[export_name = "..."]` > `item.name` (for `#[no_mangle]`).
+fn exported_symbol_name(item: &rustdoc_types::Item) -> Option<&str> {
+    for attr in &item.attrs {
+        if let Attribute::ExportName(name) = attr {
+            return Some(name);
+        }
+    }
+    item.name.as_deref()
 }
 
 /// Returns `true` if the item has `#[no_mangle]` or `#[export_name = "..."]`.
