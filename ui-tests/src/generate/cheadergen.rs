@@ -76,7 +76,7 @@ pub(crate) fn run_cheadergen_symbols(
     command.arg("--lang").arg("c");
     command.arg("--style").arg("type");
 
-    let config = path.with_extension("toml");
+    let config = path.join("cheadergen.toml");
     if config.exists() {
         command.arg("--config").arg(config);
     }
@@ -118,7 +118,7 @@ pub(crate) fn run_cheadergen(
         command.arg("--style").arg(style_str(style));
     }
 
-    let config = path.with_extension("toml");
+    let config = path.join("cheadergen.toml");
     if config.exists() {
         command.arg("--config").arg(config);
     }
