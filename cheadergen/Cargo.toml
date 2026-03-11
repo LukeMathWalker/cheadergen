@@ -12,6 +12,8 @@ repository = "https://github.com/LukeMathWalker/cheadergen"
 anyhow = "1"
 camino = "1"
 clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+toml = "1"
 fs-err = "3"
 pathdiff = "0.2"
 guppy = { workspace = true }
@@ -20,3 +22,7 @@ rustdoc_processor = { workspace = true }
 rustdoc_resolver = { workspace = true }
 rustdoc_types = { workspace = true }
 xdg-home = "1"
+
+[dev-dependencies]
+tempfile = "3"
+insta = "1"

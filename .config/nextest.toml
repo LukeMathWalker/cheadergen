@@ -6,6 +6,13 @@ dir = "target/nextest"
 [scripts.setup.compute-metadata]
 command = ["ui-tests/tests/setup-metadata.sh"]
 
+[scripts.setup.build-cheadergen]
+command = ["cheadergen/tests/setup.sh"]
+
 [[profile.default.scripts]]
 filter = 'test(~::generate::) | test(~::symbol::)'
 setup = 'compute-metadata'
+
+[[profile.default.scripts]]
+filter = 'binary(~cli_errors)'
+setup = 'build-cheadergen'

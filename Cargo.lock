@@ -228,11 +228,15 @@ dependencies = [
  "clap",
  "fs-err",
  "guppy",
+ "insta",
  "pathdiff",
  "rustdoc_ir",
  "rustdoc_processor",
  "rustdoc_resolver",
  "rustdoc_types",
+ "serde",
+ "tempfile",
+ "toml 1.0.6+spec-1.1.0",
  "xdg-home",
 ]
 

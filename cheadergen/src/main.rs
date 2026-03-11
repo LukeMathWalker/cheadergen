@@ -1,31 +1,14 @@
 mod analysis;
 mod codegen;
+mod config;
 mod metadata;
 
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use clap::{ArgAction, Parser, ValueEnum};
+use clap::{ArgAction, Parser};
 
-#[derive(Debug, Clone, ValueEnum)]
-enum Language {
-    #[value(name = "c", alias = "C")]
-    C,
-    #[value(name = "c++", alias = "C++", alias = "cpp")]
-    Cxx,
-    #[value(name = "cython", alias = "Cython")]
-    Cython,
-}
-
-#[derive(Debug, Clone, ValueEnum)]
-enum Style {
-    #[value(name = "both", alias = "Both")]
-    Both,
-    #[value(name = "tag", alias = "Tag")]
-    Tag,
-    #[value(name = "type", alias = "Type")]
-    Type,
-}
+use config::{Language, Style};
 
 /// Generate C/C++ headers from a Rust crate using rustdoc-json.
 #[derive(Debug, Parser)]
@@ -165,6 +148,23 @@ fn warm_cache(args: &WarmCacheArgs) -> anyhow::Result<()> {
 }
 
 fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
+    // Load config file (or use defaults).
+    let raw_config = if let Some(ref config_path) = cli.config {
+        config::RawConfig::from_toml_file(config_path)?
+    } else {
+        config::RawConfig::default()
+    };
+
+    // Resolve language: CLI --lang overrides config file, default is C.
+    let language = cli
+        .lang
+        .clone()
+        .or(raw_config.language.clone())
+        .unwrap_or(config::Language::C);
+
+    // Validate config against the resolved language.
+    let _config = raw_config.into_config(&language)?;
+
     let package_graph = metadata::load_package_graph(cli.metadata.as_ref(), cli.input.as_ref())?;
 
     // Resolve package info before moving `package_graph` into `CrateCollection`.

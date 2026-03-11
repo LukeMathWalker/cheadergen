@@ -2,6 +2,15 @@
 members = ["cheadergen", "ui-tests"]
 resolver = "3"
 
+[workspace.lints.clippy]
+# Use `#[expect]` instead of `#[allow]` so we are warned when they become obsolete.
+allow_attributes = "warn"
+
+[workspace.lints.rustdoc]
+# Our doc comments are designed for contributors, not end-users.
+# Therefore there's no issue with private intra-doc links.
+private-intra-doc-links = "allow"
+
 [workspace.dependencies]
 rustdoc_types = { git = "https://github.com/LukeMathWalker/pavex", package = "rustdoc_types" }
 rustdoc_ext = { git = "https://github.com/LukeMathWalker/pavex" }
