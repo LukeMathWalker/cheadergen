@@ -49,13 +49,13 @@ struct GenerateArgs {
 
     /// Target language for the generated bindings.
     #[arg(short, long)]
-    lang: Option<Language>,
+    lang: Language,
 
-    /// Add C++ compatibility features to the generated C header.
+    /// Add C++ compatibility features to the generated C header (C only).
     #[arg(long)]
     cpp_compat: bool,
 
-    /// Declaration style for generated types.
+    /// Declaration style for generated types (C only).
     #[arg(short, long)]
     style: Option<Style>,
 
@@ -149,26 +149,20 @@ fn warm_cache(args: &WarmCacheArgs) -> anyhow::Result<()> {
 
 fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
     // Load config file (or use defaults).
-    let mut raw_config = if let Some(ref config_path) = cli.config {
+    let raw_config = if let Some(ref config_path) = cli.config {
         config::RawConfig::from_toml_file(config_path)?
     } else {
         config::RawConfig::default()
     };
 
-    // Resolve language: CLI --lang overrides config file, default is C.
-    let language = cli
-        .lang
-        .clone()
-        .or(raw_config.language.clone())
-        .unwrap_or(config::Language::C);
+    // Build CLI overrides.
+    let overrides = config::CliOverrides {
+        style: cli.style.clone(),
+        cpp_compat: cli.cpp_compat,
+    };
 
-    // Apply CLI overrides before validation.
-    if cli.cpp_compat {
-        raw_config.cpp_compat = Some(true);
-    }
-
-    // Validate config against the resolved language.
-    let config = raw_config.into_config(&language)?;
+    // Validate config against the selected language.
+    let config = raw_config.into_config(&cli.lang, &overrides)?;
 
     let package_graph = metadata::load_package_graph(cli.metadata.as_ref(), cli.input.as_ref())?;
 

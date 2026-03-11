@@ -29,27 +29,27 @@ fn run_config_error(config_toml: &str, extra_args: &[&str]) -> String {
 
 #[test]
 fn cpp_compat_rejected_for_cxx() {
-    let stderr = run_config_error("cpp_compat = true", &["--lang", "c++"]);
-    insta::assert_snapshot!(stderr, @"Error: `cpp_compat` is not supported for C++ output (it is only meaningful for C headers)
+    let stderr = run_config_error("", &["--lang", "c++", "--cpp-compat"]);
+    insta::assert_snapshot!(stderr, @"Error: `--cpp-compat` is not supported for C++ output (it is only meaningful for C headers)
 ");
 }
 
 #[test]
 fn style_rejected_for_cxx() {
-    let stderr = run_config_error(r#"style = "Both""#, &["--lang", "c++"]);
-    insta::assert_snapshot!(stderr, @"Error: `style` is not supported for C++ output (C++ does not use typedef-style declarations)
+    let stderr = run_config_error("", &["--lang", "c++", "--style", "both"]);
+    insta::assert_snapshot!(stderr, @"Error: `--style` is not supported for C++ output (C++ does not use typedef-style declarations)
 ");
 }
 
 #[test]
 fn unknown_field_rejected() {
-    let stderr = run_config_error("bogus = true", &[]);
+    let stderr = run_config_error("bogus = true", &["--lang", "c"]);
     insta::assert_snapshot!(stderr, @r"
     Error: failed to parse config file: TOML parse error at line 1, column 1
       |
     1 | bogus = true
       | ^^^^^
-    unknown field `bogus`, expected one of `language`, `style`, `cpp_compat`, `header`, `trailer`, `autogen_warning`, `include_guard`, `pragma_once`, `sys_includes`, `includes`, `no_includes`, `after_includes`
+    unknown field `bogus`, expected one of `header`, `trailer`, `autogen_warning`, `include_guard`, `pragma_once`, `sys_includes`, `includes`, `no_includes`, `after_includes`, `c`, `c++`, `cpp`, `cxx`
     ");
 }
 

@@ -105,16 +105,13 @@ pub(crate) fn run_cheadergen(
     command.arg("--metadata").arg(metadata);
 
     match language {
-        Language::Cxx => {}
-        Language::C => {
-            command.arg("--lang").arg("c");
-            if cpp_compat {
-                command.arg("--cpp-compat");
-            }
-        }
-        Language::Cython => {
-            command.arg("--lang").arg("cython");
-        }
+        Language::C => command.arg("--lang").arg("c"),
+        Language::Cxx => command.arg("--lang").arg("c++"),
+        Language::Cython => command.arg("--lang").arg("cython"),
+    };
+
+    if cpp_compat {
+        command.arg("--cpp-compat");
     }
 
     if let Some(style) = style {

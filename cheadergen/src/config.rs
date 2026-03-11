@@ -4,20 +4,19 @@ use clap::ValueEnum;
 use serde::Deserialize;
 
 /// The target language for the generated header file.
-#[derive(Debug, Clone, ValueEnum, Deserialize)]
+///
+/// Used by the CLI `--lang` flag to select which language output to produce.
+#[derive(Debug, Clone, PartialEq, Eq, ValueEnum)]
 pub enum Language {
     /// Generate a C-compatible header.
     #[value(name = "c", alias = "C")]
-    #[serde(alias = "c")]
     C,
     /// Generate a C++ header.
     #[value(name = "c++", alias = "C++", alias = "cpp")]
-    #[serde(alias = "c++", alias = "C++", alias = "cpp", alias = "Cxx")]
     Cxx,
     /// Reserved for future Cython support. Currently rejected at validation time
     /// by [`RawConfig::into_config`].
     #[value(name = "cython", alias = "Cython")]
-    #[serde(alias = "cython")]
     Cython,
 }
 
@@ -45,21 +44,15 @@ pub enum Style {
 
 /// The raw configuration as deserialized from a TOML file.
 ///
-/// All fields are optional at this stage. Defaults are resolved and
-/// language-specific constraints are validated when converting into a
-/// [`Config`] via [`RawConfig::into_config`].
+/// Common options live at the top level and are inherited by all language
+/// outputs. Language-specific sections (`[c]`, `[cxx]`) can override any
+/// common option and add language-specific settings.
+///
+/// Defaults are resolved and language-specific constraints are validated
+/// when converting into a [`Config`] via [`RawConfig::into_config`].
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RawConfig {
-    /// Target language for the generated header.
-    /// Can also be set via the `--lang` CLI flag, which takes precedence.
-    pub language: Option<Language>,
-    /// C declaration style for structs and enums. Defaults to [`Style::Both`].
-    /// Only applicable to [`Language::C`].
-    pub style: Option<Style>,
-    /// Wrap C output in an `extern "C"` block for C++ compatibility.
-    /// Defaults to `false`. Only applicable to [`Language::C`].
-    pub cpp_compat: Option<bool>,
     /// Verbatim text prepended to the generated file (e.g. a license block).
     pub header: Option<String>,
     /// Verbatim text appended to the end of the generated file.
@@ -82,6 +75,62 @@ pub struct RawConfig {
     /// Defaults to `false`.
     pub no_includes: Option<bool>,
     /// Verbatim text inserted immediately after the include block.
+    pub after_includes: Option<String>,
+
+    /// C-specific configuration section.
+    pub c: Option<RawCSection>,
+    /// C++-specific configuration section.
+    #[serde(alias = "c++", alias = "cpp")]
+    pub cxx: Option<RawCxxSection>,
+}
+
+/// C-specific options inside the `[c]` TOML section.
+///
+/// Any common option specified here overrides the top-level default
+/// for C output only.
+///
+/// Common fields are duplicated from [`RawConfig`] (rather than extracted
+/// into a shared struct with `#[serde(flatten)]`) so that we can keep
+/// `#[serde(deny_unknown_fields)]` on every struct — giving clear error
+/// messages when a config file contains a typo.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RawCSection {
+    /// C declaration style for structs and enums. Defaults to [`Style::Both`].
+    pub style: Option<Style>,
+    /// Wrap C output in an `extern "C"` block for C++ compatibility.
+    /// Defaults to `false`.
+    pub cpp_compat: Option<bool>,
+    // Common option overrides (see struct-level doc for why these are duplicated).
+    pub header: Option<String>,
+    pub trailer: Option<String>,
+    pub autogen_warning: Option<String>,
+    pub include_guard: Option<String>,
+    pub pragma_once: Option<bool>,
+    pub sys_includes: Option<Vec<String>>,
+    pub includes: Option<Vec<String>>,
+    pub no_includes: Option<bool>,
+    pub after_includes: Option<String>,
+}
+
+/// C++-specific options inside the `[cxx]` TOML section.
+///
+/// Any common option specified here overrides the top-level default
+/// for C++ output only.
+///
+/// See [`RawCSection`] for why common fields are duplicated here.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RawCxxSection {
+    // Common option overrides (see RawCSection doc for why these are duplicated).
+    pub header: Option<String>,
+    pub trailer: Option<String>,
+    pub autogen_warning: Option<String>,
+    pub include_guard: Option<String>,
+    pub pragma_once: Option<bool>,
+    pub sys_includes: Option<Vec<String>>,
+    pub includes: Option<Vec<String>>,
+    pub no_includes: Option<bool>,
     pub after_includes: Option<String>,
 }
 
@@ -130,10 +179,10 @@ pub struct CommonConfig {
 pub struct CConfig {
     /// Options shared with all languages.
     pub common: CommonConfig,
-    /// See [`RawConfig::style`]. Defaults to [`Style::Both`].
+    /// See [`RawCSection::style`]. Defaults to [`Style::Both`].
     #[allow(dead_code)]
     pub style: Style,
-    /// See [`RawConfig::cpp_compat`]. Defaults to `false`.
+    /// See [`RawCSection::cpp_compat`]. Defaults to `false`.
     pub cpp_compat: bool,
 }
 
@@ -165,6 +214,68 @@ impl std::fmt::Display for ConfigError {
 
 impl std::error::Error for ConfigError {}
 
+/// Top-level common fields extracted from [`RawConfig`] for merging with
+/// language-section overrides.
+struct RawCommonFields {
+    header: Option<String>,
+    trailer: Option<String>,
+    autogen_warning: Option<String>,
+    include_guard: Option<String>,
+    pragma_once: Option<bool>,
+    sys_includes: Vec<String>,
+    includes: Vec<String>,
+    no_includes: Option<bool>,
+    after_includes: Option<String>,
+}
+
+/// Optional overrides from a language section that can replace top-level
+/// common field values.
+struct RawCommonOverrides {
+    header: Option<String>,
+    trailer: Option<String>,
+    autogen_warning: Option<String>,
+    include_guard: Option<String>,
+    pragma_once: Option<bool>,
+    sys_includes: Option<Vec<String>>,
+    includes: Option<Vec<String>>,
+    no_includes: Option<bool>,
+    after_includes: Option<String>,
+}
+
+impl RawCommonFields {
+    /// Merge section overrides onto these base fields, producing a validated
+    /// [`CommonConfig`]. Section values win when present; otherwise the
+    /// top-level value is used.
+    fn resolve(self, overrides: RawCommonOverrides) -> CommonConfig {
+        CommonConfig {
+            header: overrides.header.or(self.header),
+            trailer: overrides.trailer.or(self.trailer),
+            autogen_warning: overrides.autogen_warning.or(self.autogen_warning),
+            include_guard: overrides.include_guard.or(self.include_guard),
+            pragma_once: overrides
+                .pragma_once
+                .or(self.pragma_once)
+                .unwrap_or(false),
+            sys_includes: overrides.sys_includes.unwrap_or(self.sys_includes),
+            includes: overrides.includes.unwrap_or(self.includes),
+            no_includes: overrides
+                .no_includes
+                .or(self.no_includes)
+                .unwrap_or(false),
+            after_includes: overrides.after_includes.or(self.after_includes),
+        }
+    }
+}
+
+/// CLI overrides that can be applied to the config before validation.
+#[derive(Debug, Default)]
+pub struct CliOverrides {
+    /// Override the C declaration style.
+    pub style: Option<Style>,
+    /// Force `cpp_compat` on.
+    pub cpp_compat: bool,
+}
+
 impl RawConfig {
     /// Read and deserialize a [`RawConfig`] from a TOML file at `path`.
     pub fn from_toml_file(path: &Path) -> Result<Self, ConfigError> {
@@ -176,9 +287,16 @@ impl RawConfig {
 
     /// Validate and convert into a language-specific [`Config`].
     ///
-    /// `language` is required — it may come from the config file itself,
-    /// from a CLI flag, or from a default.
-    pub fn into_config(self, language: &Language) -> Result<Config, ConfigError> {
+    /// `language` selects which language section to use.
+    /// If the matching section is absent, top-level common options are used with
+    /// language-specific defaults.
+    ///
+    /// `overrides` allows CLI flags to override config values.
+    pub fn into_config(
+        self,
+        language: &Language,
+        overrides: &CliOverrides,
+    ) -> Result<Config, ConfigError> {
         match language {
             Language::Cython => {
                 return Err(ConfigError {
@@ -186,16 +304,16 @@ impl RawConfig {
                 });
             }
             Language::Cxx => {
-                if self.cpp_compat.is_some() {
+                if overrides.cpp_compat {
                     return Err(ConfigError {
-                        message: "`cpp_compat` is not supported for C++ output \
+                        message: "`--cpp-compat` is not supported for C++ output \
                                   (it is only meaningful for C headers)"
                             .to_string(),
                     });
                 }
-                if self.style.is_some() {
+                if overrides.style.is_some() {
                     return Err(ConfigError {
-                        message: "`style` is not supported for C++ output \
+                        message: "`--style` is not supported for C++ output \
                                   (C++ does not use typedef-style declarations)"
                             .to_string(),
                     });
@@ -204,25 +322,68 @@ impl RawConfig {
             Language::C => {}
         }
 
-        let common = CommonConfig {
+        // Build the base CommonConfig from top-level fields.
+        let base = RawCommonFields {
             header: self.header,
             trailer: self.trailer,
             autogen_warning: self.autogen_warning,
             include_guard: self.include_guard,
-            pragma_once: self.pragma_once.unwrap_or(false),
+            pragma_once: self.pragma_once,
             sys_includes: self.sys_includes,
             includes: self.includes,
-            no_includes: self.no_includes.unwrap_or(false),
+            no_includes: self.no_includes,
             after_includes: self.after_includes,
         };
 
         match language {
-            Language::C => Ok(Config::C(CConfig {
-                common,
-                style: self.style.unwrap_or(Style::Both),
-                cpp_compat: self.cpp_compat.unwrap_or(false),
-            })),
-            Language::Cxx => Ok(Config::Cxx(CxxConfig { common })),
+            Language::C => {
+                let section = self.c.unwrap_or_default();
+                let section_overrides = RawCommonOverrides {
+                    header: section.header,
+                    trailer: section.trailer,
+                    autogen_warning: section.autogen_warning,
+                    include_guard: section.include_guard,
+                    pragma_once: section.pragma_once,
+                    sys_includes: section.sys_includes,
+                    includes: section.includes,
+                    no_includes: section.no_includes,
+                    after_includes: section.after_includes,
+                };
+                let common = base.resolve(section_overrides);
+
+                let style = overrides
+                    .style
+                    .clone()
+                    .or(section.style)
+                    .unwrap_or(Style::Both);
+                let cpp_compat = if overrides.cpp_compat {
+                    true
+                } else {
+                    section.cpp_compat.unwrap_or(false)
+                };
+
+                Ok(Config::C(CConfig {
+                    common,
+                    style,
+                    cpp_compat,
+                }))
+            }
+            Language::Cxx => {
+                let section = self.cxx.unwrap_or_default();
+                let section_overrides = RawCommonOverrides {
+                    header: section.header,
+                    trailer: section.trailer,
+                    autogen_warning: section.autogen_warning,
+                    include_guard: section.include_guard,
+                    pragma_once: section.pragma_once,
+                    sys_includes: section.sys_includes,
+                    includes: section.includes,
+                    no_includes: section.no_includes,
+                    after_includes: section.after_includes,
+                };
+                let common = base.resolve(section_overrides);
+                Ok(Config::Cxx(CxxConfig { common }))
+            }
             Language::Cython => unreachable!(),
         }
     }
@@ -235,16 +396,13 @@ mod tests {
     #[test]
     fn empty_config() {
         let raw: RawConfig = toml::from_str("").unwrap();
-        let config = raw.into_config(&Language::C).unwrap();
+        let config = raw.into_config(&Language::C, &CliOverrides::default()).unwrap();
         assert!(matches!(config, Config::C(_)));
     }
 
     #[test]
     fn full_c_config() {
         let toml_str = r#"
-language = "C"
-style = "Tag"
-cpp_compat = true
 header = "/* License */"
 trailer = "/* End */"
 autogen_warning = "// Auto-generated"
@@ -254,11 +412,13 @@ sys_includes = ["stdint.h", "stdbool.h"]
 includes = ["my_types.h"]
 no_includes = false
 after_includes = "/* after includes */"
+
+[c]
+style = "Tag"
+cpp_compat = true
 "#;
         let raw: RawConfig = toml::from_str(toml_str).unwrap();
-        assert!(matches!(raw.language, Some(Language::C)));
-
-        let config = raw.into_config(&Language::C).unwrap();
+        let config = raw.into_config(&Language::C, &CliOverrides::default()).unwrap();
         match config {
             Config::C(c) => {
                 assert!(matches!(c.style, Style::Tag));
@@ -283,13 +443,16 @@ after_includes = "/* after includes */"
     #[test]
     fn full_cxx_config() {
         let toml_str = r#"
-language = "C++"
 header = "/* C++ License */"
 include_guard = "MY_CXX_H"
 pragma_once = true
+
+[cxx]
 "#;
         let raw: RawConfig = toml::from_str(toml_str).unwrap();
-        let config = raw.into_config(&Language::Cxx).unwrap();
+        let config = raw
+            .into_config(&Language::Cxx, &CliOverrides::default())
+            .unwrap();
         match config {
             Config::Cxx(cxx) => {
                 assert_eq!(cxx.common.header.as_deref(), Some("/* C++ License */"));
@@ -300,4 +463,153 @@ pragma_once = true
         }
     }
 
+    #[test]
+    fn section_overrides_common() {
+        let toml_str = r#"
+header = "/* Shared */"
+include_guard = "SHARED_H"
+
+[c]
+include_guard = "C_ONLY_H"
+"#;
+        let raw: RawConfig = toml::from_str(toml_str).unwrap();
+        let config = raw.into_config(&Language::C, &CliOverrides::default()).unwrap();
+        match config {
+            Config::C(c) => {
+                assert_eq!(c.common.header.as_deref(), Some("/* Shared */"));
+                assert_eq!(c.common.include_guard.as_deref(), Some("C_ONLY_H"));
+            }
+            _ => panic!("expected Config::C"),
+        }
+    }
+
+    #[test]
+    fn multi_language_config() {
+        let toml_str = r#"
+header = "/* Shared License */"
+
+[c]
+style = "Tag"
+cpp_compat = true
+include_guard = "MY_C_H"
+
+[cxx]
+include_guard = "MY_CXX_H"
+"#;
+        let raw: RawConfig = toml::from_str(toml_str).unwrap();
+
+        // Select C
+        let c_config = raw
+            .clone()
+            .into_config(&Language::C, &CliOverrides::default())
+            .unwrap();
+        match &c_config {
+            Config::C(c) => {
+                assert!(matches!(c.style, Style::Tag));
+                assert!(c.cpp_compat);
+                assert_eq!(c.common.header.as_deref(), Some("/* Shared License */"));
+                assert_eq!(c.common.include_guard.as_deref(), Some("MY_C_H"));
+            }
+            _ => panic!("expected Config::C"),
+        }
+
+        // Select C++
+        let cxx_config = raw
+            .into_config(&Language::Cxx, &CliOverrides::default())
+            .unwrap();
+        match &cxx_config {
+            Config::Cxx(cxx) => {
+                assert_eq!(cxx.common.header.as_deref(), Some("/* Shared License */"));
+                assert_eq!(cxx.common.include_guard.as_deref(), Some("MY_CXX_H"));
+            }
+            _ => panic!("expected Config::Cxx"),
+        }
+    }
+
+    #[test]
+    fn cxx_without_section_uses_common_defaults() {
+        let toml_str = r#"
+header = "/* License */"
+include_guard = "MY_H"
+"#;
+        let raw: RawConfig = toml::from_str(toml_str).unwrap();
+        let config = raw
+            .into_config(&Language::Cxx, &CliOverrides::default())
+            .unwrap();
+        match config {
+            Config::Cxx(cxx) => {
+                assert_eq!(cxx.common.header.as_deref(), Some("/* License */"));
+                assert_eq!(cxx.common.include_guard.as_deref(), Some("MY_H"));
+            }
+            _ => panic!("expected Config::Cxx"),
+        }
+    }
+
+    #[test]
+    fn cli_overrides_style() {
+        let toml_str = r#"
+[c]
+style = "Tag"
+"#;
+        let raw: RawConfig = toml::from_str(toml_str).unwrap();
+        let overrides = CliOverrides {
+            style: Some(Style::Type),
+            cpp_compat: false,
+        };
+        let config = raw.into_config(&Language::C, &overrides).unwrap();
+        match config {
+            Config::C(c) => {
+                assert!(matches!(c.style, Style::Type));
+            }
+            _ => panic!("expected Config::C"),
+        }
+    }
+
+    #[test]
+    fn cli_overrides_cpp_compat() {
+        let raw: RawConfig = toml::from_str("").unwrap();
+        let overrides = CliOverrides {
+            style: None,
+            cpp_compat: true,
+        };
+        let config = raw.into_config(&Language::C, &overrides).unwrap();
+        match config {
+            Config::C(c) => {
+                assert!(c.cpp_compat);
+            }
+            _ => panic!("expected Config::C"),
+        }
+    }
+
+    #[test]
+    fn cxx_rejects_cpp_compat_cli_override() {
+        let raw: RawConfig = toml::from_str("").unwrap();
+        let overrides = CliOverrides {
+            style: None,
+            cpp_compat: true,
+        };
+        let err = raw.into_config(&Language::Cxx, &overrides).unwrap_err();
+        assert!(err.message.contains("cpp-compat"));
+    }
+
+    #[test]
+    fn cxx_rejects_style_cli_override() {
+        let raw: RawConfig = toml::from_str("").unwrap();
+        let overrides = CliOverrides {
+            style: Some(Style::Tag),
+            cpp_compat: false,
+        };
+        let err = raw.into_config(&Language::Cxx, &overrides).unwrap_err();
+        assert!(err.message.contains("style"));
+    }
+
+    #[test]
+    fn cxx_alias_parses() {
+        let toml_str = r#"
+[cxx]
+header = "/* C++ */"
+"#;
+        let raw: RawConfig = toml::from_str(toml_str).unwrap();
+        assert!(raw.cxx.is_some());
+    }
 }
