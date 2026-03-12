@@ -17,7 +17,7 @@ struct Middle {
 };
 
 struct Outer {
-  const struct Inner * ptr;
+  const struct Inner *ptr;
   struct Middle nested;
 };
 

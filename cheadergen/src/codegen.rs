@@ -274,8 +274,13 @@ fn write_c_decl(
             write!(out, " {name}[{}]", a.len).unwrap();
         }
         _ => {
-            write_c_type(ty, style, type_tags, out);
-            write!(out, " {name}").unwrap();
+            let mut type_buf = String::new();
+            write_c_type(ty, style, type_tags, &mut type_buf);
+            if type_buf.ends_with('*') {
+                write!(out, "{type_buf}{name}").unwrap();
+            } else {
+                write!(out, "{type_buf} {name}").unwrap();
+            }
         }
     }
 }

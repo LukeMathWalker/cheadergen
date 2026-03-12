@@ -17,7 +17,7 @@ typedef struct Middle {
 } Middle;
 
 typedef struct Outer {
-  const struct Inner * ptr;
+  const struct Inner *ptr;
   struct Middle nested;
 } Outer;
 
