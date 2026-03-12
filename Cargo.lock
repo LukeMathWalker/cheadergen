@@ -1446,6 +1446,7 @@ dependencies = [
 name = "ui-tests"
 version = "0.0.0"
 dependencies = [
+ "fs-err",
  "insta",
  "serde",
  "tempfile",

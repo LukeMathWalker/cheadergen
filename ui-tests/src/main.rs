@@ -1,6 +1,8 @@
 use std::path::Path;
 use std::process::Command;
-use std::{env, fs, process};
+use std::{env, process};
+
+use fs_err as fs;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -121,10 +123,13 @@ fn cmd_translate_configs() {
     println!("Found {} cbindgen.toml file(s)\n", configs.len());
 
     let mut failures = Vec::new();
+    let mut modified = 0u32;
 
     for config in &configs {
         let parent = config.parent().unwrap();
         let output = parent.join("cheadergen.toml");
+
+        let old_contents = fs::read(&output).ok();
 
         let result = Command::new("cargo")
             .args([
@@ -143,7 +148,10 @@ fn cmd_translate_configs() {
 
         match result {
             Ok(out) if out.status.success() => {
-                println!("  OK: {}", config.display());
+                if old_contents.as_deref() != fs::read(&output).ok().as_deref() {
+                    println!("MODIFIED: {}", config.display());
+                    modified += 1;
+                }
             }
             Ok(out) => {
                 let stderr = String::from_utf8_lossy(&out.stderr);
@@ -160,12 +168,7 @@ fn cmd_translate_configs() {
     }
 
     println!();
-    if failures.is_empty() {
-        println!(
-            "All {} config(s) translated successfully.",
-            configs.len()
-        );
-    } else {
+    if !failures.is_empty() {
         eprintln!(
             "{}/{} translation(s) failed:",
             failures.len(),
@@ -175,6 +178,13 @@ fn cmd_translate_configs() {
             eprintln!("  - {}", f.display());
         }
         process::exit(1);
+    } else if modified == 0 {
+        println!(
+            "No configuration changes after translating {} cbindgen.toml file(s).",
+            configs.len()
+        );
+    } else {
+        println!("{modified}/{} config(s) modified.", configs.len());
     }
 }
 

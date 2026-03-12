@@ -5,6 +5,7 @@ edition = "2024"
 publish = false
 
 [dependencies]
+fs-err = "3"
 insta = "1"
 tempfile = "3"
 
