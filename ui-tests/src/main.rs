@@ -122,6 +122,23 @@ fn cmd_translate_configs() {
 
     println!("Found {} cbindgen.toml file(s)\n", configs.len());
 
+    let build = Command::new("cargo")
+        .args(["build", "-p", "cheadergen", "--quiet"])
+        .status();
+    match build {
+        Ok(s) if s.success() => {}
+        Ok(s) => {
+            eprintln!("Failed to build cheadergen (exit code: {})", s);
+            process::exit(1);
+        }
+        Err(e) => {
+            eprintln!("Failed to run cargo build: {e}");
+            process::exit(1);
+        }
+    }
+
+    let cheadergen_bin = Path::new(env!("CARGO_MANIFEST_DIR")).join("../target/debug/cheadergen");
+
     let mut failures = Vec::new();
     let mut modified = 0u32;
 
@@ -131,16 +148,8 @@ fn cmd_translate_configs() {
 
         let old_contents = fs::read(&output).ok();
 
-        let result = Command::new("cargo")
-            .args([
-                "run",
-                "-p",
-                "cheadergen",
-                "--",
-                "config",
-                "translate",
-                "--from",
-            ])
+        let result = Command::new(&cheadergen_bin)
+            .args(["config", "translate", "--from"])
             .arg(config)
             .arg("--to")
             .arg(&output)
