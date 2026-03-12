@@ -3,6 +3,10 @@
 version = 4
 
 [[package]]
+name = "opaque_upgrade"
+version = "0.1.0"
+
+[[package]]
 name = "ref_primitives"
 version = "0.1.0"
 

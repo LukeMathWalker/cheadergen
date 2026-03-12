@@ -8,6 +8,9 @@ expression: output
 #include <stdint.h>
 #include <stdlib.h>
 
-typedef struct Point Point;
+typedef struct Point {
+  double x;
+  double y;
+} Point;
 
 Point point_new(double x, double y);

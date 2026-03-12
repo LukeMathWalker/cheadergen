@@ -68,7 +68,7 @@ All test commands accept extra nextest filter args:
 
 ```bash
 # E.g. Run a specific test
-just test -E 'test(=cbindgen::generate::c::plain::alias)'
+just test "-E 'test(=cbindgen::generate::c::plain::alias)'"
 ```
 
 ## Common Issues

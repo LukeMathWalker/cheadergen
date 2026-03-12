@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 use std::fmt::Write;
 use std::path::Path;
 
-use crate::analysis::{CTypeDefinition, c_type_name};
+use crate::analysis::{CTypeDefinition, CTypeKind, c_type_name};
 use crate::config::{CConfig, Style};
 use crate::static_item::StaticItem;
 use rustdoc_ir::{FreeFunction, ScalarPrimitive, Type};
@@ -255,15 +255,84 @@ fn write_c_type(ty: &Type, style: &Style, out: &mut String) {
 }
 
 fn write_c_type_definitions(type_defs: &[CTypeDefinition], style: &Style, out: &mut String) {
-    for (i, def) in type_defs.iter().enumerate() {
+    // Emit forward declarations first (always valid ordering in C).
+    let opaque_defs: Vec<_> = type_defs
+        .iter()
+        .filter(|d| matches!(d.kind, CTypeKind::Opaque))
+        .collect();
+    let struct_defs: Vec<_> = type_defs
+        .iter()
+        .filter(|d| matches!(d.kind, CTypeKind::Struct(_)))
+        .collect();
+
+    for (i, def) in opaque_defs.iter().enumerate() {
         let name = &def.name;
         match style {
             Style::Tag => writeln!(out, "struct {name};").unwrap(),
             Style::Type | Style::Both => writeln!(out, "typedef struct {name} {name};").unwrap(),
         }
-        // Blank line between type declarations (but not after the last one).
-        if i + 1 < type_defs.len() {
+        if i + 1 < opaque_defs.len() {
             out.push('\n');
+        }
+    }
+
+    // Blank line between opaque and struct sections.
+    if !opaque_defs.is_empty() && !struct_defs.is_empty() {
+        out.push('\n');
+    }
+
+    for (i, def) in struct_defs.iter().enumerate() {
+        let name = &def.name;
+        let CTypeKind::Struct(ref struct_def) = def.kind else {
+            unreachable!();
+        };
+        write_c_struct_definition(name, struct_def, style, out);
+        if i + 1 < struct_defs.len() {
+            out.push('\n');
+        }
+    }
+}
+
+/// Emit a full C struct definition with fields.
+fn write_c_struct_definition(
+    name: &str,
+    def: &crate::analysis::CStructDef,
+    style: &Style,
+    out: &mut String,
+) {
+    // In "Both" style, field types use Tag form for inner references.
+    let field_style = match style {
+        Style::Both => Style::Tag,
+        other => other.clone(),
+    };
+
+    match style {
+        Style::Type => {
+            writeln!(out, "typedef struct {{").unwrap();
+            for field in &def.fields {
+                out.push_str("  ");
+                write_c_decl(&field.type_, &field.name, &field_style, out);
+                writeln!(out, ";").unwrap();
+            }
+            writeln!(out, "}} {name};").unwrap();
+        }
+        Style::Tag => {
+            writeln!(out, "struct {name} {{").unwrap();
+            for field in &def.fields {
+                out.push_str("  ");
+                write_c_decl(&field.type_, &field.name, &Style::Tag, out);
+                writeln!(out, ";").unwrap();
+            }
+            writeln!(out, "}};").unwrap();
+        }
+        Style::Both => {
+            writeln!(out, "typedef struct {name} {{").unwrap();
+            for field in &def.fields {
+                out.push_str("  ");
+                write_c_decl(&field.type_, &field.name, &field_style, out);
+                writeln!(out, ";").unwrap();
+            }
+            writeln!(out, "}} {name};").unwrap();
         }
     }
 }

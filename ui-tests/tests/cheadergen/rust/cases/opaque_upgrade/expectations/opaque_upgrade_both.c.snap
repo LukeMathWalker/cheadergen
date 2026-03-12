@@ -1,0 +1,24 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 171
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct Inner {
+  int32_t value;
+} Inner;
+
+typedef struct Middle {
+  struct Inner inner;
+} Middle;
+
+typedef struct Outer {
+  const struct Inner * ptr;
+  struct Middle nested;
+} Outer;
+
+void root(Outer o);

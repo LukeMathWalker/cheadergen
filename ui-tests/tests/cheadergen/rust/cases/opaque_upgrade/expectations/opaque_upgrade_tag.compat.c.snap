@@ -8,16 +8,24 @@ expression: output
 #include <stdint.h>
 #include <stdlib.h>
 
-struct Point {
-  double x;
-  double y;
+struct Inner {
+  int32_t value;
+};
+
+struct Middle {
+  struct Inner inner;
+};
+
+struct Outer {
+  const struct Inner * ptr;
+  struct Middle nested;
 };
 
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
 
-struct Point point_new(double x, double y);
+void root(struct Outer o);
 
 #ifdef __cplusplus
 }  // extern "C"

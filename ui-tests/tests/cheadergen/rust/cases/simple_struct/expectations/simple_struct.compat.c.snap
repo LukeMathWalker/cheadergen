@@ -8,7 +8,10 @@ expression: output
 #include <stdint.h>
 #include <stdlib.h>
 
-typedef struct Point Point;
+typedef struct {
+  double x;
+  double y;
+} Point;
 
 #ifdef __cplusplus
 extern "C" {

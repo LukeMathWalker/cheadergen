@@ -9,8 +9,16 @@ expression: output
 #include <stdlib.h>
 
 typedef struct {
-  double x;
-  double y;
-} Point;
+  int32_t value;
+} Inner;
 
-Point point_new(double x, double y);
+typedef struct {
+  Inner inner;
+} Middle;
+
+typedef struct {
+  const Inner * ptr;
+  Middle nested;
+} Outer;
+
+void root(Outer o);

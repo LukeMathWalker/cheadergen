@@ -311,7 +311,12 @@ fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
             eprintln!("Resolved {} static(s) to IR", resolved_statics.len());
         }
 
-        let type_defs = analysis::collect_type_definitions(&resolved_fns, &resolved_statics);
+        let type_defs = analysis::collect_type_definitions(
+            &resolved_fns,
+            &resolved_statics,
+            krate,
+            &collection,
+        )?;
 
         let c_config = match &config {
             config::Config::C(c) => c,
