@@ -102,5 +102,23 @@ ui-tests +args:
 ui-tests-translate-configs:
     cargo run -p ui-tests -- translate-configs
 
+# Check that vendored cbindgen snapshots haven't been modified
+check-cbindgen-snapshots:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if command -v jj &>/dev/null && jj root &>/dev/null 2>&1; then
+        diff_output=$(jj diff --no-pager -- 'glob:ui-tests/tests/cbindgen/**/*.snap' 2>/dev/null || true)
+    elif command -v git &>/dev/null && git rev-parse --git-dir &>/dev/null 2>&1; then
+        diff_output=$(git diff HEAD -- 'ui-tests/tests/cbindgen/**/*.snap' 2>/dev/null || true)
+    else
+        echo "WARNING: No VCS found, skipping cbindgen snapshot check"
+        exit 0
+    fi
+    if [ -n "$diff_output" ]; then
+        echo "ERROR: cbindgen snapshots have been modified. These are read-only vendored files."
+        echo "Only cheadergen snapshots (ui-tests/tests/cheadergen/) should be updated."
+        exit 1
+    fi
+
 # Run all checks
-verify: lint (fmt "check") test
+verify: check-cbindgen-snapshots lint (fmt "check") test

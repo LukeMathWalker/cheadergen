@@ -7,6 +7,16 @@ description: "Reference for the ui-tests infrastructure: test suites, directory 
 
 The `ui-tests` crate contains the project's integration test infrastructure. It generates hundreds of test functions from minimal test case definitions, using `build.rs` code generation, insta snapshots, and compilation caching.
 
+## Cbindgen Snapshots Are Read-Only
+
+**NEVER modify `.snap` files under `ui-tests/tests/cbindgen/`.**
+These are vendored golden references from mozilla/cbindgen (MPL-2.0). They define the
+target output our codegen must match. Only `test.toml` files may be changed in the
+cbindgen suite (to update variant statuses like xfail/skip).
+
+When cheadergen output changes, update **cheadergen** snapshots only
+(`ui-tests/tests/cheadergen/`). Cbindgen snapshots stay as-is.
+
 ## Test Suites
 
 Two test suites, each under `ui-tests/tests/`:
@@ -125,6 +135,8 @@ Snapshots use **insta**. When output changes:
 4. Re-run tests to confirm
 
 **IMPORTANT**: Do not use `cargo insta` commands (`cargo insta review`, `cargo insta accept`, etc.). Always move `.snap.new` files directly.
+
+**IMPORTANT**: Snapshot acceptance applies only to **cheadergen** expectations (`ui-tests/tests/cheadergen/`). Never accept or modify cbindgen snapshots (`ui-tests/tests/cbindgen/`). If `.snap.new` files appear under the cbindgen tree, it means our output diverges from cbindgen's reference — investigate the codegen, don't overwrite the snapshot.
 
 ## Compilation Cache
 

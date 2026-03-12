@@ -50,6 +50,8 @@ This project uses insta for snapshot testing. When expected output changes, test
 
 IMPORTANT: Do not use `cargo insta` commands (`cargo insta review`, `cargo insta accept`, etc.). Always move `.snap.new` files directly.
 
+**WARNING — cbindgen snapshots are read-only.** If `.snap.new` files appear under `ui-tests/tests/cbindgen/`, do **not** accept them. These are vendored golden references from mozilla/cbindgen. A mismatch means our codegen output diverges from cbindgen's — investigate and fix the codegen, never overwrite the cbindgen snapshot.
+
 ### Step 4: Full test suite
 
 Run the full suite if generation tests passed - this includes C/C++ compilation and takes longer:
