@@ -5,7 +5,7 @@ use rustdoc_ir::{FreeFunction, GenericArgument, PathType, ScalarPrimitive, Type}
 use rustdoc_processor::{CORE_PACKAGE_ID_REPR, CrateCollection, STD_PACKAGE_ID_REPR};
 use rustdoc_processor::indexing::{CrateIndexer, NoAnnotations};
 use rustdoc_processor::queries::Crate;
-use rustdoc_resolver::{resolve_free_function, resolve_type};
+use rustdoc_resolver::{GenericBindings, resolve_free_function, resolve_type};
 use rustdoc_types::{Abi, Attribute, AttributeRepr, ItemEnum, ReprKind, StructKind, VariantKind};
 
 use crate::config::SortKey;
@@ -518,7 +518,7 @@ fn resolve_type_kind<I: CrateIndexer>(
 
     match &item.inner {
         ItemEnum::Struct(struct_def) => {
-            resolve_struct_kind(name, struct_def, &item.attrs, krate, collection)
+            resolve_struct_kind(name, struct_def, &item.attrs, &path_type.generic_arguments, krate, collection)
         }
         ItemEnum::Enum(enum_def) => {
             resolve_enum_kind(name, enum_def, &item.attrs, krate, collection)
@@ -537,6 +537,7 @@ fn resolve_struct_kind<I: CrateIndexer>(
     name: &str,
     struct_def: &rustdoc_types::Struct,
     attrs: &[Attribute],
+    generic_args: &[GenericArgument],
     krate: &Crate,
     collection: &CrateCollection<I>,
 ) -> anyhow::Result<CTypeKind> {
@@ -555,13 +556,20 @@ fn resolve_struct_kind<I: CrateIndexer>(
         return Ok(CTypeKind::Opaque);
     }
 
-    // Check for unbound generic type parameters — treat as opaque.
-    if has_type_params(&struct_def.generics) {
-        eprintln!(
-            "warning: type `{name}` has generic type parameters; emitting forward declaration"
-        );
-        return Ok(CTypeKind::Opaque);
-    }
+    // Build generic substitution bindings when concrete arguments are provided.
+    let generic_bindings = if has_type_params(&struct_def.generics) {
+        match build_generic_bindings(&struct_def.generics, generic_args) {
+            Some(bindings) => bindings,
+            None => {
+                eprintln!(
+                    "warning: type `{name}` has generic type parameters; emitting forward declaration"
+                );
+                return Ok(CTypeKind::Opaque);
+            }
+        }
+    } else {
+        GenericBindings::default()
+    };
 
     match &struct_def.kind {
         StructKind::Plain {
@@ -574,11 +582,11 @@ fn resolve_struct_kind<I: CrateIndexer>(
                 );
                 return Ok(CTypeKind::Opaque);
             }
-            let c_fields = resolve_plain_fields(fields, krate, collection)?;
+            let c_fields = resolve_plain_fields(fields, &generic_bindings, krate, collection)?;
             Ok(CTypeKind::Struct(CStructDef { fields: c_fields }))
         }
         StructKind::Tuple(fields) => {
-            let c_fields = resolve_tuple_fields(fields, krate, collection)?;
+            let c_fields = resolve_tuple_fields(fields, &generic_bindings, krate, collection)?;
             Ok(CTypeKind::Struct(CStructDef { fields: c_fields }))
         }
         StructKind::Unit => Ok(CTypeKind::Struct(CStructDef { fields: Vec::new() })),
@@ -591,6 +599,46 @@ fn has_type_params(generics: &rustdoc_types::Generics) -> bool {
         .params
         .iter()
         .any(|p| matches!(p.kind, rustdoc_types::GenericParamDefKind::Type { .. }))
+}
+
+/// Build a [`GenericBindings`] map pairing each type parameter in `generics`
+/// with the corresponding concrete type from `generic_args`.
+///
+/// Returns `None` if the struct has type parameters but no (or insufficient)
+/// concrete arguments were provided — the caller should treat the type as opaque.
+fn build_generic_bindings(
+    generics: &rustdoc_types::Generics,
+    generic_args: &[GenericArgument],
+) -> Option<GenericBindings> {
+    let type_param_names: Vec<&str> = generics
+        .params
+        .iter()
+        .filter_map(|p| match &p.kind {
+            rustdoc_types::GenericParamDefKind::Type { .. } => Some(p.name.as_str()),
+            _ => None,
+        })
+        .collect();
+
+    let type_args: Vec<&Type> = generic_args
+        .iter()
+        .filter_map(|arg| match arg {
+            GenericArgument::TypeParameter(t) => Some(t),
+            GenericArgument::Lifetime(_) => None,
+        })
+        .collect();
+
+    if type_param_names.is_empty() {
+        return Some(GenericBindings::default());
+    }
+    if type_args.len() != type_param_names.len() {
+        return None;
+    }
+
+    let mut bindings = GenericBindings::default();
+    for (name, ty) in type_param_names.into_iter().zip(type_args) {
+        bindings.types.insert(name.to_owned(), ty.clone());
+    }
+    Some(bindings)
 }
 
 /// Extract a `CEnumRepr` from the item's attributes.
@@ -732,7 +780,7 @@ fn resolve_tagged_union<I: CrateIndexer>(
         let body = match &variant.kind {
             VariantKind::Plain => None,
             VariantKind::Tuple(fields) => {
-                let c_fields = resolve_tuple_fields(fields, krate, collection)?;
+                let c_fields = resolve_tuple_fields(fields, &Default::default(), krate, collection)?;
                 if c_fields.is_empty() {
                     None
                 } else {
@@ -749,7 +797,7 @@ fn resolve_tagged_union<I: CrateIndexer>(
                     );
                     return Ok(CTypeKind::Opaque);
                 }
-                let c_fields = resolve_plain_fields(fields, krate, collection)?;
+                let c_fields = resolve_plain_fields(fields, &Default::default(), krate, collection)?;
                 if c_fields.is_empty() {
                     None
                 } else {
@@ -774,6 +822,7 @@ fn resolve_tagged_union<I: CrateIndexer>(
 /// Resolve named struct fields into C struct fields.
 fn resolve_plain_fields<I: CrateIndexer>(
     field_ids: &[rustdoc_types::Id],
+    generic_bindings: &GenericBindings,
     krate: &Crate,
     collection: &CrateCollection<I>,
 ) -> anyhow::Result<Vec<CStructField>> {
@@ -797,7 +846,7 @@ fn resolve_plain_fields<I: CrateIndexer>(
             raw_type,
             &krate.core.package_id,
             collection,
-            &Default::default(),
+            generic_bindings,
         )
         .map_err(|e| anyhow::anyhow!("Failed to resolve field `{field_name}`: {}", Arc::new(e)))?;
 
@@ -817,6 +866,7 @@ fn resolve_plain_fields<I: CrateIndexer>(
 /// Resolve tuple struct fields into C struct fields named `m0`, `m1`, etc.
 fn resolve_tuple_fields<I: CrateIndexer>(
     fields: &[Option<rustdoc_types::Id>],
+    generic_bindings: &GenericBindings,
     krate: &Crate,
     collection: &CrateCollection<I>,
 ) -> anyhow::Result<Vec<CStructField>> {
@@ -841,7 +891,7 @@ fn resolve_tuple_fields<I: CrateIndexer>(
             raw_type,
             &krate.core.package_id,
             collection,
-            &Default::default(),
+            generic_bindings,
         )
         .map_err(|e| anyhow::anyhow!("Failed to resolve tuple field m{index}: {}", Arc::new(e)))?;
 
