@@ -192,6 +192,16 @@ fn write_doc_comment(docs: Option<&str>, config: &CommonConfig, out: &mut String
         }
     };
 
+    // Trim trailing whitespace-only lines from doc text.
+    let text = text.trim_end();
+
+    // Detect whether the original text had a trailing blank line:
+    // ends with '\n' and the char before it is not whitespace (i.e. content\n, not ws\n).
+    let has_trailing_blank = docs.len() >= 2 && {
+        let bytes = docs.as_bytes();
+        bytes[bytes.len() - 1] == b'\n' && !bytes[bytes.len() - 2].is_ascii_whitespace()
+    };
+
     let use_line_comments = matches!(
         config.documentation_style,
         DocumentationStyle::C99 | DocumentationStyle::Cxx
@@ -205,6 +215,9 @@ fn write_doc_comment(docs: Option<&str>, config: &CommonConfig, out: &mut String
                 writeln!(out, "// {line}").unwrap();
             }
         }
+        if has_trailing_blank {
+            out.push_str("//\n");
+        }
     } else {
         // C-style block comment: /** ... */
         out.push_str("/**\n");
@@ -214,6 +227,9 @@ fn write_doc_comment(docs: Option<&str>, config: &CommonConfig, out: &mut String
             } else {
                 writeln!(out, " * {line}").unwrap();
             }
+        }
+        if has_trailing_blank {
+            out.push_str(" *\n");
         }
         out.push_str(" */\n");
     }
