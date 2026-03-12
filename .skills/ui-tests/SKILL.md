@@ -124,8 +124,8 @@ just test-cbindgen-xfail
 just test-symbol-xfail
 
 # Filter to specific cases (nextest filter syntax)
-just test-generate "-E 'test(~alias)'"
-just test "-E 'test(=cbindgen::generate::c::plain::alias)'"
+just test-generate -E 'test(~alias)'
+just test -E 'test(=cbindgen::generate::c::plain::alias)'
 
 # Scaffold a new cheadergen test case
 just ui-tests new <name>

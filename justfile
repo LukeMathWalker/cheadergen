@@ -1,3 +1,5 @@
+set positional-arguments
+
 # Format all files
 # Use `just fmt check` to verify rather than format
 fmt action="fmt":
@@ -13,27 +15,27 @@ lint:
 #   just test -E 'test(=cbindgen::generate::c::plain::alias)'
 # to run a single test.
 test +args="":
-    cargo nextest run --no-tests pass {{ args }}
+    cargo nextest run --no-tests pass "$@"
 
 # Run only cbindgen tests
 test-cbindgen +args="":
-    cargo nextest run -p ui-tests --no-tests pass -E 'test(~cbindgen::)' {{ args }}
+    cargo nextest run -p ui-tests --no-tests pass -E 'test(~cbindgen::)' "$@"
 
 # Run only generation tests (no compilation)
 test-generate +args="":
-    cargo nextest run -p ui-tests --no-tests pass -E 'test(~::generate::)' {{ args }}
+    cargo nextest run -p ui-tests --no-tests pass -E 'test(~::generate::)' "$@"
 
 # Run only symbol tests
 test-symbol +args="":
-    cargo nextest run -p ui-tests --no-tests pass -E 'test(~::symbol::)' {{ args }}
+    cargo nextest run -p ui-tests --no-tests pass -E 'test(~::symbol::)' "$@"
 
 # Run xfail cbindgen tests (expected failures)
 test-cbindgen-xfail +args="":
-    cargo nextest run -p ui-tests --run-ignored ignored-only -E 'test(~cbindgen::)' {{ args }}
+    cargo nextest run -p ui-tests --run-ignored ignored-only -E 'test(~cbindgen::)' "$@"
 
 # Run xfail symbol tests (expected failures)
 test-symbol-xfail +args="":
-    cargo nextest run -p ui-tests --run-ignored ignored-only --no-tests pass -E 'test(~::symbol::)' {{ args }}
+    cargo nextest run -p ui-tests --run-ignored ignored-only --no-tests pass -E 'test(~::symbol::)' "$@"
 
 # Compute project coverage by running tests with instrumentation enabled
 # Report formats: html (default), codecov, lcov, text
@@ -96,7 +98,7 @@ uncovered pattern="":
 
 # Run ui-tests commands (e.g. `just ui-tests new <name>`)
 ui-tests +args:
-    cargo run -p ui-tests -- {{ args }}
+    cargo run -p ui-tests -- "$@"
 
 # Translate all cbindgen.toml configs to cheadergen.toml
 ui-tests-translate-configs:
