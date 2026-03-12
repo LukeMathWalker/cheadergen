@@ -2,7 +2,7 @@ use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;
 
 use rustdoc_ir::{FreeFunction, GenericArgument, PathType, Type};
-use rustdoc_processor::CrateCollection;
+use rustdoc_processor::{CORE_PACKAGE_ID_REPR, CrateCollection, STD_PACKAGE_ID_REPR};
 use rustdoc_processor::indexing::{CrateIndexer, NoAnnotations};
 use rustdoc_processor::queries::Crate;
 use rustdoc_resolver::{resolve_free_function, resolve_type};
@@ -334,14 +334,24 @@ fn collect_paths_from_type(ty: &Type, behind_pointer: bool, seen: &mut HashMap<P
 }
 
 /// Zero-sized types that should be skipped when emitting struct fields.
-fn is_zst_type(ty: &rustdoc_types::Type) -> bool {
+fn is_zst_type(ty: &Type) -> bool {
     match ty {
         // `()` — empty tuple
-        rustdoc_types::Type::Tuple(elems) if elems.is_empty() => true,
+        Type::Tuple(t) if t.elements.is_empty() => true,
         // `PhantomData<T>` and `PhantomPinned`
-        rustdoc_types::Type::ResolvedPath(path) => {
-            let p = &path.path;
-            p.ends_with("PhantomData") || p.ends_with("PhantomPinned")
+        Type::Path(PathType {
+            package_id,
+            base_type,
+            ..
+        }) => {
+            let pkg = package_id.repr();
+            if pkg != CORE_PACKAGE_ID_REPR && pkg != STD_PACKAGE_ID_REPR {
+                return false;
+            }
+            matches!(
+                base_type.iter().map(String::as_str).collect::<Vec<_>>().as_slice(),
+                ["core" | "std", "marker", "PhantomData" | "PhantomPinned"]
+            )
         }
         _ => false,
     }
@@ -739,11 +749,6 @@ fn resolve_plain_fields<I: CrateIndexer>(
             anyhow::bail!("Expected StructField for id {:?}", field_id);
         };
 
-        // Skip ZST fields (PhantomData, PhantomPinned, ()).
-        if is_zst_type(raw_type) {
-            continue;
-        }
-
         let field_name = field_item
             .name
             .clone()
@@ -755,6 +760,11 @@ fn resolve_plain_fields<I: CrateIndexer>(
             &Default::default(),
         )
         .map_err(|e| anyhow::anyhow!("Failed to resolve field `{field_name}`: {}", Arc::new(e)))?;
+
+        // Skip ZST fields (PhantomData, PhantomPinned, ()).
+        if is_zst_type(&resolved) {
+            continue;
+        }
 
         c_fields.push(CStructField {
             name: field_name,
@@ -787,11 +797,6 @@ fn resolve_tuple_fields<I: CrateIndexer>(
             anyhow::bail!("Expected StructField for tuple field id {:?}", field_id);
         };
 
-        // Skip ZST fields.
-        if is_zst_type(raw_type) {
-            continue;
-        }
-
         let resolved = resolve_type(
             raw_type,
             &krate.core.package_id,
@@ -799,6 +804,11 @@ fn resolve_tuple_fields<I: CrateIndexer>(
             &Default::default(),
         )
         .map_err(|e| anyhow::anyhow!("Failed to resolve tuple field m{index}: {}", Arc::new(e)))?;
+
+        // Skip ZST fields.
+        if is_zst_type(&resolved) {
+            continue;
+        }
 
         c_fields.push(CStructField {
             name: format!("m{index}"),

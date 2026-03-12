@@ -1,0 +1,35 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 171
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+struct WithPhantomData {
+  uint32_t value;
+};
+
+struct WithPhantomPinned {
+  uint32_t value;
+};
+
+struct WithUnitField {
+  uint32_t value;
+};
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+struct WithPhantomData create_with_phantom_data(void);
+
+struct WithPhantomPinned create_with_phantom_pinned(void);
+
+struct WithUnitField create_with_unit(void);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus
