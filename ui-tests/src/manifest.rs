@@ -46,6 +46,10 @@ pub fn check_manifest_up_to_date(known_cbindgen: &[&str], known_cheadergen: &[&s
     if cheadergen_cases_dir.is_dir() {
         let actual_cheadergen = collect_case_dirs(&cheadergen_cases_dir);
         if actual_cheadergen != known_cheadergen {
+            let cheadergen_manifest_path = tests_path.join("cheadergen/.test_manifest");
+            let new_manifest = actual_cheadergen.join("\n") + "\n";
+            fs::write(&cheadergen_manifest_path, &new_manifest)
+                .expect("failed to write .test_manifest");
             panic!(
                 "cheadergen test manifest is stale — re-run cargo test to pick up new/removed crates.\n\
                  Known: {known_cheadergen:?}\n\

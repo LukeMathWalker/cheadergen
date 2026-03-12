@@ -52,6 +52,18 @@ ui-tests/tests/<suite>/rust/cases/<name>/
     └── <name>.c.snap.hash-cxx  # C++ compat compilation cache hash
 ```
 
+## Crate-Level Documentation
+
+Every cheadergen test case **must** have a crate-level doc comment (`//!`) at the top of `src/lib.rs` explaining what the test is checking. This helps reviewers and future contributors understand the intent of each test at a glance.
+
+Example (from `opaque_upgrade`):
+
+```rust
+//! The generated header must include a struct definition for `Inner`,
+//! since it appears both behind a pointer ([`Outer::ptr`]) and
+//! bare ([`Outer::nested`] -> [`Middle::inner`]).
+```
+
 ## test.toml Format
 
 Maps variant keys to statuses. Omitted variants default to normal (must pass).

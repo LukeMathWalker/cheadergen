@@ -96,6 +96,23 @@ pub extern \"C\" fn todo_new() -> TODO {
         process::exit(1);
     });
 
+    // Update cheadergen .test_manifest so cargo picks up the new case immediately.
+    let manifest_path = tests_dir.join("cheadergen/.test_manifest");
+    let mut case_names: Vec<String> = fs::read_to_string(&manifest_path)
+        .unwrap_or_default()
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(|l| l.to_owned())
+        .collect();
+    if !case_names.contains(&name.to_owned()) {
+        case_names.push(name.to_owned());
+    }
+    case_names.sort();
+    let new_manifest = case_names.join("\n") + "\n";
+    fs::write(&manifest_path, new_manifest).unwrap_or_else(|e| {
+        eprintln!("Warning: failed to update .test_manifest: {e}");
+    });
+
     println!("Created test case at {}", cheadergen_case.display());
     println!();
     println!("Next steps:");

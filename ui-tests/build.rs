@@ -427,7 +427,7 @@ fn main() {
         name: "cheadergen",
         cases_dir: tests_dir.join("cheadergen/rust/cases"),
         extra_dirs: vec![],
-        manifest_path: None,
+        manifest_path: Some(tests_dir.join("cheadergen/.test_manifest")),
         emit_generate_without_snap: true,
     };
 
