@@ -68,10 +68,15 @@ fn cmd_new(name: &str) {
 name = \"{name}\"
 version = \"0.1.0\"
 edition.workspace = true
+
+[lints]
+workspace = true
 "
     );
 
     let lib_rs = "\
+//! TODO: Describe what this test case checks.
+
 #[repr(C)]
 pub struct TODO {
     pub field: u32,

@@ -1,3 +1,7 @@
+//! Structs containing zero-sized type fields (`PhantomData`, `PhantomPinned`, `()`).
+//!
+//! Tests that cheadergen correctly omits ZST fields from the generated C struct.
+
 use std::marker::{PhantomData, PhantomPinned};
 
 #[repr(C)]

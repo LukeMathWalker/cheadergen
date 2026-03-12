@@ -5,3 +5,6 @@ resolver = "3"
 
 [workspace.package]
 edition = "2024"
+
+[workspace.lints.rustdoc]
+missing_crate_level_docs = "deny"

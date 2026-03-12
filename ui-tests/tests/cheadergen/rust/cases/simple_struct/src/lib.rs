@@ -1,3 +1,5 @@
+//! Simple `#[repr(C)]` struct with primitive fields.
+
 #[repr(C)]
 pub struct Point {
     pub x: f64,
