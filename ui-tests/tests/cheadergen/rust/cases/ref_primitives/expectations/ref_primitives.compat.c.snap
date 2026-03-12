@@ -12,15 +12,15 @@ expression: output
 extern "C" {
 #endif // __cplusplus
 
-uint32_t read_u32(const uint32_t* x);
+uint32_t read_u32(const uint32_t *x);
 
-void write_u32(uint32_t* x, uint32_t val);
+void write_u32(uint32_t *x, uint32_t val);
 
-double read_f64(const double* x);
+double read_f64(const double *x);
 
-bool read_bool(const bool* x);
+bool read_bool(const bool *x);
 
-void ref_to_unit(const void* x);
+void ref_to_unit(const void *x);
 
 #ifdef __cplusplus
 }  // extern "C"

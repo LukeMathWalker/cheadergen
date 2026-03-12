@@ -164,13 +164,17 @@ fn write_c_function_decl(func: &FreeFunction, style: &Style, out: &mut String) {
         .unwrap_or(&func.path.function_name);
 
     // Return type.
+    let mut ret_buf = String::new();
     match &func.header.output {
-        None => out.push_str("void"),
-        Some(ty) if is_void(ty) => out.push_str("void"),
-        Some(ty) => write_c_type(ty, style, out),
+        None => ret_buf.push_str("void"),
+        Some(ty) if is_void(ty) => ret_buf.push_str("void"),
+        Some(ty) => write_c_type(ty, style, &mut ret_buf),
     }
-
-    write!(out, " {name}(").unwrap();
+    if ret_buf.ends_with('*') {
+        write!(out, "{ret_buf}{name}(").unwrap();
+    } else {
+        write!(out, "{ret_buf} {name}(").unwrap();
+    }
 
     // Parameters.
     if func.header.inputs.is_empty() && !func.header.is_c_variadic {
@@ -194,11 +198,13 @@ fn write_c_function_decl(func: &FreeFunction, style: &Style, out: &mut String) {
 }
 
 fn write_c_param(ty: &Type, name: &str, style: &Style, out: &mut String) {
-    // For pointer types, the name goes after the base type and asterisks.
-    // For non-pointer types, it's just `type name`.
     let mut type_buf = String::new();
     write_c_type(ty, style, &mut type_buf);
-    write!(out, "{type_buf} {name}").unwrap();
+    if type_buf.ends_with('*') {
+        write!(out, "{type_buf}{name}").unwrap();
+    } else {
+        write!(out, "{type_buf} {name}").unwrap();
+    }
 }
 
 fn write_c_type(ty: &Type, style: &Style, out: &mut String) {
@@ -207,11 +213,11 @@ fn write_c_type(ty: &Type, style: &Style, out: &mut String) {
         Type::RawPointer(ptr) => {
             if ptr.is_mutable {
                 write_c_type(&ptr.inner, style, out);
-                out.push('*');
+                out.push_str(" *");
             } else {
                 out.push_str("const ");
                 write_c_type(&ptr.inner, style, out);
-                out.push('*');
+                out.push_str(" *");
             }
         }
         Type::Tuple(t) if t.elements.is_empty() => out.push_str("void"),
@@ -225,11 +231,11 @@ fn write_c_type(ty: &Type, style: &Style, out: &mut String) {
         Type::Reference(r) => {
             if r.is_mutable {
                 write_c_type(&r.inner, style, out);
-                out.push('*');
+                out.push_str(" *");
             } else {
                 out.push_str("const ");
                 write_c_type(&r.inner, style, out);
-                out.push('*');
+                out.push_str(" *");
             }
         }
         Type::Path(_) => {
