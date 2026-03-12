@@ -3,6 +3,10 @@
 version = 4
 
 [[package]]
+name = "corecursive_type"
+version = "0.1.0"
+
+[[package]]
 name = "fieldless_enum"
 version = "0.1.0"
 
@@ -24,6 +28,10 @@ version = "0.1.0"
 
 [[package]]
 name = "opaque_upgrade"
+version = "0.1.0"
+
+[[package]]
+name = "recursive_type"
 version = "0.1.0"
 
 [[package]]

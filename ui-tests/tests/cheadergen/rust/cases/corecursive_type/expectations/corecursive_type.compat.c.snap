@@ -1,0 +1,65 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 171
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct {
+  uint8_t value;
+  const Parent *parent;
+} Child;
+
+typedef struct {
+  int32_t id;
+  Child child;
+} Parent;
+
+typedef enum {
+  Ping_Done,
+  Ping_Continue,
+} Ping_Tag;
+
+typedef struct {
+  int32_t value;
+  Pong next;
+} Ping_Continue_Body;
+
+typedef struct {
+  Ping_Tag tag;
+  union {
+    Ping_Continue_Body continue;
+  };
+} Ping;
+
+typedef enum {
+  Pong_Done,
+  Pong_Continue,
+} Pong_Tag;
+
+typedef struct {
+  uint8_t value;
+  const Ping *back;
+} Pong_Continue_Body;
+
+typedef struct {
+  Pong_Tag tag;
+  union {
+    Pong_Continue_Body continue;
+  };
+} Pong;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+Parent use_parent(Parent p);
+
+Ping use_ping(Ping p);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus
