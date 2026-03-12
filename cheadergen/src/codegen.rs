@@ -253,17 +253,11 @@ fn write_c_static_decl(
     type_tags: &HashMap<String, CTypeTag>,
     out: &mut String,
 ) {
-    // In "Both" style, declarations use the tag form (same as Tag).
-    let decl_style = match style {
-        Style::Both => Style::Tag,
-        other => other.clone(),
-    };
-
     out.push_str("extern ");
     if !s.is_mutable && !is_const_pointer(&s.type_) {
         out.push_str("const ");
     }
-    write_c_decl(&s.type_, exported_static_name(s), &decl_style, type_tags, out);
+    write_c_decl(&s.type_, exported_static_name(s), style, type_tags, out);
     out.push(';');
 }
 
@@ -396,7 +390,7 @@ fn write_c_type(
         Type::Path(_) => {
             let name = c_type_name(ty);
             match style {
-                Style::Tag => {
+                Style::Tag | Style::Both => {
                     let tag = type_tags.get(&name);
                     match tag {
                         Some(CTypeTag::Enum) => write!(out, "enum {name}").unwrap(),
@@ -405,7 +399,7 @@ fn write_c_type(
                         Some(CTypeTag::Struct) | None => write!(out, "struct {name}").unwrap(),
                     }
                 }
-                Style::Type | Style::Both => out.push_str(&name),
+                Style::Type => out.push_str(&name),
             }
         }
         Type::Tuple(_)
@@ -503,18 +497,12 @@ fn write_c_struct_definition(
     type_tags: &HashMap<String, CTypeTag>,
     out: &mut String,
 ) {
-    // In "Both" style, field types use Tag form for inner references.
-    let field_style = match style {
-        Style::Both => Style::Tag,
-        other => other.clone(),
-    };
-
     match style {
         Style::Type => {
             writeln!(out, "typedef struct {{").unwrap();
             for field in &def.fields {
                 out.push_str("  ");
-                write_c_decl(&field.type_, &field.name, &field_style, type_tags, out);
+                write_c_decl(&field.type_, &field.name, style, type_tags, out);
                 writeln!(out, ";").unwrap();
             }
             writeln!(out, "}} {name};").unwrap();
@@ -532,7 +520,7 @@ fn write_c_struct_definition(
             writeln!(out, "typedef struct {name} {{").unwrap();
             for field in &def.fields {
                 out.push_str("  ");
-                write_c_decl(&field.type_, &field.name, &field_style, type_tags, out);
+                write_c_decl(&field.type_, &field.name, style, type_tags, out);
                 writeln!(out, ";").unwrap();
             }
             writeln!(out, "}} {name};").unwrap();
@@ -653,12 +641,6 @@ fn write_c_tagged_union(
     write_c_fieldless_enum(&tag_name, &tag_enum_def, style, cpp_compat, out);
     out.push('\n');
 
-    // In "Both" style, field types use Tag form for inner references.
-    let field_style = match style {
-        Style::Both => Style::Tag,
-        other => other.clone(),
-    };
-
     // Determine the tag type string for use in fields.
     let tag_type_str = match &def.repr {
         CEnumRepr::Int { .. } => tag_name.clone(),
@@ -693,7 +675,7 @@ fn write_c_tagged_union(
                 }
                 for field in &body.fields {
                     out.push_str("  ");
-                    write_c_decl(&field.type_, &field.name, &field_style, type_tags, out);
+                    write_c_decl(&field.type_, &field.name, style, type_tags, out);
                     writeln!(out, ";").unwrap();
                 }
                 writeln!(out, "}} {body_name};").unwrap();
@@ -717,7 +699,7 @@ fn write_c_tagged_union(
                 }
                 for field in &body.fields {
                     out.push_str("  ");
-                    write_c_decl(&field.type_, &field.name, &field_style, type_tags, out);
+                    write_c_decl(&field.type_, &field.name, style, type_tags, out);
                     writeln!(out, ";").unwrap();
                 }
                 writeln!(out, "}} {body_name};").unwrap();
@@ -745,11 +727,6 @@ fn write_tagged_union_repr_c(
     tag_type_str: &str,
     out: &mut String,
 ) {
-    let field_style = match style {
-        Style::Both => Style::Tag,
-        other => other.clone(),
-    };
-
     let body_prefix = if def.prefix_with_name {
         format!("{name}_")
     } else {
@@ -778,14 +755,14 @@ fn write_tagged_union_repr_c(
                 writeln!(out, "    struct {{").unwrap();
                 let field = &body.fields[0];
                 out.push_str("      ");
-                write_c_decl(&field.type_, &field_name, &field_style, type_tags, out);
+                write_c_decl(&field.type_, &field_name, style, type_tags, out);
                 writeln!(out, ";").unwrap();
                 writeln!(out, "    }};").unwrap();
             } else {
                 // Multi-field: reference to _Body struct
                 let body_name = format!("{body_prefix}{}_Body", variant.name);
-                match &field_style {
-                    Style::Tag => writeln!(out, "    struct {body_name} {field_name};").unwrap(),
+                match style {
+                    Style::Tag | Style::Both => writeln!(out, "    struct {body_name} {field_name};").unwrap(),
                     _ => writeln!(out, "    {body_name} {field_name};").unwrap(),
                 }
             }
@@ -808,11 +785,6 @@ fn write_tagged_union_repr_int(
     tag_type_str: &str,
     out: &mut String,
 ) {
-    let field_style = match style {
-        Style::Both => Style::Tag,
-        other => other.clone(),
-    };
-
     match style {
         Style::Type => out.push_str("typedef union {\n"),
         Style::Tag => writeln!(out, "union {name} {{").unwrap(),
@@ -831,14 +803,14 @@ fn write_tagged_union_repr_int(
             writeln!(out, "  struct {{").unwrap();
             writeln!(out, "    {tag_type_str} {field_name}_tag;").unwrap();
             out.push_str("    ");
-            write_c_decl(&field.type_, &field_name, &field_style, type_tags, out);
+            write_c_decl(&field.type_, &field_name, style, type_tags, out);
             writeln!(out, ";").unwrap();
             writeln!(out, "  }};").unwrap();
         } else {
             // Multi-field: reference to _Body struct
             let body_name = format!("{}_Body", variant.name);
-            match &field_style {
-                Style::Tag => writeln!(out, "  struct {body_name} {field_name};").unwrap(),
+            match style {
+                Style::Tag | Style::Both => writeln!(out, "  struct {body_name} {field_name};").unwrap(),
                 _ => writeln!(out, "  {body_name} {field_name};").unwrap(),
             }
         }

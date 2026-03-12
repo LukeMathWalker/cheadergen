@@ -171,7 +171,7 @@ typedef struct NoRepr NoRepr;
 extern "C" {
 #endif // __cplusplus
 
-void root(Color color, Direction dir, Sign sign, Big big, U16Enum u16_enum, U32Enum u32_enum, U64Enum u64_enum, U128Enum u128_enum, I16Enum i16_enum, I32Enum i32_enum, I64Enum i64_enum, I128Enum i128_enum, IsizeEnum isize_enum, const NoRepr *no_repr);
+void root(enum Color color, Direction dir, Sign sign, Big big, U16Enum u16_enum, U32Enum u32_enum, U64Enum u64_enum, U128Enum u128_enum, I16Enum i16_enum, I32Enum i32_enum, I64Enum i64_enum, I128Enum i128_enum, IsizeEnum isize_enum, const struct NoRepr *no_repr);
 
 #ifdef __cplusplus
 }  // extern "C"

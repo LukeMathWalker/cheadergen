@@ -21,4 +21,4 @@ typedef struct Outer {
   struct Middle nested;
 } Outer;
 
-void root(Outer o);
+void root(struct Outer o);

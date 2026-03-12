@@ -25,7 +25,7 @@ typedef struct Outer {
 extern "C" {
 #endif // __cplusplus
 
-void root(Outer o);
+void root(struct Outer o);
 
 #ifdef __cplusplus
 }  // extern "C"

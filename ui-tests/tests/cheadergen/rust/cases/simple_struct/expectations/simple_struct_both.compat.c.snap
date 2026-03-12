@@ -17,7 +17,7 @@ typedef struct Point {
 extern "C" {
 #endif // __cplusplus
 
-Point point_new(double x, double y);
+struct Point point_new(double x, double y);
 
 #ifdef __cplusplus
 }  // extern "C"

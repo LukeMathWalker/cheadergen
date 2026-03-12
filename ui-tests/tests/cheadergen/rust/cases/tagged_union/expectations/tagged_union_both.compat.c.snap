@@ -289,7 +289,7 @@ typedef union UntaggedU64 {
 extern "C" {
 #endif // __cplusplus
 
-void root(Untagged a, Tagged b, TaggedInt c, UntaggedU16 d, UntaggedU32 e, UntaggedU64 f, UntaggedU128 g, UntaggedI8 h, UntaggedI16 i, UntaggedI32 j, UntaggedI64 k, UntaggedI128 l, UntaggedIsize m);
+void root(union Untagged a, struct Tagged b, struct TaggedInt c, union UntaggedU16 d, union UntaggedU32 e, union UntaggedU64 f, union UntaggedU128 g, union UntaggedI8 h, union UntaggedI16 i, union UntaggedI32 j, union UntaggedI64 k, union UntaggedI128 l, union UntaggedIsize m);
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -13,4 +13,4 @@ typedef struct Point {
   double y;
 } Point;
 
-Point point_new(double x, double y);
+struct Point point_new(double x, double y);

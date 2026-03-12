@@ -20,8 +20,8 @@ typedef struct WithUnitField {
   uint32_t value;
 } WithUnitField;
 
-WithPhantomData create_with_phantom_data(void);
+struct WithPhantomData create_with_phantom_data(void);
 
-WithPhantomPinned create_with_phantom_pinned(void);
+struct WithPhantomPinned create_with_phantom_pinned(void);
 
-WithUnitField create_with_unit(void);
+struct WithUnitField create_with_unit(void);
