@@ -1,1 +1,2 @@
-# `[fn]` was skipped: not supported by cheadergen
+[fn]
+sort_by = "name"

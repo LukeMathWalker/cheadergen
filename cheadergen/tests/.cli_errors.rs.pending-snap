@@ -1,0 +1,21 @@
+{"run_id":"d1762b6a-80f8-46ee-964b-facd976c83b3","line":48,"new":{"module_name":"cli_errors","snapshot_name":"unknown_field_rejected","metadata":{"source":"cheadergen/tests/cli_errors.rs","assertion_line":48,"expression":"stderr"},"snapshot":"Error: failed to parse config file: TOML parse error at line 1, column 1\n  |\n1 | bogus = true\n  | ^^^^^\nunknown field `bogus`, expected one of `header`, `trailer`, `autogen_warning`, `include_guard`, `pragma_once`, `sys_includes`, `includes`, `no_includes`, `after_includes`, `sort_by`, `fn`, `static`, `c`, `c++`, `cpp`, `cxx`"},"old":{"module_name":"cli_errors","metadata":{},"snapshot":"Error: failed to parse config file: TOML parse error at line 1, column 1\n  |\n1 | bogus = true\n  | ^^^^^\nunknown field `bogus`, expected one of `header`, `trailer`, `autogen_warning`, `include_guard`, `pragma_once`, `sys_includes`, `includes`, `no_includes`, `after_includes`, `c`, `c++`, `cpp`, `cxx`"}}
+{"run_id":"8b295e73-dc95-4225-8951-b579159db137","line":78,"new":null,"old":null}
+{"run_id":"8b295e73-dc95-4225-8951-b579159db137","line":41,"new":null,"old":null}
+{"run_id":"8b295e73-dc95-4225-8951-b579159db137","line":34,"new":null,"old":null}
+{"run_id":"8b295e73-dc95-4225-8951-b579159db137","line":48,"new":null,"old":null}
+{"run_id":"6ed8ab4f-6caa-452b-a5d9-3d25a93800a9","line":78,"new":null,"old":null}
+{"run_id":"6ed8ab4f-6caa-452b-a5d9-3d25a93800a9","line":41,"new":null,"old":null}
+{"run_id":"6ed8ab4f-6caa-452b-a5d9-3d25a93800a9","line":48,"new":null,"old":null}
+{"run_id":"6ed8ab4f-6caa-452b-a5d9-3d25a93800a9","line":34,"new":null,"old":null}
+{"run_id":"ecf90d4c-947c-48c8-87f5-9d1b0c2857f7","line":48,"new":null,"old":null}
+{"run_id":"ecf90d4c-947c-48c8-87f5-9d1b0c2857f7","line":78,"new":null,"old":null}
+{"run_id":"ecf90d4c-947c-48c8-87f5-9d1b0c2857f7","line":34,"new":null,"old":null}
+{"run_id":"ecf90d4c-947c-48c8-87f5-9d1b0c2857f7","line":41,"new":null,"old":null}
+{"run_id":"e9f00275-3921-4928-8f7a-24c6fef0c9ee","line":41,"new":null,"old":null}
+{"run_id":"e9f00275-3921-4928-8f7a-24c6fef0c9ee","line":34,"new":null,"old":null}
+{"run_id":"e9f00275-3921-4928-8f7a-24c6fef0c9ee","line":78,"new":null,"old":null}
+{"run_id":"e9f00275-3921-4928-8f7a-24c6fef0c9ee","line":48,"new":null,"old":null}
+{"run_id":"e13f48bd-17e5-43c4-ac1b-5e15ed23b5c2","line":41,"new":null,"old":null}
+{"run_id":"e13f48bd-17e5-43c4-ac1b-5e15ed23b5c2","line":48,"new":null,"old":null}
+{"run_id":"e13f48bd-17e5-43c4-ac1b-5e15ed23b5c2","line":34,"new":null,"old":null}
+{"run_id":"e13f48bd-17e5-43c4-ac1b-5e15ed23b5c2","line":78,"new":null,"old":null}

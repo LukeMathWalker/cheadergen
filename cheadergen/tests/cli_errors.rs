@@ -50,7 +50,7 @@ fn unknown_field_rejected() {
       |
     1 | bogus = true
       | ^^^^^
-    unknown field `bogus`, expected one of `header`, `trailer`, `autogen_warning`, `include_guard`, `pragma_once`, `sys_includes`, `includes`, `no_includes`, `after_includes`, `c`, `c++`, `cpp`, `cxx`
+    unknown field `bogus`, expected one of `header`, `trailer`, `autogen_warning`, `include_guard`, `pragma_once`, `sys_includes`, `includes`, `no_includes`, `after_includes`, `sort_by`, `fn`, `static`, `c`, `c++`, `cpp`, `cxx`
     ");
 }
 

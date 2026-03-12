@@ -2,7 +2,7 @@ use std::path::Path;
 
 use serde::Deserialize;
 
-use super::{ConfigError, RawCSection, RawConfig, RawCxxSection, Style};
+use super::{ConfigError, RawCSection, RawConfig, RawCxxSection, RawFnSection, RawStaticSection, SortKey, Style};
 
 /// Permissive deserialization of a cbindgen config file.
 ///
@@ -35,7 +35,7 @@ pub(crate) struct CbindgenConfig {
     line_length: Option<toml::Value>,
     tab_width: Option<toml::Value>,
     line_endings: Option<toml::Value>,
-    sort_by: Option<toml::Value>,
+    sort_by: Option<String>,
     usize_is_size_t: Option<toml::Value>,
     documentation: Option<toml::Value>,
     documentation_style: Option<toml::Value>,
@@ -44,19 +44,35 @@ pub(crate) struct CbindgenConfig {
     parse: Option<toml::Value>,
     export: Option<toml::Value>,
     #[serde(rename = "fn")]
-    function: Option<toml::Value>,
+    function: Option<CbindgenFnSection>,
     #[serde(rename = "struct")]
     structure: Option<toml::Value>,
     #[serde(rename = "enum")]
     enumeration: Option<toml::Value>,
     #[serde(rename = "const")]
-    constant: Option<toml::Value>,
+    constant: Option<CbindgenConstSection>,
     layout: Option<toml::Value>,
     macro_expansion: Option<toml::Value>,
     #[serde(rename = "ptr")]
     pointer: Option<toml::Value>,
     cython: Option<toml::Value>,
     defines: Option<toml::Value>,
+}
+
+/// Cbindgen `[fn]` section. Currently only `sort_by` is translatable.
+#[derive(Deserialize)]
+struct CbindgenFnSection {
+    sort_by: Option<String>,
+    #[serde(flatten)]
+    other: std::collections::HashMap<String, toml::Value>,
+}
+
+/// Cbindgen `[const]` section. Currently only `sort_by` is translatable.
+#[derive(Deserialize)]
+struct CbindgenConstSection {
+    sort_by: Option<String>,
+    #[serde(flatten)]
+    other: std::collections::HashMap<String, toml::Value>,
 }
 
 /// Translate a cbindgen config file into cheadergen format.
@@ -126,6 +142,35 @@ fn translate_config(cb: &CbindgenConfig) -> (RawConfig, Vec<&str>) {
     let no_includes = cb.no_includes.filter(|&v| v);
     let cpp_compat = cb.cpp_compat.filter(|&v| v);
 
+    // Translate top-level sort_by.
+    let top_sort_by = cb.sort_by.as_deref().and_then(translate_sort_by);
+
+    // Translate [fn] section.
+    let fn_section = cb.function.as_ref().and_then(|section| {
+        let sort_by = section.sort_by.as_deref().and_then(translate_sort_by);
+        if !section.other.is_empty() {
+            let other_keys: Vec<_> = section.other.keys().map(|k| k.as_str()).collect();
+            eprintln!(
+                "warning: ignoring unsupported cbindgen [fn] option(s): {}",
+                other_keys.join(", ")
+            );
+        }
+        sort_by.map(|s| RawFnSection { sort_by: Some(s) })
+    });
+
+    // Translate [const] section → cheadergen [static] section.
+    let static_section = cb.constant.as_ref().and_then(|section| {
+        let sort_by = section.sort_by.as_deref().and_then(translate_sort_by);
+        if !section.other.is_empty() {
+            let other_keys: Vec<_> = section.other.keys().map(|k| k.as_str()).collect();
+            eprintln!(
+                "warning: ignoring unsupported cbindgen [const] option(s): {}",
+                other_keys.join(", ")
+            );
+        }
+        sort_by.map(|s| RawStaticSection { sort_by: Some(s) })
+    });
+
     let mut config = RawConfig {
         header: cb.header.clone(),
         trailer: cb.trailer.clone(),
@@ -136,6 +181,9 @@ fn translate_config(cb: &CbindgenConfig) -> (RawConfig, Vec<&str>) {
         includes: cb.includes.clone().unwrap_or_default(),
         sys_includes: cb.sys_includes.clone().unwrap_or_default(),
         autogen_warning: cb.autogen_warning.clone(),
+        sort_by: top_sort_by,
+        fn_: fn_section,
+        static_: static_section,
         c: None,
         cxx: None,
     };
@@ -157,6 +205,20 @@ fn translate_config(cb: &CbindgenConfig) -> (RawConfig, Vec<&str>) {
     (config, skipped)
 }
 
+/// Translate a cbindgen `sort_by` string to a cheadergen [`SortKey`].
+///
+/// Returns `None` for `"None"` (cbindgen's default, equivalent to cheadergen's `SourceOrder`).
+fn translate_sort_by(value: &str) -> Option<SortKey> {
+    match value {
+        "Name" | "name" => Some(SortKey::Name),
+        "None" | "none" => None,
+        other => {
+            eprintln!("warning: ignoring unrecognized cbindgen sort_by `{other}`");
+            None
+        }
+    }
+}
+
 type UnsupportedField = (&'static str, fn(&CbindgenConfig) -> bool);
 
 const UNSUPPORTED_FIELDS: &[UnsupportedField] = &[
@@ -169,7 +231,6 @@ const UNSUPPORTED_FIELDS: &[UnsupportedField] = &[
     ("line_length", |cb| cb.line_length.is_some()),
     ("tab_width", |cb| cb.tab_width.is_some()),
     ("line_endings", |cb| cb.line_endings.is_some()),
-    ("sort_by", |cb| cb.sort_by.is_some()),
     ("usize_is_size_t", |cb| cb.usize_is_size_t.is_some()),
     ("documentation", |cb| cb.documentation.is_some()),
     ("documentation_style", |cb| cb.documentation_style.is_some()),
@@ -180,10 +241,18 @@ const UNSUPPORTED_FIELDS: &[UnsupportedField] = &[
     ),
     ("[parse]", |cb| cb.parse.is_some()),
     ("[export]", |cb| cb.export.is_some()),
-    ("[fn]", |cb| cb.function.is_some()),
+    ("[fn]", |cb| {
+        cb.function
+            .as_ref()
+            .is_some_and(|s| !s.other.is_empty())
+    }),
     ("[struct]", |cb| cb.structure.is_some()),
     ("[enum]", |cb| cb.enumeration.is_some()),
-    ("[const]", |cb| cb.constant.is_some()),
+    ("[const]", |cb| {
+        cb.constant
+            .as_ref()
+            .is_some_and(|s| !s.other.is_empty())
+    }),
     ("[layout]", |cb| cb.layout.is_some()),
     ("[macro_expansion]", |cb| cb.macro_expansion.is_some()),
     ("[ptr]", |cb| cb.pointer.is_some()),

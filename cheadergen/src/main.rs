@@ -256,7 +256,11 @@ fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
         );
     }
 
-    let extern_items = analysis::find_extern_items(krate);
+    let (fn_sort_by, static_sort_by) = match &config {
+        config::Config::C(c) => (c.common.fn_sort_by, c.common.static_sort_by),
+        config::Config::Cxx(cxx) => (cxx.common.fn_sort_by, cxx.common.static_sort_by),
+    };
+    let extern_items = analysis::find_extern_items(krate, fn_sort_by, static_sort_by);
 
     if !cli.quiet {
         eprintln!(

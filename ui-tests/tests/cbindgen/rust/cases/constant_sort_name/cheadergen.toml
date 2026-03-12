@@ -1,1 +1,2 @@
-# `[const]` was skipped: not supported by cheadergen
+[static]
+sort_by = "name"

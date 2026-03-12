@@ -7,6 +7,7 @@ use rustdoc_processor::queries::Crate;
 use rustdoc_resolver::resolve_free_function;
 use rustdoc_types::{Abi, Attribute, ItemEnum};
 
+use crate::config::SortKey;
 use crate::static_item::{StaticItem, resolve_static};
 
 /// A user-defined type that needs a C declaration in the header.
@@ -22,7 +23,7 @@ pub struct ExternItems {
 }
 
 /// Walk the crate's import index and collect extern "C" functions and exported statics.
-pub fn find_extern_items(krate: &Crate) -> ExternItems {
+pub fn find_extern_items(krate: &Crate, fn_sort_by: SortKey, static_sort_by: SortKey) -> ExternItems {
     let mut fn_ids = Vec::new();
     let mut static_ids = Vec::new();
 
@@ -41,9 +42,8 @@ pub fn find_extern_items(krate: &Crate) -> ExternItems {
         }
     }
 
-    // Sort by source position so output follows declaration order in the Rust file.
-    fn_ids.sort_by_cached_key(|id| span_sort_key(id, krate));
-    static_ids.sort_by_cached_key(|id| span_sort_key(id, krate));
+    sort_ids(&mut fn_ids, fn_sort_by, krate);
+    sort_ids(&mut static_ids, static_sort_by, krate);
 
     ExternItems { fn_ids, static_ids }
 }
@@ -61,6 +61,25 @@ fn span_sort_key(id: &rustdoc_types::Id, krate: &Crate) -> (usize, usize, String
             item.name.clone().unwrap_or_default(),
         ),
     }
+}
+
+/// Sort a list of item IDs according to the given [`SortKey`].
+fn sort_ids(ids: &mut [rustdoc_types::Id], sort_by: SortKey, krate: &Crate) {
+    match sort_by {
+        SortKey::SourceOrder => ids.sort_by_cached_key(|id| span_sort_key(id, krate)),
+        SortKey::Name => ids.sort_by_cached_key(|id| name_sort_key(id, krate)),
+    }
+}
+
+/// Sort key: item name, alphabetically.
+fn name_sort_key(id: &rustdoc_types::Id, krate: &Crate) -> String {
+    krate
+        .core
+        .krate
+        .index
+        .get(id)
+        .and_then(|item| item.name.clone())
+        .unwrap_or_default()
 }
 
 /// Resolve each extern "C" function ID into the IR, validating types along the way.

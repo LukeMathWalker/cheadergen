@@ -22,6 +22,33 @@ pub enum Language {
     Cython,
 }
 
+/// Controls how items of a given kind are sorted in the generated header.
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SortKey {
+    /// Emit items in the order they appear in the Rust source file.
+    #[default]
+    SourceOrder,
+    /// Sort items alphabetically by name.
+    Name,
+}
+
+/// Function-specific configuration inside the `[fn]` TOML section.
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RawFnSection {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sort_by: Option<SortKey>,
+}
+
+/// Static-specific configuration inside the `[static]` TOML section.
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RawStaticSection {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sort_by: Option<SortKey>,
+}
+
 /// The declaration style for C struct and enum definitions.
 ///
 /// This only applies when the target language is [`Language::C`].
@@ -85,6 +112,18 @@ pub struct RawConfig {
     /// Verbatim text inserted immediately after the include block.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub after_includes: Option<String>,
+
+    /// Default sort order for all item kinds.
+    /// Can be overridden per-kind via `[fn]` or `[static]` sections.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sort_by: Option<SortKey>,
+
+    /// Function-specific configuration.
+    #[serde(rename = "fn", skip_serializing_if = "Option::is_none")]
+    pub fn_: Option<RawFnSection>,
+    /// Static-specific configuration.
+    #[serde(rename = "static", skip_serializing_if = "Option::is_none")]
+    pub static_: Option<RawStaticSection>,
 
     /// C-specific configuration section.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -201,6 +240,10 @@ pub struct CommonConfig {
     pub no_includes: bool,
     /// See [`RawConfig::after_includes`].
     pub after_includes: Option<String>,
+    /// Resolved sort order for functions: `[fn].sort_by` → top-level `sort_by` → `SourceOrder`.
+    pub fn_sort_by: SortKey,
+    /// Resolved sort order for statics: `[static].sort_by` → top-level `sort_by` → `SourceOrder`.
+    pub static_sort_by: SortKey,
 }
 
 /// C-specific configuration, including options that are only meaningful for
@@ -255,6 +298,9 @@ struct RawCommonFields {
     includes: Vec<String>,
     no_includes: Option<bool>,
     after_includes: Option<String>,
+    sort_by: Option<SortKey>,
+    fn_sort_by: Option<SortKey>,
+    static_sort_by: Option<SortKey>,
 }
 
 /// Optional overrides from a language section that can replace top-level
@@ -292,6 +338,8 @@ impl RawCommonFields {
                 .or(self.no_includes)
                 .unwrap_or(false),
             after_includes: overrides.after_includes.or(self.after_includes),
+            fn_sort_by: self.fn_sort_by.or(self.sort_by).unwrap_or_default(),
+            static_sort_by: self.static_sort_by.or(self.sort_by).unwrap_or_default(),
         }
     }
 }
@@ -362,6 +410,9 @@ impl RawConfig {
             includes: self.includes,
             no_includes: self.no_includes,
             after_includes: self.after_includes,
+            sort_by: self.sort_by,
+            fn_sort_by: self.fn_.and_then(|s| s.sort_by),
+            static_sort_by: self.static_.and_then(|s| s.sort_by),
         };
 
         match language {

@@ -29,6 +29,7 @@ metadata.json
 
 # Insta snapshot pending review
 *.snap.new
+*.pending-snap
 
 # Compilation test cache (local-only)
 *.snap.hash
