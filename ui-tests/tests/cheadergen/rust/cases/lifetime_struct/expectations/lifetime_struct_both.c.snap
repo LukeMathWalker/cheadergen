@@ -1,0 +1,36 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 171
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct Bar {
+  const uint32_t *first;
+  double *second;
+} Bar;
+
+typedef struct Baz_f64 {
+  const double *value;
+  bool flag;
+} Baz_f64;
+
+typedef struct Baz_i32 {
+  const int32_t *value;
+  bool flag;
+} Baz_i32;
+
+typedef struct Foo {
+  const int32_t *data;
+} Foo;
+
+struct Foo use_foo(struct Foo f);
+
+struct Bar use_bar(struct Bar b);
+
+struct Baz_i32 use_baz_i32(struct Baz_i32 b);
+
+struct Baz_f64 use_baz_f64(struct Baz_f64 b);
