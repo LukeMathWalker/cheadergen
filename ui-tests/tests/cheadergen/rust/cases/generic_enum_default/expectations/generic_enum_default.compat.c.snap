@@ -1,0 +1,55 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 171
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef enum {
+  MaybeError_i32__u16_Ok,
+  MaybeError_i32__u16_Err,
+} MaybeError_i32__u16_Tag;
+
+typedef struct {
+  MaybeError_i32__u16_Tag tag;
+  union {
+    struct {
+      int32_t ok;
+    };
+    struct {
+      uint16_t err;
+    };
+  };
+} MaybeError_i32__u16;
+
+typedef enum {
+  MaybeError_i32__u8_Ok,
+  MaybeError_i32__u8_Err,
+} MaybeError_i32__u8_Tag;
+
+typedef struct {
+  MaybeError_i32__u8_Tag tag;
+  union {
+    struct {
+      int32_t ok;
+    };
+    struct {
+      uint8_t err;
+    };
+  };
+} MaybeError_i32__u8;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+MaybeError_i32__u8 use_default(MaybeError_i32__u8 m);
+
+MaybeError_i32__u16 use_override(MaybeError_i32__u16 m);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

@@ -1,0 +1,60 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 171
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+enum Either_f32_Tag {
+  Either_f32_Value,
+  Either_f32_None,
+};
+
+struct Either_f32 {
+  enum Either_f32_Tag tag;
+  union {
+    struct {
+      float value;
+    };
+  };
+};
+
+enum Either_i32_Tag {
+  Either_i32_Value,
+  Either_i32_None,
+};
+
+struct Either_i32 {
+  enum Either_i32_Tag tag;
+  union {
+    struct {
+      int32_t value;
+    };
+  };
+};
+
+enum MyResult_i32__u8_Tag {
+  MyResult_i32__u8_Ok,
+  MyResult_i32__u8_Err,
+};
+
+struct MyResult_i32__u8 {
+  enum MyResult_i32__u8_Tag tag;
+  union {
+    struct {
+      int32_t ok;
+    };
+    struct {
+      uint8_t err;
+    };
+  };
+};
+
+struct Either_i32 use_either_i32(struct Either_i32 e);
+
+struct Either_f32 use_either_f32(struct Either_f32 e);
+
+struct MyResult_i32__u8 use_result(struct MyResult_i32__u8 r);
