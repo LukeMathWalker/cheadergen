@@ -3,5 +3,5 @@ header = """
 #define CBINDGEN_ALIGNED(n)    __attribute__ ((aligned(n)))
 """
 
-# `[export]` was skipped: not supported by cheadergen
-# `[layout]` was skipped: not supported by cheadergen
+# `export.include` was skipped: not supported by cheadergen
+# `layout.aligned_n` was skipped: not supported by cheadergen

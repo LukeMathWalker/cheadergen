@@ -5,4 +5,5 @@ DEF BAR = 0
 #endif
 """
 
-# `[defines]` was skipped: not supported by cheadergen
+# `defines.bar` was skipped: not supported by cheadergen
+# `defines.foo` was skipped: not supported by cheadergen

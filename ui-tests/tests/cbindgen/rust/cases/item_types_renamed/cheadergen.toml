@@ -1,1 +1,3 @@
-# `[export]` was skipped: not supported by cheadergen
+# `export.include` was skipped: not supported by cheadergen
+# `export.item_types` was skipped: not supported by cheadergen
+# `export.prefix` was skipped: not supported by cheadergen

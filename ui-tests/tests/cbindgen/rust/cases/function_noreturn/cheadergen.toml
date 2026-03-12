@@ -8,4 +8,4 @@ after_includes = """
 #endif // NO_RETURN_ATTR
 """
 
-# `[fn]` was skipped: not supported by cheadergen
+# `fn.no_return` was skipped: not supported by cheadergen

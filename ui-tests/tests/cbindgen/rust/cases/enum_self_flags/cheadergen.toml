@@ -14,5 +14,5 @@ trailer = """
 #endif
 """
 
-# `[struct]` was skipped: not supported by cheadergen
-# `[enum]` was skipped: not supported by cheadergen
+# `struct.associated_constants_in_body` was skipped: not supported by cheadergen
+# `enum.enum_class` was skipped: not supported by cheadergen

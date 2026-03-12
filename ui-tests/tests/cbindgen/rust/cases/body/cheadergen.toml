@@ -1,1 +1,2 @@
-# `[export]` was skipped: not supported by cheadergen
+# `export.body` was skipped: not supported by cheadergen
+# `export.pre_body` was skipped: not supported by cheadergen

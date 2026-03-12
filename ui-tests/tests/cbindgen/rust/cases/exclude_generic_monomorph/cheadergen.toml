@@ -17,4 +17,4 @@ ctypedef uint64_t Option_Foo
 #endif
 """
 
-# `[export]` was skipped: not supported by cheadergen
+# `export.exclude` was skipped: not supported by cheadergen

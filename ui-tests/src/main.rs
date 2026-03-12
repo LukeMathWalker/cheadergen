@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::Path;
 use std::process::Command;
 use std::{env, process};
@@ -163,6 +164,7 @@ fn cmd_translate_configs() {
 
     let mut failures = Vec::new();
     let mut modified = 0u32;
+    let mut unsupported: BTreeMap<String, Vec<String>> = BTreeMap::new();
 
     for config in &configs {
         let parent = config.parent().unwrap();
@@ -183,6 +185,16 @@ fn cmd_translate_configs() {
                     println!("MODIFIED: {}", config.display());
                     modified += 1;
                 }
+                let test_name = config
+                    .parent()
+                    .unwrap()
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .into_owned();
+                for field in extract_skipped_fields(&output) {
+                    unsupported.entry(field).or_default().push(test_name.clone());
+                }
             }
             Ok(out) => {
                 let stderr = String::from_utf8_lossy(&out.stderr);
@@ -196,6 +208,20 @@ fn cmd_translate_configs() {
                 failures.push(config.clone());
             }
         }
+    }
+
+    // Write unsupported keys summary
+    if !unsupported.is_empty() {
+        let mut lines = Vec::new();
+        for (field, mut tests) in unsupported {
+            tests.sort();
+            lines.push(format!("{}: {}", field, tests.join(", ")));
+        }
+        let summary_path = tests_dir.join("cbindgen/unsupported_keys.txt");
+        fs::write(&summary_path, lines.join("\n") + "\n").unwrap_or_else(|e| {
+            eprintln!("Warning: failed to write unsupported keys summary: {e}");
+        });
+        println!("Wrote unsupported keys summary to {}", summary_path.display());
     }
 
     println!();
@@ -217,6 +243,26 @@ fn cmd_translate_configs() {
     } else {
         println!("{modified}/{} config(s) modified.", configs.len());
     }
+}
+
+fn extract_skipped_fields(path: &Path) -> Vec<String> {
+    let contents = match fs::read_to_string(path) {
+        Ok(c) => c,
+        Err(_) => return Vec::new(),
+    };
+    let mut fields = Vec::new();
+    for line in contents.lines() {
+        // Match lines like: # `[export]` was skipped: not supported by cheadergen
+        //                or: # `line_endings` was skipped: not supported by cheadergen
+        let Some(rest) = line.strip_prefix("# `") else {
+            continue;
+        };
+        let Some(rest) = rest.strip_suffix("` was skipped: not supported by cheadergen") else {
+            continue;
+        };
+        fields.push(rest.to_owned());
+    }
+    fields
 }
 
 fn collect_cbindgen_tomls(dir: &Path, out: &mut Vec<std::path::PathBuf>) {

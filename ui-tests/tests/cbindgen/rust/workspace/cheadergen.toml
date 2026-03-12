@@ -1,1 +1,2 @@
-# `[parse]` was skipped: not supported by cheadergen
+# `parse.extra_bindings` was skipped: not supported by cheadergen
+# `parse.parse_deps` was skipped: not supported by cheadergen

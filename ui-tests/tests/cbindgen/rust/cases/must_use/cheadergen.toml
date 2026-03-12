@@ -4,6 +4,6 @@ header = """
 #define MUST_USE_ENUM /* nothing */
 """
 
-# `[fn]` was skipped: not supported by cheadergen
-# `[struct]` was skipped: not supported by cheadergen
-# `[enum]` was skipped: not supported by cheadergen
+# `fn.must_use` was skipped: not supported by cheadergen
+# `struct.must_use` was skipped: not supported by cheadergen
+# `enum.must_use` was skipped: not supported by cheadergen

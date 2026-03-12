@@ -4,5 +4,5 @@ DEF DEFINE_FREEBSD = 0
 #endif
 """
 
-# `[parse]` was skipped: not supported by cheadergen
-# `[defines]` was skipped: not supported by cheadergen
+# `parse.parse_deps` was skipped: not supported by cheadergen
+# `defines.target_os = freebsd` was skipped: not supported by cheadergen

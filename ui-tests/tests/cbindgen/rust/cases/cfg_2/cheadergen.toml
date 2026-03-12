@@ -5,4 +5,6 @@ DEF NOT_DEFINED = 0
 #endif
 """
 
-# `[defines]` was skipped: not supported by cheadergen
+# `defines.macos` was skipped: not supported by cheadergen
+# `defines.unix` was skipped: not supported by cheadergen
+# `defines.windows` was skipped: not supported by cheadergen

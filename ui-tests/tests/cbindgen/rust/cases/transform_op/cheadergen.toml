@@ -1,2 +1,4 @@
-# `[export]` was skipped: not supported by cheadergen
-# `[enum]` was skipped: not supported by cheadergen
+# `export.prefix` was skipped: not supported by cheadergen
+# `enum.derive_const_casts` was skipped: not supported by cheadergen
+# `enum.derive_helper_methods` was skipped: not supported by cheadergen
+# `enum.derive_mut_casts` was skipped: not supported by cheadergen

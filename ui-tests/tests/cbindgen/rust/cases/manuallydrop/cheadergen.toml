@@ -13,4 +13,4 @@ using ManuallyDrop = T;
 #endif
 """
 
-# `[export]` was skipped: not supported by cheadergen
+# `export.exclude` was skipped: not supported by cheadergen

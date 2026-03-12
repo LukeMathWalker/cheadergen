@@ -9,6 +9,11 @@ header = """
 #define DEPRECATED_ENUM_VARIANT_WITH_NOTE(...) __attribute__((deprecated(__VA_ARGS__)))
 """
 
-# `[fn]` was skipped: not supported by cheadergen
-# `[struct]` was skipped: not supported by cheadergen
-# `[enum]` was skipped: not supported by cheadergen
+# `fn.deprecated_with_note` was skipped: not supported by cheadergen
+# `fn.deprecated` was skipped: not supported by cheadergen
+# `struct.deprecated` was skipped: not supported by cheadergen
+# `struct.deprecated_with_note` was skipped: not supported by cheadergen
+# `enum.deprecated` was skipped: not supported by cheadergen
+# `enum.deprecated_variant` was skipped: not supported by cheadergen
+# `enum.deprecated_variant_with_note` was skipped: not supported by cheadergen
+# `enum.deprecated_with_note` was skipped: not supported by cheadergen

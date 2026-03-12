@@ -1,1 +1,2 @@
-# `[enum]` was skipped: not supported by cheadergen
+# `enum.add_sentinel` was skipped: not supported by cheadergen
+# `enum.prefix_with_name` was skipped: not supported by cheadergen

@@ -108,7 +108,7 @@ pub fn translate(input: &Path, output: &Path) -> Result<(), ConfigError> {
     Ok(())
 }
 
-fn translate_config(cb: &CbindgenConfig) -> (RawConfig, Vec<&str>) {
+fn translate_config(cb: &CbindgenConfig) -> (RawConfig, Vec<String>) {
     let mut skipped = collect_unsupported_fields(cb);
     emit_unsupported_warnings(cb);
 
@@ -118,7 +118,7 @@ fn translate_config(cb: &CbindgenConfig) -> (RawConfig, Vec<&str>) {
         Some("Cxx") | Some("C++") => true,
         Some("Cython") => {
             eprintln!("warning: Cython language is not supported by cheadergen, defaulting to C");
-            skipped.push("language = \"Cython\"");
+            skipped.push("language = \"Cython\"".into());
             false
         }
         _ => false,
@@ -132,7 +132,7 @@ fn translate_config(cb: &CbindgenConfig) -> (RawConfig, Vec<&str>) {
         "Type" | "type" => None,
         other => {
             eprintln!("warning: ignoring unrecognized cbindgen style `{other}`");
-            skipped.push("style");
+            skipped.push("style".into());
             None
         }
     });
@@ -187,7 +187,7 @@ fn translate_config(cb: &CbindgenConfig) -> (RawConfig, Vec<&str>) {
                 eprintln!(
                     "warning: ignoring unrecognized cbindgen documentation_style `{other}`"
                 );
-                skipped.push("documentation_style");
+                skipped.push("documentation_style".into());
                 None
             }
         });
@@ -201,7 +201,7 @@ fn translate_config(cb: &CbindgenConfig) -> (RawConfig, Vec<&str>) {
                 eprintln!(
                     "warning: ignoring unrecognized cbindgen documentation_length `{other}`"
                 );
-                skipped.push("documentation_length");
+                skipped.push("documentation_length".into());
                 None
             }
         });
@@ -257,59 +257,150 @@ fn translate_sort_by(value: &str) -> Option<SortKey> {
     }
 }
 
-type UnsupportedField = (&'static str, fn(&CbindgenConfig) -> bool);
+type UnsupportedFieldCollector = (&'static str, fn(&CbindgenConfig, &mut Vec<String>));
 
-const UNSUPPORTED_FIELDS: &[UnsupportedField] = &[
-    ("include_version", |cb| cb.include_version.is_some()),
-    ("package_version", |cb| cb.package_version.is_some()),
-    ("namespace", |cb| cb.namespace.is_some()),
-    ("namespaces", |cb| cb.namespaces.is_some()),
-    ("using_namespaces", |cb| cb.using_namespaces.is_some()),
-    ("braces", |cb| cb.braces.is_some()),
-    ("line_length", |cb| cb.line_length.is_some()),
-    ("tab_width", |cb| cb.tab_width.is_some()),
-    ("line_endings", |cb| cb.line_endings.is_some()),
-    ("usize_is_size_t", |cb| cb.usize_is_size_t.is_some()),
-    (
-        "only_target_dependencies",
-        |cb| cb.only_target_dependencies.is_some(),
-    ),
-    ("[parse]", |cb| cb.parse.is_some()),
-    ("[export]", |cb| cb.export.is_some()),
-    ("[fn]", |cb| {
-        cb.function
-            .as_ref()
-            .is_some_and(|s| !s.other.is_empty())
+const UNSUPPORTED_FIELD_COLLECTORS: &[UnsupportedFieldCollector] = &[
+    ("include_version", |cb, out| {
+        if cb.include_version.is_some() {
+            out.push("include_version".into());
+        }
     }),
-    ("[struct]", |cb| cb.structure.is_some()),
-    ("[enum]", |cb| cb.enumeration.is_some()),
-    ("[const]", |cb| {
-        cb.constant
-            .as_ref()
-            .is_some_and(|s| !s.other.is_empty())
+    ("package_version", |cb, out| {
+        if cb.package_version.is_some() {
+            out.push("package_version".into());
+        }
     }),
-    ("[layout]", |cb| cb.layout.is_some()),
-    ("[macro_expansion]", |cb| cb.macro_expansion.is_some()),
-    ("[ptr]", |cb| cb.pointer.is_some()),
-    ("[cython]", |cb| cb.cython.is_some()),
-    ("[defines]", |cb| cb.defines.is_some()),
+    ("namespace", |cb, out| {
+        if cb.namespace.is_some() {
+            out.push("namespace".into());
+        }
+    }),
+    ("namespaces", |cb, out| {
+        if cb.namespaces.is_some() {
+            out.push("namespaces".into());
+        }
+    }),
+    ("using_namespaces", |cb, out| {
+        if cb.using_namespaces.is_some() {
+            out.push("using_namespaces".into());
+        }
+    }),
+    ("braces", |cb, out| {
+        if cb.braces.is_some() {
+            out.push("braces".into());
+        }
+    }),
+    ("line_length", |cb, out| {
+        if cb.line_length.is_some() {
+            out.push("line_length".into());
+        }
+    }),
+    ("tab_width", |cb, out| {
+        if cb.tab_width.is_some() {
+            out.push("tab_width".into());
+        }
+    }),
+    ("line_endings", |cb, out| {
+        if cb.line_endings.is_some() {
+            out.push("line_endings".into());
+        }
+    }),
+    ("usize_is_size_t", |cb, out| {
+        if cb.usize_is_size_t.is_some() {
+            out.push("usize_is_size_t".into());
+        }
+    }),
+    ("only_target_dependencies", |cb, out| {
+        if cb.only_target_dependencies.is_some() {
+            out.push("only_target_dependencies".into());
+        }
+    }),
+    ("parse", |cb, out| {
+        if let Some(v) = &cb.parse {
+            collect_table_keys("parse", v, out);
+        }
+    }),
+    ("export", |cb, out| {
+        if let Some(v) = &cb.export {
+            collect_table_keys("export", v, out);
+        }
+    }),
+    ("fn", |cb, out| {
+        if let Some(s) = &cb.function {
+            for key in s.other.keys() {
+                out.push(format!("fn.{key}"));
+            }
+        }
+    }),
+    ("struct", |cb, out| {
+        if let Some(v) = &cb.structure {
+            collect_table_keys("struct", v, out);
+        }
+    }),
+    ("enum", |cb, out| {
+        if let Some(v) = &cb.enumeration {
+            collect_table_keys("enum", v, out);
+        }
+    }),
+    ("const", |cb, out| {
+        if let Some(s) = &cb.constant {
+            for key in s.other.keys() {
+                out.push(format!("const.{key}"));
+            }
+        }
+    }),
+    ("layout", |cb, out| {
+        if let Some(v) = &cb.layout {
+            collect_table_keys("layout", v, out);
+        }
+    }),
+    ("macro_expansion", |cb, out| {
+        if let Some(v) = &cb.macro_expansion {
+            collect_table_keys("macro_expansion", v, out);
+        }
+    }),
+    ("ptr", |cb, out| {
+        if let Some(v) = &cb.pointer {
+            collect_table_keys("ptr", v, out);
+        }
+    }),
+    ("cython", |cb, out| {
+        if let Some(v) = &cb.cython {
+            collect_table_keys("cython", v, out);
+        }
+    }),
+    ("defines", |cb, out| {
+        if let Some(v) = &cb.defines {
+            collect_table_keys("defines", v, out);
+        }
+    }),
 ];
 
+/// Push `section.key` for each key in a TOML table, or just `section` if it's not a table.
+fn collect_table_keys(section: &str, value: &toml::Value, out: &mut Vec<String>) {
+    if let Some(table) = value.as_table() {
+        for key in table.keys() {
+            out.push(format!("{section}.{key}"));
+        }
+    } else {
+        out.push(section.into());
+    }
+}
+
 /// Collect names of unsupported cbindgen fields that are present.
-fn collect_unsupported_fields<'a>(cb: &CbindgenConfig) -> Vec<&'a str> {
-    UNSUPPORTED_FIELDS
-        .iter()
-        .filter(|(_, is_present)| is_present(cb))
-        .map(|(name, _)| *name)
-        .collect()
+fn collect_unsupported_fields(cb: &CbindgenConfig) -> Vec<String> {
+    let mut out = Vec::new();
+    for (_, collector) in UNSUPPORTED_FIELD_COLLECTORS {
+        collector(cb, &mut out);
+    }
+    out
 }
 
 /// Emit warnings for all unsupported cbindgen fields that are present.
 fn emit_unsupported_warnings(cb: &CbindgenConfig) {
-    for (name, is_present) in UNSUPPORTED_FIELDS {
-        if is_present(cb) {
-            eprintln!("warning: ignoring unsupported cbindgen option `{name}`");
-        }
+    let fields = collect_unsupported_fields(cb);
+    for name in &fields {
+        eprintln!("warning: ignoring unsupported cbindgen option `{name}`");
     }
 }
 
@@ -454,7 +545,7 @@ include = ["Foo"]
         );
         insta::assert_snapshot!(output, @r#"
         # `braces` was skipped: not supported by cheadergen
-        # `[export]` was skipped: not supported by cheadergen
+        # `export.include` was skipped: not supported by cheadergen
         "#);
     }
 
@@ -475,7 +566,7 @@ include = ["Foo"]
 
         # `braces` was skipped: not supported by cheadergen
         # `line_length` was skipped: not supported by cheadergen
-        # `[export]` was skipped: not supported by cheadergen
+        # `export.include` was skipped: not supported by cheadergen
         "#);
     }
 
@@ -544,7 +635,7 @@ include = ["Foo"]
         include_guard = "TEST_H"
 
         # `braces` was skipped: not supported by cheadergen
-        # `[export]` was skipped: not supported by cheadergen
+        # `export.include` was skipped: not supported by cheadergen
         "#);
     }
 }

@@ -1,1 +1,2 @@
-# `[cython]` was skipped: not supported by cheadergen
+# `cython.cimports` was skipped: not supported by cheadergen
+# `cython.header` was skipped: not supported by cheadergen

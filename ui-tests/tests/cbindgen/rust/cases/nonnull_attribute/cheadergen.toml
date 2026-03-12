@@ -6,4 +6,4 @@ header = """
 #endif
 """
 
-# `[ptr]` was skipped: not supported by cheadergen
+# `ptr.non_null_attribute` was skipped: not supported by cheadergen
