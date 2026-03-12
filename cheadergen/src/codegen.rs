@@ -743,12 +743,11 @@ fn write_tagged_union_repr_c(
     // Check if there are any non-unit variants that need a union.
     let has_data_variants = def.variants.iter().any(|v| v.body.is_some());
 
-    let open = match style {
-        Style::Type => format!("typedef struct {{\n"),
-        Style::Tag => format!("struct {name} {{\n"),
-        Style::Both => format!("typedef struct {name} {{\n"),
-    };
-    out.push_str(&open);
+    match style {
+        Style::Type => out.push_str("typedef struct {\n"),
+        Style::Tag => writeln!(out, "struct {name} {{").unwrap(),
+        Style::Both => writeln!(out, "typedef struct {name} {{").unwrap(),
+    }
     writeln!(out, "  {tag_type_str} tag;").unwrap();
 
     if has_data_variants {
@@ -759,11 +758,11 @@ fn write_tagged_union_repr_c(
             };
             let field_name = variant.name.to_lowercase();
             if body.fields.len() == 1 {
-                // Single-field: anonymous struct
+                // Single-field: anonymous struct with lowercased variant name
                 writeln!(out, "    struct {{").unwrap();
                 let field = &body.fields[0];
                 out.push_str("      ");
-                write_c_decl(&field.type_, &field.name, &field_style, type_tags, out);
+                write_c_decl(&field.type_, &field_name, &field_style, type_tags, out);
                 writeln!(out, ";").unwrap();
                 writeln!(out, "    }};").unwrap();
             } else {
@@ -778,7 +777,10 @@ fn write_tagged_union_repr_c(
         writeln!(out, "  }};").unwrap();
     }
 
-    writeln!(out, "}} {name};").unwrap();
+    match style {
+        Style::Tag => writeln!(out, "}};").unwrap(),
+        _ => writeln!(out, "}} {name};").unwrap(),
+    }
 }
 
 /// Emit the outer container for a repr(uN) tagged union.
@@ -795,12 +797,11 @@ fn write_tagged_union_repr_int(
         other => other.clone(),
     };
 
-    let open = match style {
-        Style::Type => format!("typedef union {{\n"),
-        Style::Tag => format!("union {name} {{\n"),
-        Style::Both => format!("typedef union {name} {{\n"),
-    };
-    out.push_str(&open);
+    match style {
+        Style::Type => out.push_str("typedef union {\n"),
+        Style::Tag => writeln!(out, "union {name} {{").unwrap(),
+        Style::Both => writeln!(out, "typedef union {name} {{").unwrap(),
+    }
     writeln!(out, "  {tag_type_str} tag;").unwrap();
 
     for variant in &def.variants {
@@ -827,7 +828,10 @@ fn write_tagged_union_repr_int(
         }
     }
 
-    writeln!(out, "}} {name};").unwrap();
+    match style {
+        Style::Tag => writeln!(out, "}};").unwrap(),
+        _ => writeln!(out, "}} {name};").unwrap(),
+    }
 }
 
 fn scalar_to_c(p: &ScalarPrimitive) -> &'static str {

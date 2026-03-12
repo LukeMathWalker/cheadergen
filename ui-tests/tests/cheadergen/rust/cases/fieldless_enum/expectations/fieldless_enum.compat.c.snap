@@ -1,0 +1,52 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 171
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+enum Big {
+  First = 0,
+  Second = 2,
+  Third,
+};
+typedef uintptr_t Big;
+
+typedef enum {
+  Red,
+  Green,
+  Blue,
+} Color;
+
+enum Direction {
+  Up = 0,
+  Down = 2,
+  Left,
+  Right = 5,
+};
+typedef uint8_t Direction;
+
+enum Sign {
+  Negative = -1,
+  Zero = 0,
+  Positive = 1,
+};
+typedef int8_t Sign;
+
+/**
+ * No repr — should be emitted as opaque.
+ */
+typedef struct NoRepr NoRepr;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+void root(Color color, Direction dir, Sign sign, Big big, const NoRepr *no_repr);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

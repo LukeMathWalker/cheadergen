@@ -71,7 +71,10 @@ pub enum CEnumRepr {
 
 impl CEnumRepr {
     pub fn is_repr_c(&self) -> bool {
-        matches!(self, CEnumRepr::C)
+        match self {
+            CEnumRepr::C => true,
+            CEnumRepr::Int { is_repr_c, .. } => *is_repr_c,
+        }
     }
 }
 

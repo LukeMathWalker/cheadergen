@@ -3,6 +3,10 @@
 version = 4
 
 [[package]]
+name = "fieldless_enum"
+version = "0.1.0"
+
+[[package]]
 name = "opaque_upgrade"
 version = "0.1.0"
 
@@ -12,4 +16,8 @@ version = "0.1.0"
 
 [[package]]
 name = "simple_struct"
+version = "0.1.0"
+
+[[package]]
+name = "tagged_union"
 version = "0.1.0"

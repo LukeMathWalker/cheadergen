@@ -1,0 +1,76 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 171
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+enum Tagged_Tag {
+  Tagged_Foo,
+  Tagged_Bar,
+  Tagged_Baz,
+};
+
+struct Tagged_Bar_Body {
+  uint8_t x;
+  int16_t y;
+};
+
+struct Tagged {
+  enum Tagged_Tag tag;
+  union {
+    struct {
+      int16_t foo;
+    };
+    struct Tagged_Bar_Body bar;
+  };
+};
+
+enum TaggedInt_Tag {
+  TaggedInt_Foo,
+  TaggedInt_Bar,
+  TaggedInt_Baz,
+};
+typedef uint8_t TaggedInt_Tag;
+
+struct TaggedInt_Bar_Body {
+  uint8_t x;
+  int16_t y;
+};
+
+struct TaggedInt {
+  TaggedInt_Tag tag;
+  union {
+    struct {
+      int16_t foo;
+    };
+    struct TaggedInt_Bar_Body bar;
+  };
+};
+
+enum Untagged_Tag {
+  Foo,
+  Bar,
+  Baz,
+};
+typedef uint8_t Untagged_Tag;
+
+struct Bar_Body {
+  Untagged_Tag tag;
+  uint8_t x;
+  int16_t y;
+};
+
+union Untagged {
+  Untagged_Tag tag;
+  struct {
+    Untagged_Tag foo_tag;
+    int16_t foo;
+  };
+  struct Bar_Body bar;
+};
+
+void root(union Untagged a, struct Tagged b, struct TaggedInt c);
