@@ -521,7 +521,7 @@ fn resolve_type_kind<I: CrateIndexer>(
             resolve_struct_kind(name, struct_def, &item.attrs, &path_type.generic_arguments, krate, collection)
         }
         ItemEnum::Enum(enum_def) => {
-            resolve_enum_kind(name, enum_def, &item.attrs, krate, collection)
+            resolve_enum_kind(name, enum_def, &item.attrs, &path_type.generic_arguments, krate, collection)
         }
         _ => {
             eprintln!(
@@ -674,6 +674,7 @@ fn resolve_enum_kind<I: CrateIndexer>(
     name: &str,
     enum_def: &rustdoc_types::Enum,
     attrs: &[Attribute],
+    generic_args: &[GenericArgument],
     krate: &Crate,
     collection: &CrateCollection<I>,
 ) -> anyhow::Result<CTypeKind> {
@@ -684,12 +685,19 @@ fn resolve_enum_kind<I: CrateIndexer>(
         return Ok(CTypeKind::Opaque);
     };
 
-    if has_type_params(&enum_def.generics) {
-        eprintln!(
-            "warning: enum `{name}` has generic type parameters; emitting forward declaration"
-        );
-        return Ok(CTypeKind::Opaque);
-    }
+    let generic_bindings = if has_type_params(&enum_def.generics) {
+        match build_generic_bindings(&enum_def.generics, generic_args) {
+            Some(bindings) => bindings,
+            None => {
+                eprintln!(
+                    "warning: enum `{name}` has generic type parameters; emitting forward declaration"
+                );
+                return Ok(CTypeKind::Opaque);
+            }
+        }
+    } else {
+        GenericBindings::default()
+    };
 
     if enum_def.has_stripped_variants {
         eprintln!("warning: enum `{name}` has stripped variants; emitting forward declaration");
@@ -718,7 +726,7 @@ fn resolve_enum_kind<I: CrateIndexer>(
     if all_plain {
         resolve_fieldless_enum(name, enum_def, repr, krate)
     } else {
-        resolve_tagged_union(name, enum_def, repr, krate, collection)
+        resolve_tagged_union(name, enum_def, repr, &generic_bindings, krate, collection)
     }
 }
 
@@ -758,6 +766,7 @@ fn resolve_tagged_union<I: CrateIndexer>(
     name: &str,
     enum_def: &rustdoc_types::Enum,
     repr: CEnumRepr,
+    generic_bindings: &GenericBindings,
     krate: &Crate,
     collection: &CrateCollection<I>,
 ) -> anyhow::Result<CTypeKind> {
@@ -780,7 +789,7 @@ fn resolve_tagged_union<I: CrateIndexer>(
         let body = match &variant.kind {
             VariantKind::Plain => None,
             VariantKind::Tuple(fields) => {
-                let c_fields = resolve_tuple_fields(fields, &Default::default(), krate, collection)?;
+                let c_fields = resolve_tuple_fields(fields, generic_bindings, krate, collection)?;
                 if c_fields.is_empty() {
                     None
                 } else {
@@ -797,7 +806,7 @@ fn resolve_tagged_union<I: CrateIndexer>(
                     );
                     return Ok(CTypeKind::Opaque);
                 }
-                let c_fields = resolve_plain_fields(fields, &Default::default(), krate, collection)?;
+                let c_fields = resolve_plain_fields(fields, generic_bindings, krate, collection)?;
                 if c_fields.is_empty() {
                     None
                 } else {

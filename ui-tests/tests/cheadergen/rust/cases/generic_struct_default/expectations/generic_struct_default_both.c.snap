@@ -1,0 +1,23 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 171
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct WithDefault_i32__f32 {
+  int32_t main;
+  float extra;
+} WithDefault_i32__f32;
+
+typedef struct WithDefault_i32__u8 {
+  int32_t main;
+  uint8_t extra;
+} WithDefault_i32__u8;
+
+struct WithDefault_i32__f32 use_default(struct WithDefault_i32__f32 w);
+
+struct WithDefault_i32__u8 use_override(struct WithDefault_i32__u8 w);

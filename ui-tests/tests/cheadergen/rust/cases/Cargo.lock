@@ -7,6 +7,14 @@ name = "fieldless_enum"
 version = "0.1.0"
 
 [[package]]
+name = "generic_struct"
+version = "0.1.0"
+
+[[package]]
+name = "generic_struct_default"
+version = "0.1.0"
+
+[[package]]
 name = "opaque_upgrade"
 version = "0.1.0"
 
