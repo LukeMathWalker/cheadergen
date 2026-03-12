@@ -41,7 +41,26 @@ pub fn find_extern_items(krate: &Crate) -> ExternItems {
         }
     }
 
+    // Sort by source position so output follows declaration order in the Rust file.
+    fn_ids.sort_by_cached_key(|id| span_sort_key(id, krate));
+    static_ids.sort_by_cached_key(|id| span_sort_key(id, krate));
+
     ExternItems { fn_ids, static_ids }
+}
+
+/// Sort key: (line, column) from the item's span, falling back to name for items without spans.
+fn span_sort_key(id: &rustdoc_types::Id, krate: &Crate) -> (usize, usize, String) {
+    let Some(item) = krate.core.krate.index.get(id) else {
+        return (usize::MAX, usize::MAX, String::new());
+    };
+    match item.span.as_ref() {
+        Some(span) => (span.begin.0, span.begin.1, String::new()),
+        None => (
+            usize::MAX,
+            usize::MAX,
+            item.name.clone().unwrap_or_default(),
+        ),
+    }
 }
 
 /// Resolve each extern "C" function ID into the IR, validating types along the way.

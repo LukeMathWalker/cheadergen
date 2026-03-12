@@ -297,9 +297,9 @@ fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
 
     // Resolve each extern "C" function and static into the IR and generate the header.
     if !cli.no_header {
-        let mut resolved_fns =
+        let resolved_fns =
             analysis::resolve_functions(&extern_items.fn_ids, krate, &collection)?;
-        let mut resolved_statics =
+        let resolved_statics =
             analysis::resolve_statics(&extern_items.static_ids, krate, &collection)?;
 
         if !cli.quiet {
@@ -318,8 +318,8 @@ fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
         codegen::generate_c_header(
             c_config,
             &type_defs,
-            &mut resolved_fns,
-            &mut resolved_statics,
+            &resolved_fns,
+            &resolved_statics,
             &mut header,
         );
 

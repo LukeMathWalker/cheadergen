@@ -1,2 +1,6 @@
+# cbindgen's `sort_by = "Name"` is not supported by cheadergen;
+# cheadergen emits declarations in source order instead.
+"c/plain" = "xfail"
+"c/compat" = "xfail"
 "cpp/plain" = "xfail"
 "cython/plain" = "xfail"

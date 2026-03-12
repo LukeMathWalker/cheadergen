@@ -16,14 +16,10 @@ use rustdoc_ir::{FreeFunction, ScalarPrimitive, Type};
 pub fn generate_c_header(
     config: &CConfig,
     type_defs: &[CTypeDefinition],
-    functions: &mut [FreeFunction],
-    statics: &mut [StaticItem],
+    functions: &[FreeFunction],
+    statics: &[StaticItem],
     out: &mut String,
 ) {
-    // Sort by exported name for deterministic output.
-    functions.sort_by(|a, b| exported_name(a).cmp(exported_name(b)));
-    statics.sort_by(|a, b| exported_static_name(a).cmp(exported_static_name(b)));
-
     let common = &config.common;
 
     // Header (verbatim text at top of file).
@@ -119,13 +115,6 @@ pub fn generate_c_header(
         out.push_str(trailer);
         out.push('\n');
     }
-}
-
-fn exported_name(func: &FreeFunction) -> &str {
-    func.header
-        .symbol_name
-        .as_deref()
-        .unwrap_or(&func.path.function_name)
 }
 
 fn exported_static_name(s: &StaticItem) -> &str {
