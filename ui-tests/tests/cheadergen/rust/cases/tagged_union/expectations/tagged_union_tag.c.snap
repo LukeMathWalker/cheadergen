@@ -73,4 +73,144 @@ union Untagged {
   struct Bar_Body bar;
 };
 
-void root(union Untagged a, struct Tagged b, struct TaggedInt c);
+enum UntaggedI128_Tag {
+  I128Data,
+  I128Unit,
+};
+typedef __int128_t UntaggedI128_Tag;
+
+union UntaggedI128 {
+  UntaggedI128_Tag tag;
+  struct {
+    UntaggedI128_Tag i128data_tag;
+    int16_t i128data;
+  };
+};
+
+enum UntaggedI16_Tag {
+  I16Data,
+  I16Unit,
+};
+typedef int16_t UntaggedI16_Tag;
+
+union UntaggedI16 {
+  UntaggedI16_Tag tag;
+  struct {
+    UntaggedI16_Tag i16data_tag;
+    int16_t i16data;
+  };
+};
+
+enum UntaggedI32_Tag {
+  I32Data,
+  I32Unit,
+};
+typedef int32_t UntaggedI32_Tag;
+
+union UntaggedI32 {
+  UntaggedI32_Tag tag;
+  struct {
+    UntaggedI32_Tag i32data_tag;
+    int16_t i32data;
+  };
+};
+
+enum UntaggedI64_Tag {
+  I64Data,
+  I64Unit,
+};
+typedef int64_t UntaggedI64_Tag;
+
+union UntaggedI64 {
+  UntaggedI64_Tag tag;
+  struct {
+    UntaggedI64_Tag i64data_tag;
+    int16_t i64data;
+  };
+};
+
+enum UntaggedI8_Tag {
+  I8Data,
+  I8Unit,
+};
+typedef int8_t UntaggedI8_Tag;
+
+union UntaggedI8 {
+  UntaggedI8_Tag tag;
+  struct {
+    UntaggedI8_Tag i8data_tag;
+    int16_t i8data;
+  };
+};
+
+enum UntaggedIsize_Tag {
+  IsizeData,
+  IsizeUnit,
+};
+typedef intptr_t UntaggedIsize_Tag;
+
+union UntaggedIsize {
+  UntaggedIsize_Tag tag;
+  struct {
+    UntaggedIsize_Tag isizedata_tag;
+    int16_t isizedata;
+  };
+};
+
+enum UntaggedU128_Tag {
+  U128Data,
+  U128Unit,
+};
+typedef __uint128_t UntaggedU128_Tag;
+
+union UntaggedU128 {
+  UntaggedU128_Tag tag;
+  struct {
+    UntaggedU128_Tag u128data_tag;
+    int16_t u128data;
+  };
+};
+
+enum UntaggedU16_Tag {
+  U16Data,
+  U16Unit,
+};
+typedef uint16_t UntaggedU16_Tag;
+
+union UntaggedU16 {
+  UntaggedU16_Tag tag;
+  struct {
+    UntaggedU16_Tag u16data_tag;
+    int16_t u16data;
+  };
+};
+
+enum UntaggedU32_Tag {
+  U32Data,
+  U32Unit,
+};
+typedef uint32_t UntaggedU32_Tag;
+
+union UntaggedU32 {
+  UntaggedU32_Tag tag;
+  struct {
+    UntaggedU32_Tag u32data_tag;
+    int16_t u32data;
+  };
+};
+
+enum UntaggedU64_Tag {
+  U64Data,
+  U64Unit,
+};
+typedef uint64_t UntaggedU64_Tag;
+
+union UntaggedU64 {
+  UntaggedU64_Tag tag;
+  struct {
+    UntaggedU64_Tag u64data_tag;
+    int16_t u64data;
+  };
+};
+
+void root(union Untagged a, struct Tagged b, struct TaggedInt c, union UntaggedU16 d, union UntaggedU32 e, union UntaggedU64 f, union UntaggedU128 g, union UntaggedI8 h, union UntaggedI16 i, union UntaggedI32 j, union UntaggedI64 k, union UntaggedI128 l, union UntaggedIsize m);

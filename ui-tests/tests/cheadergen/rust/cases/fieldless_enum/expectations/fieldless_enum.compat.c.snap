@@ -8,12 +8,18 @@ expression: output
 #include <stdint.h>
 #include <stdlib.h>
 
-enum Big {
+enum Big
+#ifdef __cplusplus
+  : uintptr_t
+#endif // __cplusplus
+ {
   First = 0,
   Second = 2,
   Third,
 };
+#ifndef __cplusplus
 typedef uintptr_t Big;
+#endif // __cplusplus
 
 typedef enum {
   Red,
@@ -21,20 +27,140 @@ typedef enum {
   Blue,
 } Color;
 
-enum Direction {
+enum Direction
+#ifdef __cplusplus
+  : uint8_t
+#endif // __cplusplus
+ {
   Up = 0,
   Down = 2,
   Left,
   Right = 5,
 };
+#ifndef __cplusplus
 typedef uint8_t Direction;
+#endif // __cplusplus
 
-enum Sign {
+enum I128Enum
+#ifdef __cplusplus
+  : __int128_t
+#endif // __cplusplus
+ {
+  I128A,
+  I128B,
+};
+#ifndef __cplusplus
+typedef __int128_t I128Enum;
+#endif // __cplusplus
+
+enum I16Enum
+#ifdef __cplusplus
+  : int16_t
+#endif // __cplusplus
+ {
+  I16A,
+  I16B,
+};
+#ifndef __cplusplus
+typedef int16_t I16Enum;
+#endif // __cplusplus
+
+enum I32Enum
+#ifdef __cplusplus
+  : int32_t
+#endif // __cplusplus
+ {
+  I32A,
+  I32B,
+};
+#ifndef __cplusplus
+typedef int32_t I32Enum;
+#endif // __cplusplus
+
+enum I64Enum
+#ifdef __cplusplus
+  : int64_t
+#endif // __cplusplus
+ {
+  I64A,
+  I64B,
+};
+#ifndef __cplusplus
+typedef int64_t I64Enum;
+#endif // __cplusplus
+
+enum IsizeEnum
+#ifdef __cplusplus
+  : intptr_t
+#endif // __cplusplus
+ {
+  IsizeA,
+  IsizeB,
+};
+#ifndef __cplusplus
+typedef intptr_t IsizeEnum;
+#endif // __cplusplus
+
+enum Sign
+#ifdef __cplusplus
+  : int8_t
+#endif // __cplusplus
+ {
   Negative = -1,
   Zero = 0,
   Positive = 1,
 };
+#ifndef __cplusplus
 typedef int8_t Sign;
+#endif // __cplusplus
+
+enum U128Enum
+#ifdef __cplusplus
+  : __uint128_t
+#endif // __cplusplus
+ {
+  U128A,
+  U128B,
+};
+#ifndef __cplusplus
+typedef __uint128_t U128Enum;
+#endif // __cplusplus
+
+enum U16Enum
+#ifdef __cplusplus
+  : uint16_t
+#endif // __cplusplus
+ {
+  U16A,
+  U16B,
+};
+#ifndef __cplusplus
+typedef uint16_t U16Enum;
+#endif // __cplusplus
+
+enum U32Enum
+#ifdef __cplusplus
+  : uint32_t
+#endif // __cplusplus
+ {
+  U32A,
+  U32B,
+};
+#ifndef __cplusplus
+typedef uint32_t U32Enum;
+#endif // __cplusplus
+
+enum U64Enum
+#ifdef __cplusplus
+  : uint64_t
+#endif // __cplusplus
+ {
+  U64A,
+  U64B,
+};
+#ifndef __cplusplus
+typedef uint64_t U64Enum;
+#endif // __cplusplus
 
 /**
  * No repr — should be emitted as opaque.
@@ -45,7 +171,7 @@ typedef struct NoRepr NoRepr;
 extern "C" {
 #endif // __cplusplus
 
-void root(Color color, Direction dir, Sign sign, Big big, const NoRepr *no_repr);
+void root(Color color, Direction dir, Sign sign, Big big, U16Enum u16_enum, U32Enum u32_enum, U64Enum u64_enum, U128Enum u128_enum, I16Enum i16_enum, I32Enum i32_enum, I64Enum i64_enum, I128Enum i128_enum, IsizeEnum isize_enum, const NoRepr *no_repr);
 
 #ifdef __cplusplus
 }  // extern "C"

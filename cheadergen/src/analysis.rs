@@ -1,7 +1,7 @@
 use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;
 
-use rustdoc_ir::{FreeFunction, GenericArgument, PathType, Type};
+use rustdoc_ir::{FreeFunction, GenericArgument, PathType, ScalarPrimitive, Type};
 use rustdoc_processor::{CORE_PACKAGE_ID_REPR, CrateCollection, STD_PACKAGE_ID_REPR};
 use rustdoc_processor::indexing::{CrateIndexer, NoAnnotations};
 use rustdoc_processor::queries::Crate;
@@ -59,12 +59,69 @@ pub struct CEnumVariant {
     pub discriminant: Option<String>,
 }
 
+/// Primitive integer types valid in `#[repr(...)]` on Rust enums.
+/// See: https://doc.rust-lang.org/reference/type-layout.html#r-layout.repr.primitive
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReprIntType {
+    U8,
+    U16,
+    U32,
+    U64,
+    U128,
+    Usize,
+    I8,
+    I16,
+    I32,
+    I64,
+    I128,
+    Isize,
+}
+
+impl ReprIntType {
+    /// Parse from the string found in `AttributeRepr::int`.
+    pub fn parse(s: &str) -> anyhow::Result<Self> {
+        match s {
+            "u8" => Ok(Self::U8),
+            "u16" => Ok(Self::U16),
+            "u32" => Ok(Self::U32),
+            "u64" => Ok(Self::U64),
+            "u128" => Ok(Self::U128),
+            "usize" => Ok(Self::Usize),
+            "i8" => Ok(Self::I8),
+            "i16" => Ok(Self::I16),
+            "i32" => Ok(Self::I32),
+            "i64" => Ok(Self::I64),
+            "i128" => Ok(Self::I128),
+            "isize" => Ok(Self::Isize),
+            other => anyhow::bail!("unknown repr integer type `{other}`"),
+        }
+    }
+
+    /// Convert to the corresponding `ScalarPrimitive` for reuse in codegen.
+    pub fn to_scalar_primitive(self) -> ScalarPrimitive {
+        match self {
+            Self::U8 => ScalarPrimitive::U8,
+            Self::U16 => ScalarPrimitive::U16,
+            Self::U32 => ScalarPrimitive::U32,
+            Self::U64 => ScalarPrimitive::U64,
+            Self::U128 => ScalarPrimitive::U128,
+            Self::Usize => ScalarPrimitive::Usize,
+            Self::I8 => ScalarPrimitive::I8,
+            Self::I16 => ScalarPrimitive::I16,
+            Self::I32 => ScalarPrimitive::I32,
+            Self::I64 => ScalarPrimitive::I64,
+            Self::I128 => ScalarPrimitive::I128,
+            Self::Isize => ScalarPrimitive::Isize,
+        }
+    }
+}
+
 /// How the enum's discriminant is represented in C.
 pub enum CEnumRepr {
     /// `#[repr(C)]` only — use a plain C enum.
     C,
     /// `#[repr(uN)]` or `#[repr(C, uN)]` — emit enum constants + typedef to int type.
-    Int { is_repr_c: bool, int_type: String },
+    Int { is_repr_c: bool, int_type: ReprIntType },
 }
 
 impl CEnumRepr {
@@ -538,47 +595,30 @@ fn has_type_params(generics: &rustdoc_types::Generics) -> bool {
 
 /// Extract a `CEnumRepr` from the item's attributes.
 /// Returns `None` if the enum has no valid C-compatible repr.
-fn extract_enum_repr(attrs: &[Attribute]) -> Option<CEnumRepr> {
+fn extract_enum_repr(attrs: &[Attribute]) -> anyhow::Result<Option<CEnumRepr>> {
     for attr in attrs {
         if let Attribute::Repr(repr) = attr {
             match (&repr.kind, &repr.int) {
-                (ReprKind::C, None) => return Some(CEnumRepr::C),
-                (ReprKind::C, Some(int_type)) => {
-                    return Some(CEnumRepr::Int {
+                (ReprKind::C, None) => return Ok(Some(CEnumRepr::C)),
+                (ReprKind::C, Some(int_str)) => {
+                    let int_type = ReprIntType::parse(int_str)?;
+                    return Ok(Some(CEnumRepr::Int {
                         is_repr_c: true,
-                        int_type: int_type.clone(),
-                    });
+                        int_type,
+                    }));
                 }
-                (ReprKind::Rust, Some(int_type)) => {
-                    return Some(CEnumRepr::Int {
+                (ReprKind::Rust, Some(int_str)) => {
+                    let int_type = ReprIntType::parse(int_str)?;
+                    return Ok(Some(CEnumRepr::Int {
                         is_repr_c: false,
-                        int_type: int_type.clone(),
-                    });
+                        int_type,
+                    }));
                 }
                 _ => {}
             }
         }
     }
-    None
-}
-
-/// Map a Rust integer repr type name to its C equivalent.
-pub fn repr_int_to_c(int_type: &str) -> &str {
-    match int_type {
-        "u8" => "uint8_t",
-        "u16" => "uint16_t",
-        "u32" => "uint32_t",
-        "u64" => "uint64_t",
-        "u128" => "__uint128_t",
-        "usize" => "uintptr_t",
-        "i8" => "int8_t",
-        "i16" => "int16_t",
-        "i32" => "int32_t",
-        "i64" => "int64_t",
-        "i128" => "__int128_t",
-        "isize" => "intptr_t",
-        other => other,
-    }
+    Ok(None)
 }
 
 /// Resolve an enum into a `CTypeKind`.
@@ -589,7 +629,7 @@ fn resolve_enum_kind<I: CrateIndexer>(
     krate: &Crate,
     collection: &CrateCollection<I>,
 ) -> anyhow::Result<CTypeKind> {
-    let Some(repr) = extract_enum_repr(attrs) else {
+    let Some(repr) = extract_enum_repr(attrs)? else {
         eprintln!(
             "warning: enum `{name}` has no C-compatible repr; emitting opaque forward declaration"
         );

@@ -29,12 +29,18 @@ typedef struct Tagged {
   };
 } Tagged;
 
-enum TaggedInt_Tag {
+enum TaggedInt_Tag
+#ifdef __cplusplus
+  : uint8_t
+#endif // __cplusplus
+ {
   TaggedInt_Foo,
   TaggedInt_Bar,
   TaggedInt_Baz,
 };
+#ifndef __cplusplus
 typedef uint8_t TaggedInt_Tag;
+#endif // __cplusplus
 
 typedef struct TaggedInt_Bar_Body {
   uint8_t x;
@@ -51,12 +57,18 @@ typedef struct TaggedInt {
   };
 } TaggedInt;
 
-enum Untagged_Tag {
+enum Untagged_Tag
+#ifdef __cplusplus
+  : uint8_t
+#endif // __cplusplus
+ {
   Foo,
   Bar,
   Baz,
 };
+#ifndef __cplusplus
 typedef uint8_t Untagged_Tag;
+#endif // __cplusplus
 
 typedef struct Bar_Body {
   Untagged_Tag tag;
@@ -73,11 +85,211 @@ typedef union Untagged {
   struct Bar_Body bar;
 } Untagged;
 
+enum UntaggedI128_Tag
+#ifdef __cplusplus
+  : __int128_t
+#endif // __cplusplus
+ {
+  I128Data,
+  I128Unit,
+};
+#ifndef __cplusplus
+typedef __int128_t UntaggedI128_Tag;
+#endif // __cplusplus
+
+typedef union UntaggedI128 {
+  UntaggedI128_Tag tag;
+  struct {
+    UntaggedI128_Tag i128data_tag;
+    int16_t i128data;
+  };
+} UntaggedI128;
+
+enum UntaggedI16_Tag
+#ifdef __cplusplus
+  : int16_t
+#endif // __cplusplus
+ {
+  I16Data,
+  I16Unit,
+};
+#ifndef __cplusplus
+typedef int16_t UntaggedI16_Tag;
+#endif // __cplusplus
+
+typedef union UntaggedI16 {
+  UntaggedI16_Tag tag;
+  struct {
+    UntaggedI16_Tag i16data_tag;
+    int16_t i16data;
+  };
+} UntaggedI16;
+
+enum UntaggedI32_Tag
+#ifdef __cplusplus
+  : int32_t
+#endif // __cplusplus
+ {
+  I32Data,
+  I32Unit,
+};
+#ifndef __cplusplus
+typedef int32_t UntaggedI32_Tag;
+#endif // __cplusplus
+
+typedef union UntaggedI32 {
+  UntaggedI32_Tag tag;
+  struct {
+    UntaggedI32_Tag i32data_tag;
+    int16_t i32data;
+  };
+} UntaggedI32;
+
+enum UntaggedI64_Tag
+#ifdef __cplusplus
+  : int64_t
+#endif // __cplusplus
+ {
+  I64Data,
+  I64Unit,
+};
+#ifndef __cplusplus
+typedef int64_t UntaggedI64_Tag;
+#endif // __cplusplus
+
+typedef union UntaggedI64 {
+  UntaggedI64_Tag tag;
+  struct {
+    UntaggedI64_Tag i64data_tag;
+    int16_t i64data;
+  };
+} UntaggedI64;
+
+enum UntaggedI8_Tag
+#ifdef __cplusplus
+  : int8_t
+#endif // __cplusplus
+ {
+  I8Data,
+  I8Unit,
+};
+#ifndef __cplusplus
+typedef int8_t UntaggedI8_Tag;
+#endif // __cplusplus
+
+typedef union UntaggedI8 {
+  UntaggedI8_Tag tag;
+  struct {
+    UntaggedI8_Tag i8data_tag;
+    int16_t i8data;
+  };
+} UntaggedI8;
+
+enum UntaggedIsize_Tag
+#ifdef __cplusplus
+  : intptr_t
+#endif // __cplusplus
+ {
+  IsizeData,
+  IsizeUnit,
+};
+#ifndef __cplusplus
+typedef intptr_t UntaggedIsize_Tag;
+#endif // __cplusplus
+
+typedef union UntaggedIsize {
+  UntaggedIsize_Tag tag;
+  struct {
+    UntaggedIsize_Tag isizedata_tag;
+    int16_t isizedata;
+  };
+} UntaggedIsize;
+
+enum UntaggedU128_Tag
+#ifdef __cplusplus
+  : __uint128_t
+#endif // __cplusplus
+ {
+  U128Data,
+  U128Unit,
+};
+#ifndef __cplusplus
+typedef __uint128_t UntaggedU128_Tag;
+#endif // __cplusplus
+
+typedef union UntaggedU128 {
+  UntaggedU128_Tag tag;
+  struct {
+    UntaggedU128_Tag u128data_tag;
+    int16_t u128data;
+  };
+} UntaggedU128;
+
+enum UntaggedU16_Tag
+#ifdef __cplusplus
+  : uint16_t
+#endif // __cplusplus
+ {
+  U16Data,
+  U16Unit,
+};
+#ifndef __cplusplus
+typedef uint16_t UntaggedU16_Tag;
+#endif // __cplusplus
+
+typedef union UntaggedU16 {
+  UntaggedU16_Tag tag;
+  struct {
+    UntaggedU16_Tag u16data_tag;
+    int16_t u16data;
+  };
+} UntaggedU16;
+
+enum UntaggedU32_Tag
+#ifdef __cplusplus
+  : uint32_t
+#endif // __cplusplus
+ {
+  U32Data,
+  U32Unit,
+};
+#ifndef __cplusplus
+typedef uint32_t UntaggedU32_Tag;
+#endif // __cplusplus
+
+typedef union UntaggedU32 {
+  UntaggedU32_Tag tag;
+  struct {
+    UntaggedU32_Tag u32data_tag;
+    int16_t u32data;
+  };
+} UntaggedU32;
+
+enum UntaggedU64_Tag
+#ifdef __cplusplus
+  : uint64_t
+#endif // __cplusplus
+ {
+  U64Data,
+  U64Unit,
+};
+#ifndef __cplusplus
+typedef uint64_t UntaggedU64_Tag;
+#endif // __cplusplus
+
+typedef union UntaggedU64 {
+  UntaggedU64_Tag tag;
+  struct {
+    UntaggedU64_Tag u64data_tag;
+    int16_t u64data;
+  };
+} UntaggedU64;
+
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
 
-void root(Untagged a, Tagged b, TaggedInt c);
+void root(Untagged a, Tagged b, TaggedInt c, UntaggedU16 d, UntaggedU32 e, UntaggedU64 f, UntaggedU128 g, UntaggedI8 h, UntaggedI16 i, UntaggedI32 j, UntaggedI64 k, UntaggedI128 l, UntaggedIsize m);
 
 #ifdef __cplusplus
 }  // extern "C"

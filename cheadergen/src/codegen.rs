@@ -4,7 +4,7 @@ use std::path::Path;
 
 use crate::analysis::{
     CEnumRepr, CFieldlessEnumDef, CStructDef, CTaggedUnionDef, CTypeDefinition, CTypeKind,
-    c_type_name, repr_int_to_c,
+    c_type_name,
 };
 use crate::config::{CConfig, CommonConfig, DocumentationLength, DocumentationStyle, Style};
 use crate::static_item::StaticItem;
@@ -111,7 +111,15 @@ pub fn generate_c_header(
     // Type forward declarations.
     if !type_defs.is_empty() {
         out.push('\n');
-        write_c_type_definitions(type_defs, &config.style, &type_tags, common, index, out);
+        write_c_type_definitions(
+            type_defs,
+            &config.style,
+            config.cpp_compat,
+            &type_tags,
+            common,
+            index,
+            out,
+        );
     }
 
     let has_declarations = !functions.is_empty() || !statics.is_empty();
@@ -411,6 +419,7 @@ fn write_c_type(
 fn write_c_type_definitions(
     type_defs: &[CTypeDefinition],
     style: &Style,
+    cpp_compat: bool,
     type_tags: &HashMap<String, CTypeTag>,
     config: &CommonConfig,
     index: &CrateItemIndex,
@@ -437,7 +446,7 @@ fn write_c_type_definitions(
         };
         let docs = lookup_docs(def.rustdoc_id.as_ref(), index);
         write_doc_comment(docs.as_deref(), config, out);
-        write_c_fieldless_enum(&def.name, enum_def, style, out);
+        write_c_fieldless_enum(&def.name, enum_def, style, cpp_compat, out);
         if i + 1 < fieldless_enum_defs.len() {
             out.push('\n');
         }
@@ -476,7 +485,7 @@ fn write_c_type_definitions(
                 write_c_struct_definition(&def.name, struct_def, style, type_tags, out);
             }
             CTypeKind::TaggedUnion(tagged_def) => {
-                write_c_tagged_union(&def.name, tagged_def, style, type_tags, out);
+                write_c_tagged_union(&def.name, tagged_def, style, cpp_compat, type_tags, out);
             }
             _ => unreachable!(),
         }
@@ -536,16 +545,29 @@ fn write_c_fieldless_enum(
     name: &str,
     def: &CFieldlessEnumDef,
     style: &Style,
+    cpp_compat: bool,
     out: &mut String,
 ) {
     match &def.repr {
         CEnumRepr::Int { int_type, .. } => {
-            // Always: enum Name { variants }; typedef intN_t Name;
-            writeln!(out, "enum {name} {{").unwrap();
-            write_enum_variant_list(&def.variants, out);
-            writeln!(out, "}};").unwrap();
-            let c_int = repr_int_to_c(int_type);
-            writeln!(out, "typedef {c_int} {name};").unwrap();
+            let c_int = scalar_to_c(&int_type.to_scalar_primitive());
+            if cpp_compat {
+                writeln!(out, "enum {name}").unwrap();
+                writeln!(out, "#ifdef __cplusplus").unwrap();
+                writeln!(out, "  : {c_int}").unwrap();
+                writeln!(out, "#endif // __cplusplus").unwrap();
+                writeln!(out, " {{").unwrap();
+                write_enum_variant_list(&def.variants, out);
+                writeln!(out, "}};").unwrap();
+                writeln!(out, "#ifndef __cplusplus").unwrap();
+                writeln!(out, "typedef {c_int} {name};").unwrap();
+                writeln!(out, "#endif // __cplusplus").unwrap();
+            } else {
+                writeln!(out, "enum {name} {{").unwrap();
+                write_enum_variant_list(&def.variants, out);
+                writeln!(out, "}};").unwrap();
+                writeln!(out, "typedef {c_int} {name};").unwrap();
+            }
         }
         CEnumRepr::C => {
             match style {
@@ -593,6 +615,7 @@ fn write_c_tagged_union(
     name: &str,
     def: &CTaggedUnionDef,
     style: &Style,
+    cpp_compat: bool,
     type_tags: &HashMap<String, CTypeTag>,
     out: &mut String,
 ) {
@@ -615,31 +638,19 @@ fn write_c_tagged_union(
         })
         .collect();
 
-    let tag_repr = if def.repr.is_repr_c() {
-        // Pure repr(C) → tag is a C enum; repr(C, uN) → tag uses Int repr
-        match &def.repr {
-            CEnumRepr::C => CEnumRepr::C,
-            CEnumRepr::Int { int_type, .. } => CEnumRepr::Int {
-                is_repr_c: false,
-                int_type: int_type.clone(),
-            },
-        }
-    } else {
-        // repr(uN) → tag uses Int repr
-        match &def.repr {
-            CEnumRepr::Int { int_type, .. } => CEnumRepr::Int {
-                is_repr_c: false,
-                int_type: int_type.clone(),
-            },
-            _ => unreachable!(),
-        }
+    let tag_repr = match &def.repr {
+        CEnumRepr::C => CEnumRepr::C,
+        CEnumRepr::Int { int_type, .. } => CEnumRepr::Int {
+            is_repr_c: false,
+            int_type: *int_type,
+        },
     };
 
     let tag_enum_def = CFieldlessEnumDef {
         repr: tag_repr,
         variants: tag_variants,
     };
-    write_c_fieldless_enum(&tag_name, &tag_enum_def, style, out);
+    write_c_fieldless_enum(&tag_name, &tag_enum_def, style, cpp_compat, out);
     out.push('\n');
 
     // In "Both" style, field types use Tag form for inner references.

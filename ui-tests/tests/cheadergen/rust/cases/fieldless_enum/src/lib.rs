@@ -35,6 +35,60 @@ pub enum Big {
     Third,
 }
 
+#[repr(u16)]
+pub enum U16Enum {
+    U16A,
+    U16B,
+}
+
+#[repr(u32)]
+pub enum U32Enum {
+    U32A,
+    U32B,
+}
+
+#[repr(u64)]
+pub enum U64Enum {
+    U64A,
+    U64B,
+}
+
+#[repr(u128)]
+pub enum U128Enum {
+    U128A,
+    U128B,
+}
+
+#[repr(i16)]
+pub enum I16Enum {
+    I16A,
+    I16B,
+}
+
+#[repr(i32)]
+pub enum I32Enum {
+    I32A,
+    I32B,
+}
+
+#[repr(i64)]
+pub enum I64Enum {
+    I64A,
+    I64B,
+}
+
+#[repr(i128)]
+pub enum I128Enum {
+    I128A,
+    I128B,
+}
+
+#[repr(isize)]
+pub enum IsizeEnum {
+    IsizeA,
+    IsizeB,
+}
+
 /// No repr — should be emitted as opaque.
 pub enum NoRepr {
     X,
@@ -47,6 +101,15 @@ pub extern "C" fn root(
     dir: Direction,
     sign: Sign,
     big: Big,
+    u16_enum: U16Enum,
+    u32_enum: U32Enum,
+    u64_enum: U64Enum,
+    u128_enum: U128Enum,
+    i16_enum: I16Enum,
+    i32_enum: I32Enum,
+    i64_enum: I64Enum,
+    i128_enum: I128Enum,
+    isize_enum: IsizeEnum,
     no_repr: *const NoRepr,
 ) {
 }

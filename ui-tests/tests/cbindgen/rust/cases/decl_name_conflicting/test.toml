@@ -1,7 +1,5 @@
 "c/both" = "xfail"
 "c/both_compat" = "xfail"
-"c/compat" = "xfail"
-"c/tag_compat" = "xfail"
 "cpp/plain" = "xfail"
 "cython/plain" = "xfail"
 "cython/tag" = "xfail"

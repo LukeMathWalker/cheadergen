@@ -1,8 +1,3 @@
-# compat compilation fails because `enum D { ... }; typedef uint8_t D;`
-# is not valid C++ (typedef redefinition). Needs `#ifndef __cplusplus` guards.
-"c/compat" = "xfail"
-"c/tag_compat" = "xfail"
-"c/both_compat" = "xfail"
 "cpp/plain" = "xfail"
 "cython/plain" = "xfail"
 "cython/tag" = "xfail"

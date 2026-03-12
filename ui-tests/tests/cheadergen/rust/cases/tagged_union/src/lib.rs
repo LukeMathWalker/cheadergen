@@ -27,10 +27,80 @@ pub enum TaggedInt {
     Baz,
 }
 
+#[repr(u16)]
+pub enum UntaggedU16 {
+    U16Data(i16),
+    U16Unit,
+}
+
+#[repr(u32)]
+pub enum UntaggedU32 {
+    U32Data(i16),
+    U32Unit,
+}
+
+#[repr(u64)]
+pub enum UntaggedU64 {
+    U64Data(i16),
+    U64Unit,
+}
+
+#[repr(u128)]
+pub enum UntaggedU128 {
+    U128Data(i16),
+    U128Unit,
+}
+
+#[repr(i8)]
+pub enum UntaggedI8 {
+    I8Data(i16),
+    I8Unit,
+}
+
+#[repr(i16)]
+pub enum UntaggedI16 {
+    I16Data(i16),
+    I16Unit,
+}
+
+#[repr(i32)]
+pub enum UntaggedI32 {
+    I32Data(i16),
+    I32Unit,
+}
+
+#[repr(i64)]
+pub enum UntaggedI64 {
+    I64Data(i16),
+    I64Unit,
+}
+
+#[repr(i128)]
+pub enum UntaggedI128 {
+    I128Data(i16),
+    I128Unit,
+}
+
+#[repr(isize)]
+pub enum UntaggedIsize {
+    IsizeData(i16),
+    IsizeUnit,
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn root(
     a: Untagged,
     b: Tagged,
     c: TaggedInt,
+    d: UntaggedU16,
+    e: UntaggedU32,
+    f: UntaggedU64,
+    g: UntaggedU128,
+    h: UntaggedI8,
+    i: UntaggedI16,
+    j: UntaggedI32,
+    k: UntaggedI64,
+    l: UntaggedI128,
+    m: UntaggedIsize,
 ) {
 }
