@@ -97,7 +97,13 @@ pub extern \"C\" fn todo_new() -> TODO {
         eprintln!("Error: failed to write src/lib.rs: {e}");
         process::exit(1);
     });
-    fs::write(cheadergen_case.join("test.toml"), "").unwrap_or_else(|e| {
+    fs::write(
+        cheadergen_case.join("test.toml"),
+        "\"cpp/plain\" = \"exclude\"\n\
+         \"cython/plain\" = \"exclude\"\n\
+         \"cython/tag\" = \"exclude\"\n",
+    )
+    .unwrap_or_else(|e| {
         eprintln!("Error: failed to write test.toml: {e}");
         process::exit(1);
     });

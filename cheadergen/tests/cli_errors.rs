@@ -29,16 +29,9 @@ fn run_config_error(config_toml: &str, extra_args: &[&str]) -> String {
 }
 
 #[test]
-fn cpp_compat_rejected_for_cxx() {
-    let stderr = run_config_error("", &["--lang", "c++", "--cpp-compat"]);
-    insta::assert_snapshot!(stderr, @"Error: `--cpp-compat` is not supported for C++ output (it is only meaningful for C headers)
-");
-}
-
-#[test]
-fn style_rejected_for_cxx() {
-    let stderr = run_config_error("", &["--lang", "c++", "--style", "both"]);
-    insta::assert_snapshot!(stderr, @"Error: `--style` is not supported for C++ output (C++ does not use typedef-style declarations)
+fn cxx_not_supported() {
+    let stderr = run_config_error("", &["--lang", "c++"]);
+    insta::assert_snapshot!(stderr, @"Error: C++ output is not yet supported
 ");
 }
 

@@ -457,20 +457,9 @@ impl RawConfig {
                 });
             }
             Language::Cxx => {
-                if overrides.cpp_compat {
-                    return Err(ConfigError {
-                        message: "`--cpp-compat` is not supported for C++ output \
-                                  (it is only meaningful for C headers)"
-                            .to_string(),
-                    });
-                }
-                if overrides.style.is_some() {
-                    return Err(ConfigError {
-                        message: "`--style` is not supported for C++ output \
-                                  (C++ does not use typedef-style declarations)"
-                            .to_string(),
-                    });
-                }
+                return Err(ConfigError {
+                    message: "C++ output is not yet supported".to_string(),
+                });
             }
             Language::C => {}
         }
@@ -606,7 +595,7 @@ cpp_compat = true
     }
 
     #[test]
-    fn full_cxx_config() {
+    fn full_cxx_config_rejected() {
         let toml_str = r#"
 header = "/* C++ License */"
 include_guard = "MY_CXX_H"
@@ -615,17 +604,10 @@ pragma_once = true
 [cxx]
 "#;
         let raw: RawConfig = toml::from_str(toml_str).unwrap();
-        let config = raw
+        let err = raw
             .into_config(&Language::Cxx, &CliOverrides::default())
-            .unwrap();
-        match config {
-            Config::Cxx(cxx) => {
-                assert_eq!(cxx.common.header.as_deref(), Some("/* C++ License */"));
-                assert_eq!(cxx.common.include_guard.as_deref(), Some("MY_CXX_H"));
-                assert!(cxx.common.pragma_once);
-            }
-            _ => panic!("expected Config::Cxx"),
-        }
+            .unwrap_err();
+        assert!(err.message.contains("C++ output is not yet supported"));
     }
 
     #[test]
@@ -678,36 +660,20 @@ include_guard = "MY_CXX_H"
             _ => panic!("expected Config::C"),
         }
 
-        // Select C++
-        let cxx_config = raw
+        // Select C++ — rejected
+        let err = raw
             .into_config(&Language::Cxx, &CliOverrides::default())
-            .unwrap();
-        match &cxx_config {
-            Config::Cxx(cxx) => {
-                assert_eq!(cxx.common.header.as_deref(), Some("/* Shared License */"));
-                assert_eq!(cxx.common.include_guard.as_deref(), Some("MY_CXX_H"));
-            }
-            _ => panic!("expected Config::Cxx"),
-        }
+            .unwrap_err();
+        assert!(err.message.contains("C++ output is not yet supported"));
     }
 
     #[test]
-    fn cxx_without_section_uses_common_defaults() {
-        let toml_str = r#"
-header = "/* License */"
-include_guard = "MY_H"
-"#;
-        let raw: RawConfig = toml::from_str(toml_str).unwrap();
-        let config = raw
+    fn cxx_rejected() {
+        let raw: RawConfig = toml::from_str("").unwrap();
+        let err = raw
             .into_config(&Language::Cxx, &CliOverrides::default())
-            .unwrap();
-        match config {
-            Config::Cxx(cxx) => {
-                assert_eq!(cxx.common.header.as_deref(), Some("/* License */"));
-                assert_eq!(cxx.common.include_guard.as_deref(), Some("MY_H"));
-            }
-            _ => panic!("expected Config::Cxx"),
-        }
+            .unwrap_err();
+        assert!(err.message.contains("C++ output is not yet supported"));
     }
 
     #[test]
@@ -746,27 +712,6 @@ style = "Tag"
         }
     }
 
-    #[test]
-    fn cxx_rejects_cpp_compat_cli_override() {
-        let raw: RawConfig = toml::from_str("").unwrap();
-        let overrides = CliOverrides {
-            style: None,
-            cpp_compat: true,
-        };
-        let err = raw.into_config(&Language::Cxx, &overrides).unwrap_err();
-        assert!(err.message.contains("cpp-compat"));
-    }
-
-    #[test]
-    fn cxx_rejects_style_cli_override() {
-        let raw: RawConfig = toml::from_str("").unwrap();
-        let overrides = CliOverrides {
-            style: Some(Style::Tag),
-            cpp_compat: false,
-        };
-        let err = raw.into_config(&Language::Cxx, &overrides).unwrap_err();
-        assert!(err.message.contains("style"));
-    }
 
     #[test]
     fn cxx_alias_parses() {
