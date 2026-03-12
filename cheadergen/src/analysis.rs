@@ -17,6 +17,8 @@ pub struct CTypeDefinition {
     pub name: String,
     /// Whether this is an opaque forward declaration or a full struct definition.
     pub kind: CTypeKind,
+    /// The rustdoc item ID, used for doc comment lookup at codegen time.
+    pub rustdoc_id: Option<rustdoc_types::Id>,
 }
 
 /// The kind of C type definition to emit.
@@ -330,7 +332,14 @@ fn resolve_all_type_definitions<I: CrateIndexer>(
                 }
             }
 
-            resolved.insert(path_type, CTypeDefinition { name, kind });
+            resolved.insert(
+                path_type.clone(),
+                CTypeDefinition {
+                    name,
+                    kind,
+                    rustdoc_id: path_type.rustdoc_id,
+                },
+            );
         }
     }
 
@@ -342,7 +351,15 @@ fn resolve_all_type_definitions<I: CrateIndexer>(
         .collect();
     for path_type in opaque {
         let name = c_type_name(&Type::Path(path_type.clone()));
-        resolved.insert(path_type, CTypeDefinition { name, kind: CTypeKind::Opaque });
+        let rustdoc_id = path_type.rustdoc_id;
+        resolved.insert(
+            path_type,
+            CTypeDefinition {
+                name,
+                kind: CTypeKind::Opaque,
+                rustdoc_id,
+            },
+        );
     }
 
     let mut defs: Vec<CTypeDefinition> = resolved.into_values().collect();

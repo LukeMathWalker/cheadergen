@@ -45,13 +45,13 @@ fn style_rejected_for_cxx() {
 #[test]
 fn unknown_field_rejected() {
     let stderr = run_config_error("bogus = true", &["--lang", "c"]);
-    insta::assert_snapshot!(stderr, @r"
+    insta::assert_snapshot!(stderr, @r###"
     Error: failed to parse config file: TOML parse error at line 1, column 1
       |
     1 | bogus = true
       | ^^^^^
-    unknown field `bogus`, expected one of `header`, `trailer`, `autogen_warning`, `include_guard`, `pragma_once`, `sys_includes`, `includes`, `no_includes`, `after_includes`, `sort_by`, `fn`, `static`, `c`, `c++`, `cpp`, `cxx`
-    ");
+    unknown field `bogus`, expected one of `header`, `trailer`, `autogen_warning`, `include_guard`, `pragma_once`, `sys_includes`, `includes`, `no_includes`, `after_includes`, `documentation`, `documentation_style`, `documentation_length`, `sort_by`, `fn`, `static`, `c`, `c++`, `cpp`, `cxx`
+    "###);
 }
 
 #[test]

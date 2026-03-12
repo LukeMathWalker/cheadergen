@@ -2,7 +2,7 @@ use std::path::Path;
 
 use serde::Deserialize;
 
-use super::{ConfigError, RawCSection, RawConfig, RawCxxSection, RawFnSection, RawStaticSection, SortKey, Style};
+use super::{ConfigError, DocumentationLength, DocumentationStyle, RawCSection, RawConfig, RawCxxSection, RawFnSection, RawStaticSection, SortKey, Style};
 
 /// Permissive deserialization of a cbindgen config file.
 ///
@@ -37,9 +37,9 @@ pub(crate) struct CbindgenConfig {
     line_endings: Option<toml::Value>,
     sort_by: Option<String>,
     usize_is_size_t: Option<toml::Value>,
-    documentation: Option<toml::Value>,
-    documentation_style: Option<toml::Value>,
-    documentation_length: Option<toml::Value>,
+    documentation: Option<bool>,
+    documentation_style: Option<String>,
+    documentation_length: Option<String>,
     only_target_dependencies: Option<toml::Value>,
     parse: Option<toml::Value>,
     export: Option<toml::Value>,
@@ -171,6 +171,41 @@ fn translate_config(cb: &CbindgenConfig) -> (RawConfig, Vec<&str>) {
         sort_by.map(|s| RawStaticSection { sort_by: Some(s) })
     });
 
+    // Translate documentation fields.
+    // cbindgen defaults documentation to true, so we suppress that default.
+    let documentation = cb.documentation.filter(|&v| !v);
+    let documentation_style = cb
+        .documentation_style
+        .as_deref()
+        .and_then(|s| match s {
+            "auto" | "Auto" => Some(DocumentationStyle::Auto),
+            "c" | "C" => Some(DocumentationStyle::C),
+            "c99" | "C99" => Some(DocumentationStyle::C99),
+            "doxy" | "Doxy" => Some(DocumentationStyle::Doxy),
+            "cxx" | "Cxx" => Some(DocumentationStyle::Cxx),
+            other => {
+                eprintln!(
+                    "warning: ignoring unrecognized cbindgen documentation_style `{other}`"
+                );
+                skipped.push("documentation_style");
+                None
+            }
+        });
+    let documentation_length = cb
+        .documentation_length
+        .as_deref()
+        .and_then(|s| match s {
+            "full" | "Full" => Some(DocumentationLength::Full),
+            "short" | "Short" => Some(DocumentationLength::Short),
+            other => {
+                eprintln!(
+                    "warning: ignoring unrecognized cbindgen documentation_length `{other}`"
+                );
+                skipped.push("documentation_length");
+                None
+            }
+        });
+
     let mut config = RawConfig {
         header: cb.header.clone(),
         trailer: cb.trailer.clone(),
@@ -181,6 +216,9 @@ fn translate_config(cb: &CbindgenConfig) -> (RawConfig, Vec<&str>) {
         includes: cb.includes.clone().unwrap_or_default(),
         sys_includes: cb.sys_includes.clone().unwrap_or_default(),
         autogen_warning: cb.autogen_warning.clone(),
+        documentation,
+        documentation_style,
+        documentation_length,
         sort_by: top_sort_by,
         fn_: fn_section,
         static_: static_section,
@@ -232,9 +270,6 @@ const UNSUPPORTED_FIELDS: &[UnsupportedField] = &[
     ("tab_width", |cb| cb.tab_width.is_some()),
     ("line_endings", |cb| cb.line_endings.is_some()),
     ("usize_is_size_t", |cb| cb.usize_is_size_t.is_some()),
-    ("documentation", |cb| cb.documentation.is_some()),
-    ("documentation_style", |cb| cb.documentation_style.is_some()),
-    ("documentation_length", |cb| cb.documentation_length.is_some()),
     (
         "only_target_dependencies",
         |cb| cb.only_target_dependencies.is_some(),

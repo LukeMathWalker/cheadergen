@@ -33,6 +33,35 @@ pub enum SortKey {
     Name,
 }
 
+/// The comment style used when emitting Rust doc comments in the header.
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DocumentationStyle {
+    /// Use C-style block comments (`/** ... */`) for C output,
+    /// C++ line comments (`///`) for C++ output.
+    #[default]
+    Auto,
+    /// Always use C-style block comments: `/** ... */`.
+    C,
+    /// Always use C99/C++ line comments: `// ...`.
+    C99,
+    /// Use Doxygen-style block comments: `/** ... */` (same as `C` currently).
+    Doxy,
+    /// Use C++ triple-slash comments: `/// ...`.
+    Cxx,
+}
+
+/// Controls how much of the Rust doc comment is included.
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DocumentationLength {
+    /// Include the entire doc comment.
+    #[default]
+    Full,
+    /// Include only the first paragraph (up to the first blank line).
+    Short,
+}
+
 /// Function-specific configuration inside the `[fn]` TOML section.
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -113,6 +142,17 @@ pub struct RawConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub after_includes: Option<String>,
 
+    /// Whether to emit Rust doc comments in the generated header.
+    /// Defaults to `true`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub documentation: Option<bool>,
+    /// Comment style for doc comments. Defaults to [`DocumentationStyle::Auto`].
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub documentation_style: Option<DocumentationStyle>,
+    /// How much of the doc comment to include. Defaults to [`DocumentationLength::Full`].
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub documentation_length: Option<DocumentationLength>,
+
     /// Default sort order for all item kinds.
     /// Can be overridden per-kind via `[fn]` or `[static]` sections.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -171,6 +211,12 @@ pub struct RawCSection {
     pub no_includes: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub after_includes: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub documentation: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub documentation_style: Option<DocumentationStyle>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub documentation_length: Option<DocumentationLength>,
 }
 
 /// C++-specific options inside the `[cxx]` TOML section.
@@ -201,6 +247,12 @@ pub struct RawCxxSection {
     pub no_includes: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub after_includes: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub documentation: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub documentation_style: Option<DocumentationStyle>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub documentation_length: Option<DocumentationLength>,
 }
 
 /// Validated, language-specific configuration.
@@ -244,6 +296,12 @@ pub struct CommonConfig {
     pub fn_sort_by: SortKey,
     /// Resolved sort order for statics: `[static].sort_by` → top-level `sort_by` → `SourceOrder`.
     pub static_sort_by: SortKey,
+    /// Whether to emit Rust doc comments. Defaults to `true`.
+    pub documentation: bool,
+    /// Comment style for doc comments.
+    pub documentation_style: DocumentationStyle,
+    /// How much of the doc comment to include.
+    pub documentation_length: DocumentationLength,
 }
 
 /// C-specific configuration, including options that are only meaningful for
@@ -301,6 +359,9 @@ struct RawCommonFields {
     sort_by: Option<SortKey>,
     fn_sort_by: Option<SortKey>,
     static_sort_by: Option<SortKey>,
+    documentation: Option<bool>,
+    documentation_style: Option<DocumentationStyle>,
+    documentation_length: Option<DocumentationLength>,
 }
 
 /// Optional overrides from a language section that can replace top-level
@@ -315,6 +376,9 @@ struct RawCommonOverrides {
     includes: Option<Vec<String>>,
     no_includes: Option<bool>,
     after_includes: Option<String>,
+    documentation: Option<bool>,
+    documentation_style: Option<DocumentationStyle>,
+    documentation_length: Option<DocumentationLength>,
 }
 
 impl RawCommonFields {
@@ -340,6 +404,18 @@ impl RawCommonFields {
             after_includes: overrides.after_includes.or(self.after_includes),
             fn_sort_by: self.fn_sort_by.or(self.sort_by).unwrap_or_default(),
             static_sort_by: self.static_sort_by.or(self.sort_by).unwrap_or_default(),
+            documentation: overrides
+                .documentation
+                .or(self.documentation)
+                .unwrap_or(true),
+            documentation_style: overrides
+                .documentation_style
+                .or(self.documentation_style)
+                .unwrap_or_default(),
+            documentation_length: overrides
+                .documentation_length
+                .or(self.documentation_length)
+                .unwrap_or_default(),
         }
     }
 }
@@ -413,6 +489,9 @@ impl RawConfig {
             sort_by: self.sort_by,
             fn_sort_by: self.fn_.and_then(|s| s.sort_by),
             static_sort_by: self.static_.and_then(|s| s.sort_by),
+            documentation: self.documentation,
+            documentation_style: self.documentation_style,
+            documentation_length: self.documentation_length,
         };
 
         match language {
@@ -428,6 +507,9 @@ impl RawConfig {
                     includes: section.includes,
                     no_includes: section.no_includes,
                     after_includes: section.after_includes,
+                    documentation: section.documentation,
+                    documentation_style: section.documentation_style,
+                    documentation_length: section.documentation_length,
                 };
                 let common = base.resolve(section_overrides);
 
@@ -460,6 +542,9 @@ impl RawConfig {
                     includes: section.includes,
                     no_includes: section.no_includes,
                     after_includes: section.after_includes,
+                    documentation: section.documentation,
+                    documentation_style: section.documentation_style,
+                    documentation_length: section.documentation_length,
                 };
                 let common = base.resolve(section_overrides);
                 Ok(Config::Cxx(CxxConfig { common }))

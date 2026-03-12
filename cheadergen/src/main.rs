@@ -329,6 +329,7 @@ fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
             &type_defs,
             &resolved_fns,
             &resolved_statics,
+            &krate.core.krate.index,
             &mut header,
         );
 

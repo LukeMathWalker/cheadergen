@@ -3,9 +3,11 @@ use std::fmt::Write;
 use std::path::Path;
 
 use crate::analysis::{CTypeDefinition, CTypeKind, c_type_name};
-use crate::config::{CConfig, Style};
+use crate::config::{CConfig, CommonConfig, DocumentationLength, DocumentationStyle, Style};
 use crate::static_item::StaticItem;
 use rustdoc_ir::{FreeFunction, ScalarPrimitive, Type};
+use rustdoc_processor::crate_data::CrateItemIndex;
+use rustdoc_types::Id;
 
 /// Generate a C header from the resolved functions, writing to `out`.
 ///
@@ -18,6 +20,7 @@ pub fn generate_c_header(
     type_defs: &[CTypeDefinition],
     functions: &[FreeFunction],
     statics: &[StaticItem],
+    index: &CrateItemIndex,
     out: &mut String,
 ) {
     let common = &config.common;
@@ -70,7 +73,7 @@ pub fn generate_c_header(
     // Type forward declarations.
     if !type_defs.is_empty() {
         out.push('\n');
-        write_c_type_definitions(type_defs, &config.style, out);
+        write_c_type_definitions(type_defs, &config.style, common, index, out);
     }
 
     let has_declarations = !functions.is_empty() || !statics.is_empty();
@@ -86,6 +89,8 @@ pub fn generate_c_header(
     // Static declarations (before functions, matching cbindgen order).
     for s in statics.iter() {
         out.push('\n');
+        let docs = lookup_docs(Some(&s.rustdoc_id), index);
+        write_doc_comment(docs.as_deref(), common, out);
         write_c_static_decl(s, &config.style, out);
         out.push('\n');
     }
@@ -93,6 +98,13 @@ pub fn generate_c_header(
     // Function declarations.
     for func in functions.iter() {
         out.push('\n');
+        let docs = lookup_docs(
+            func.source_coordinates
+                .as_ref()
+                .map(|c| &c.rustdoc_item_id),
+            index,
+        );
+        write_doc_comment(docs.as_deref(), common, out);
         write_c_function_decl(func, &config.style, out);
         out.push('\n');
     }
@@ -114,6 +126,58 @@ pub fn generate_c_header(
     if let Some(ref trailer) = common.trailer {
         out.push_str(trailer);
         out.push('\n');
+    }
+}
+
+fn lookup_docs(id: Option<&Id>, index: &CrateItemIndex) -> Option<String> {
+    let id = id?;
+    let item = index.get(id)?;
+    item.docs.clone()
+}
+
+fn write_doc_comment(docs: Option<&str>, config: &CommonConfig, out: &mut String) {
+    if !config.documentation {
+        return;
+    }
+    let Some(docs) = docs else {
+        return;
+    };
+    if docs.is_empty() {
+        return;
+    }
+
+    let text = match config.documentation_length {
+        DocumentationLength::Full => docs,
+        DocumentationLength::Short => {
+            // First line only (cbindgen's "short" behaviour).
+            docs.lines().next().unwrap_or(docs)
+        }
+    };
+
+    let use_line_comments = matches!(
+        config.documentation_style,
+        DocumentationStyle::C99 | DocumentationStyle::Cxx
+    );
+
+    if use_line_comments {
+        for line in text.lines() {
+            if line.is_empty() {
+                out.push_str("//\n");
+            } else {
+                writeln!(out, "// {line}").unwrap();
+            }
+        }
+    } else {
+        // C-style block comment: /** ... */
+        out.push_str("/**\n");
+        for line in text.lines() {
+            if line.is_empty() {
+                out.push_str(" *\n");
+            } else {
+                writeln!(out, " * {line}").unwrap();
+            }
+        }
+        out.push_str(" */\n");
     }
 }
 
@@ -254,7 +318,13 @@ fn write_c_type(ty: &Type, style: &Style, out: &mut String) {
     }
 }
 
-fn write_c_type_definitions(type_defs: &[CTypeDefinition], style: &Style, out: &mut String) {
+fn write_c_type_definitions(
+    type_defs: &[CTypeDefinition],
+    style: &Style,
+    config: &CommonConfig,
+    index: &CrateItemIndex,
+    out: &mut String,
+) {
     // Emit forward declarations first (always valid ordering in C).
     let opaque_defs: Vec<_> = type_defs
         .iter()
@@ -267,6 +337,8 @@ fn write_c_type_definitions(type_defs: &[CTypeDefinition], style: &Style, out: &
 
     for (i, def) in opaque_defs.iter().enumerate() {
         let name = &def.name;
+        let docs = lookup_docs(def.rustdoc_id.as_ref(), index);
+        write_doc_comment(docs.as_deref(), config, out);
         match style {
             Style::Tag => writeln!(out, "struct {name};").unwrap(),
             Style::Type | Style::Both => writeln!(out, "typedef struct {name} {name};").unwrap(),
@@ -286,6 +358,8 @@ fn write_c_type_definitions(type_defs: &[CTypeDefinition], style: &Style, out: &
         let CTypeKind::Struct(ref struct_def) = def.kind else {
             unreachable!();
         };
+        let docs = lookup_docs(def.rustdoc_id.as_ref(), index);
+        write_doc_comment(docs.as_deref(), config, out);
         write_c_struct_definition(name, struct_def, style, out);
         if i + 1 < struct_defs.len() {
             out.push('\n');

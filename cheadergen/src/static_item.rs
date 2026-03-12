@@ -17,6 +17,8 @@ pub struct StaticItem {
     pub type_: Type,
     /// `true` for `static mut`.
     pub is_mutable: bool,
+    /// The rustdoc item ID, used for doc comment lookup at codegen time.
+    pub rustdoc_id: rustdoc_types::Id,
 }
 
 /// Convert a static item from `rustdoc_types` into a [`StaticItem`].
@@ -56,6 +58,7 @@ pub fn resolve_static<I: CrateIndexer>(
         symbol_name,
         type_,
         is_mutable: inner.is_mutable,
+        rustdoc_id: item.id,
     })
 }
 
