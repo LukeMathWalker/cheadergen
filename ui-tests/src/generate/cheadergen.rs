@@ -11,7 +11,6 @@ use crate::{Language, Style, style_str, tests_dir};
 
 fn compute_metadata(workspace: &Path) -> PathBuf {
     let output = Command::new("cargo")
-        .env("LLVM_PROFILE_FILE", "target/profraw/%p_%m.profraw")
         .arg("metadata")
         .arg("--all-features")
         .arg("--format-version")
@@ -67,7 +66,6 @@ pub(crate) fn run_cheadergen_symbols(
     let cheadergen = env::var("CARGO_BIN_EXE_cheadergen")
         .expect("CARGO_BIN_EXE_cheadergen not set — add cheadergen as a dev-dependency");
     let mut command = Command::new(cheadergen);
-    command.env("LLVM_PROFILE_FILE", "target/profraw/%p_%m.profraw");
 
     command.arg("generate");
     command.arg("--metadata").arg(metadata);
@@ -99,7 +97,6 @@ pub(crate) fn run_cheadergen(
     let cheadergen = env::var("CARGO_BIN_EXE_cheadergen")
         .expect("CARGO_BIN_EXE_cheadergen not set — add cheadergen as a dev-dependency");
     let mut command = Command::new(cheadergen);
-    command.env("LLVM_PROFILE_FILE", "target/profraw/%p_%m.profraw");
 
     command.arg("generate");
     command.arg("--metadata").arg(metadata);

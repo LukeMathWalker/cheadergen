@@ -6,7 +6,9 @@ use rustdoc_processor::CrateCollection;
 use rustdoc_processor::indexing::{CrateIndexer, NoAnnotations};
 use rustdoc_processor::queries::Crate;
 use rustdoc_resolver::{resolve_free_function, resolve_type};
-use rustdoc_types::{Abi, Attribute, AttributeRepr, ItemEnum, ReprKind, StructKind};
+use rustdoc_types::{
+    Abi, Attribute, AttributeRepr, ItemEnum, ReprKind, StructKind, VariantKind,
+};
 
 use crate::config::SortKey;
 use crate::static_item::{StaticItem, resolve_static};
@@ -27,6 +29,10 @@ pub enum CTypeKind {
     Opaque,
     /// Emit a full struct definition with fields.
     Struct(CStructDef),
+    /// Emit a C-like enum (no data variants).
+    FieldlessEnum(CFieldlessEnumDef),
+    /// Emit a tagged union (enum with data variants).
+    TaggedUnion(CTaggedUnionDef),
 }
 
 /// A resolved `#[repr(C)]` struct with its fields.
@@ -41,6 +47,51 @@ pub struct CStructField {
     pub name: String,
     /// The resolved type of this field.
     pub type_: Type,
+}
+
+/// A C-like enum (all variants are fieldless).
+pub struct CFieldlessEnumDef {
+    pub repr: CEnumRepr,
+    pub variants: Vec<CEnumVariant>,
+}
+
+/// A single variant of a fieldless enum.
+pub struct CEnumVariant {
+    pub name: String,
+    pub discriminant: Option<String>,
+}
+
+/// How the enum's discriminant is represented in C.
+pub enum CEnumRepr {
+    /// `#[repr(C)]` only — use a plain C enum.
+    C,
+    /// `#[repr(uN)]` or `#[repr(C, uN)]` — emit enum constants + typedef to int type.
+    Int { is_repr_c: bool, int_type: String },
+}
+
+impl CEnumRepr {
+    pub fn is_repr_c(&self) -> bool {
+        matches!(self, CEnumRepr::C)
+    }
+}
+
+/// A tagged union (enum with data variants).
+pub struct CTaggedUnionDef {
+    pub repr: CEnumRepr,
+    /// When true, variant names in the tag enum are prefixed with the enum name.
+    pub prefix_with_name: bool,
+    pub variants: Vec<CTaggedVariant>,
+}
+
+/// A single variant of a tagged union.
+pub struct CTaggedVariant {
+    pub name: String,
+    pub body: Option<CTaggedVariantBody>,
+}
+
+/// The body (fields) of a tagged union variant.
+pub struct CTaggedVariantBody {
+    pub fields: Vec<CStructField>,
 }
 
 /// Extern "C" function IDs and exported static IDs found in a crate.
@@ -323,13 +374,25 @@ fn resolve_all_type_definitions<I: CrateIndexer>(
 
         for path_type in direct {
             let name = c_type_name(&Type::Path(path_type.clone()));
-            let kind = resolve_struct_kind(&name, &path_type, krate, collection)?;
+            let kind = resolve_type_kind(&name, &path_type, krate, collection)?;
 
-            // If we resolved a full struct, discover transitive field types.
-            if let CTypeKind::Struct(ref def) = kind {
-                for field in &def.fields {
-                    collect_paths_from_type(&field.type_, false, seen);
+            // Discover transitive field types from full definitions.
+            match &kind {
+                CTypeKind::Struct(def) => {
+                    for field in &def.fields {
+                        collect_paths_from_type(&field.type_, false, seen);
+                    }
                 }
+                CTypeKind::TaggedUnion(def) => {
+                    for variant in &def.variants {
+                        if let Some(ref body) = variant.body {
+                            for field in &body.fields {
+                                collect_paths_from_type(&field.type_, false, seen);
+                            }
+                        }
+                    }
+                }
+                CTypeKind::Opaque | CTypeKind::FieldlessEnum(_) => {}
             }
 
             resolved.insert(
@@ -367,12 +430,12 @@ fn resolve_all_type_definitions<I: CrateIndexer>(
     Ok(defs)
 }
 
-/// Attempt to resolve a directly-used type into a full struct definition.
+/// Attempt to resolve a directly-used type into a full definition.
 ///
 /// Returns `CTypeKind::Opaque` (with a warning on stderr) if the type cannot
 /// be fully defined — e.g. missing `rustdoc_id`, not `#[repr(C)]`, has
-/// stripped fields, or is not a struct.
-fn resolve_struct_kind<I: CrateIndexer>(
+/// stripped fields, etc.
+fn resolve_type_kind<I: CrateIndexer>(
     name: &str,
     path_type: &PathType,
     krate: &Crate,
@@ -388,13 +451,30 @@ fn resolve_struct_kind<I: CrateIndexer>(
         return Ok(CTypeKind::Opaque);
     };
 
-    let ItemEnum::Struct(struct_def) = &item.inner else {
-        eprintln!("warning: type `{name}` is not a struct; emitting forward declaration");
-        return Ok(CTypeKind::Opaque);
-    };
+    match &item.inner {
+        ItemEnum::Struct(struct_def) => {
+            resolve_struct_kind(name, struct_def, &item.attrs, krate, collection)
+        }
+        ItemEnum::Enum(enum_def) => {
+            resolve_enum_kind(name, enum_def, &item.attrs, krate, collection)
+        }
+        _ => {
+            eprintln!("warning: type `{name}` is not a struct or enum; emitting forward declaration");
+            Ok(CTypeKind::Opaque)
+        }
+    }
+}
 
+/// Resolve a struct into a `CTypeKind`.
+fn resolve_struct_kind<I: CrateIndexer>(
+    name: &str,
+    struct_def: &rustdoc_types::Struct,
+    attrs: &[Attribute],
+    krate: &Crate,
+    collection: &CrateCollection<I>,
+) -> anyhow::Result<CTypeKind> {
     // Check for #[repr(C)].
-    let is_repr_c = item.attrs.iter().any(|attr| {
+    let is_repr_c = attrs.iter().any(|attr| {
         matches!(
             attr,
             Attribute::Repr(AttributeRepr {
@@ -411,13 +491,7 @@ fn resolve_struct_kind<I: CrateIndexer>(
     }
 
     // Check for unbound generic type parameters — treat as opaque.
-    let has_type_params = struct_def.generics.params.iter().any(|p| {
-        matches!(
-            p.kind,
-            rustdoc_types::GenericParamDefKind::Type { .. }
-        )
-    });
-    if has_type_params {
+    if has_type_params(&struct_def.generics) {
         eprintln!(
             "warning: type `{name}` has generic type parameters; emitting forward declaration"
         );
@@ -448,6 +522,204 @@ fn resolve_struct_kind<I: CrateIndexer>(
             fields: Vec::new(),
         })),
     }
+}
+
+/// Returns true if the generics contain unbound type parameters.
+fn has_type_params(generics: &rustdoc_types::Generics) -> bool {
+    generics.params.iter().any(|p| {
+        matches!(
+            p.kind,
+            rustdoc_types::GenericParamDefKind::Type { .. }
+        )
+    })
+}
+
+/// Extract a `CEnumRepr` from the item's attributes.
+/// Returns `None` if the enum has no valid C-compatible repr.
+fn extract_enum_repr(attrs: &[Attribute]) -> Option<CEnumRepr> {
+    for attr in attrs {
+        if let Attribute::Repr(repr) = attr {
+            match (&repr.kind, &repr.int) {
+                (ReprKind::C, None) => return Some(CEnumRepr::C),
+                (ReprKind::C, Some(int_type)) => {
+                    return Some(CEnumRepr::Int {
+                        is_repr_c: true,
+                        int_type: int_type.clone(),
+                    });
+                }
+                (ReprKind::Rust, Some(int_type)) => {
+                    return Some(CEnumRepr::Int {
+                        is_repr_c: false,
+                        int_type: int_type.clone(),
+                    });
+                }
+                _ => {}
+            }
+        }
+    }
+    None
+}
+
+/// Map a Rust integer repr type name to its C equivalent.
+pub fn repr_int_to_c(int_type: &str) -> &str {
+    match int_type {
+        "u8" => "uint8_t",
+        "u16" => "uint16_t",
+        "u32" => "uint32_t",
+        "u64" => "uint64_t",
+        "u128" => "__uint128_t",
+        "usize" => "uintptr_t",
+        "i8" => "int8_t",
+        "i16" => "int16_t",
+        "i32" => "int32_t",
+        "i64" => "int64_t",
+        "i128" => "__int128_t",
+        "isize" => "intptr_t",
+        other => other,
+    }
+}
+
+/// Resolve an enum into a `CTypeKind`.
+fn resolve_enum_kind<I: CrateIndexer>(
+    name: &str,
+    enum_def: &rustdoc_types::Enum,
+    attrs: &[Attribute],
+    krate: &Crate,
+    collection: &CrateCollection<I>,
+) -> anyhow::Result<CTypeKind> {
+    let Some(repr) = extract_enum_repr(attrs) else {
+        eprintln!(
+            "warning: enum `{name}` has no C-compatible repr; emitting opaque forward declaration"
+        );
+        return Ok(CTypeKind::Opaque);
+    };
+
+    if has_type_params(&enum_def.generics) {
+        eprintln!(
+            "warning: enum `{name}` has generic type parameters; emitting forward declaration"
+        );
+        return Ok(CTypeKind::Opaque);
+    }
+
+    if enum_def.has_stripped_variants {
+        eprintln!(
+            "warning: enum `{name}` has stripped variants; emitting forward declaration"
+        );
+        return Ok(CTypeKind::Opaque);
+    }
+
+    // Classify: all variants plain → fieldless, otherwise → tagged union.
+    let mut all_plain = true;
+    for variant_id in &enum_def.variants {
+        let Some(variant_item) = krate.core.krate.index.get(variant_id) else {
+            eprintln!("warning: enum `{name}` has missing variant; emitting forward declaration");
+            return Ok(CTypeKind::Opaque);
+        };
+        let ItemEnum::Variant(variant) = &variant_item.inner else {
+            anyhow::bail!("Expected Variant for enum `{name}` variant id {:?}", variant_id);
+        };
+        if !matches!(variant.kind, VariantKind::Plain) {
+            all_plain = false;
+            break;
+        }
+    }
+
+    if all_plain {
+        resolve_fieldless_enum(name, enum_def, repr, krate)
+    } else {
+        resolve_tagged_union(name, enum_def, repr, krate, collection)
+    }
+}
+
+/// Resolve a fieldless enum.
+fn resolve_fieldless_enum(
+    name: &str,
+    enum_def: &rustdoc_types::Enum,
+    repr: CEnumRepr,
+    krate: &Crate,
+) -> anyhow::Result<CTypeKind> {
+    let mut variants = Vec::new();
+    for variant_id in &enum_def.variants {
+        let variant_item = krate
+            .core
+            .krate
+            .index
+            .get(variant_id)
+            .ok_or_else(|| anyhow::anyhow!("Missing variant for enum `{name}`"))?;
+        let ItemEnum::Variant(variant) = &variant_item.inner else {
+            anyhow::bail!("Expected Variant for enum `{name}`");
+        };
+        let variant_name = variant_item.name.clone().unwrap_or_default();
+        let discriminant = variant.discriminant.as_ref().map(|d| d.expr.clone());
+        variants.push(CEnumVariant {
+            name: variant_name,
+            discriminant,
+        });
+    }
+    Ok(CTypeKind::FieldlessEnum(CFieldlessEnumDef { repr, variants }))
+}
+
+/// Resolve a tagged union (enum with data variants).
+fn resolve_tagged_union<I: CrateIndexer>(
+    name: &str,
+    enum_def: &rustdoc_types::Enum,
+    repr: CEnumRepr,
+    krate: &Crate,
+    collection: &CrateCollection<I>,
+) -> anyhow::Result<CTypeKind> {
+    // repr(C) or repr(C, uN) → prefix variant names with enum name.
+    let prefix_with_name = repr.is_repr_c();
+
+    let mut variants = Vec::new();
+    for variant_id in &enum_def.variants {
+        let variant_item = krate
+            .core
+            .krate
+            .index
+            .get(variant_id)
+            .ok_or_else(|| anyhow::anyhow!("Missing variant for enum `{name}`"))?;
+        let ItemEnum::Variant(variant) = &variant_item.inner else {
+            anyhow::bail!("Expected Variant for enum `{name}`");
+        };
+        let variant_name = variant_item.name.clone().unwrap_or_default();
+
+        let body = match &variant.kind {
+            VariantKind::Plain => None,
+            VariantKind::Tuple(fields) => {
+                let c_fields = resolve_tuple_fields(fields, krate, collection)?;
+                if c_fields.is_empty() {
+                    None
+                } else {
+                    Some(CTaggedVariantBody { fields: c_fields })
+                }
+            }
+            VariantKind::Struct { fields, has_stripped_fields } => {
+                if *has_stripped_fields {
+                    eprintln!(
+                        "warning: enum `{name}` variant `{variant_name}` has stripped fields; emitting forward declaration"
+                    );
+                    return Ok(CTypeKind::Opaque);
+                }
+                let c_fields = resolve_plain_fields(fields, krate, collection)?;
+                if c_fields.is_empty() {
+                    None
+                } else {
+                    Some(CTaggedVariantBody { fields: c_fields })
+                }
+            }
+        };
+
+        variants.push(CTaggedVariant {
+            name: variant_name,
+            body,
+        });
+    }
+
+    Ok(CTypeKind::TaggedUnion(CTaggedUnionDef {
+        repr,
+        prefix_with_name,
+        variants,
+    }))
 }
 
 /// Resolve named struct fields into C struct fields.

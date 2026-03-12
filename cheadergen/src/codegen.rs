@@ -1,13 +1,48 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 use std::fmt::Write;
 use std::path::Path;
 
-use crate::analysis::{CTypeDefinition, CTypeKind, c_type_name};
+use crate::analysis::{
+    CEnumRepr, CFieldlessEnumDef, CStructDef, CTaggedUnionDef, CTypeDefinition, CTypeKind,
+    c_type_name, repr_int_to_c,
+};
 use crate::config::{CConfig, CommonConfig, DocumentationLength, DocumentationStyle, Style};
 use crate::static_item::StaticItem;
 use rustdoc_ir::{FreeFunction, ScalarPrimitive, Type};
 use rustdoc_processor::crate_data::CrateItemIndex;
 use rustdoc_types::Id;
+
+/// What C type tag to use when referring to a user-defined type by name.
+enum CTypeTag {
+    Struct,
+    Union,
+    Enum,
+    /// No tag prefix — the type name is typedef'd to an integer type.
+    IntTypedef,
+}
+
+/// Build a lookup from type name → C type tag.
+fn build_type_tag_map(type_defs: &[CTypeDefinition]) -> HashMap<String, CTypeTag> {
+    let mut map = HashMap::new();
+    for def in type_defs {
+        let tag = match &def.kind {
+            CTypeKind::Opaque | CTypeKind::Struct(_) => CTypeTag::Struct,
+            CTypeKind::FieldlessEnum(e) => match &e.repr {
+                CEnumRepr::C => CTypeTag::Enum,
+                CEnumRepr::Int { .. } => CTypeTag::IntTypedef,
+            },
+            CTypeKind::TaggedUnion(t) => {
+                if t.repr.is_repr_c() {
+                    CTypeTag::Struct
+                } else {
+                    CTypeTag::Union
+                }
+            }
+        };
+        map.insert(def.name.clone(), tag);
+    }
+    map
+}
 
 /// Generate a C header from the resolved functions, writing to `out`.
 ///
@@ -70,10 +105,13 @@ pub fn generate_c_header(
         out.push('\n');
     }
 
+    // Build type tag map for correct type references in declarations.
+    let type_tags = build_type_tag_map(type_defs);
+
     // Type forward declarations.
     if !type_defs.is_empty() {
         out.push('\n');
-        write_c_type_definitions(type_defs, &config.style, common, index, out);
+        write_c_type_definitions(type_defs, &config.style, &type_tags, common, index, out);
     }
 
     let has_declarations = !functions.is_empty() || !statics.is_empty();
@@ -91,7 +129,7 @@ pub fn generate_c_header(
         out.push('\n');
         let docs = lookup_docs(Some(&s.rustdoc_id), index);
         write_doc_comment(docs.as_deref(), common, out);
-        write_c_static_decl(s, &config.style, out);
+        write_c_static_decl(s, &config.style, &type_tags, out);
         out.push('\n');
     }
 
@@ -105,7 +143,7 @@ pub fn generate_c_header(
             index,
         );
         write_doc_comment(docs.as_deref(), common, out);
-        write_c_function_decl(func, &config.style, out);
+        write_c_function_decl(func, &config.style, &type_tags, out);
         out.push('\n');
     }
 
@@ -185,7 +223,12 @@ fn exported_static_name(s: &StaticItem) -> &str {
     s.symbol_name.as_deref().unwrap_or(&s.name)
 }
 
-fn write_c_static_decl(s: &StaticItem, style: &Style, out: &mut String) {
+fn write_c_static_decl(
+    s: &StaticItem,
+    style: &Style,
+    type_tags: &HashMap<String, CTypeTag>,
+    out: &mut String,
+) {
     // In "Both" style, declarations use the tag form (same as Tag).
     let decl_style = match style {
         Style::Both => Style::Tag,
@@ -196,20 +239,26 @@ fn write_c_static_decl(s: &StaticItem, style: &Style, out: &mut String) {
     if !s.is_mutable && !is_const_pointer(&s.type_) {
         out.push_str("const ");
     }
-    write_c_decl(&s.type_, exported_static_name(s), &decl_style, out);
+    write_c_decl(&s.type_, exported_static_name(s), &decl_style, type_tags, out);
     out.push(';');
 }
 
 /// Write a C declaration in cdecl style: handles arrays by placing the name
 /// between the element type and `[N]`, e.g. `char NAME[128]`.
-fn write_c_decl(ty: &Type, name: &str, style: &Style, out: &mut String) {
+fn write_c_decl(
+    ty: &Type,
+    name: &str,
+    style: &Style,
+    type_tags: &HashMap<String, CTypeTag>,
+    out: &mut String,
+) {
     match ty {
         Type::Array(a) => {
-            write_c_type(&a.element_type, style, out);
+            write_c_type(&a.element_type, style, type_tags, out);
             write!(out, " {name}[{}]", a.len).unwrap();
         }
         _ => {
-            write_c_type(ty, style, out);
+            write_c_type(ty, style, type_tags, out);
             write!(out, " {name}").unwrap();
         }
     }
@@ -220,7 +269,12 @@ fn is_const_pointer(ty: &Type) -> bool {
     matches!(ty, Type::RawPointer(p) if !p.is_mutable)
 }
 
-fn write_c_function_decl(func: &FreeFunction, style: &Style, out: &mut String) {
+fn write_c_function_decl(
+    func: &FreeFunction,
+    style: &Style,
+    type_tags: &HashMap<String, CTypeTag>,
+    out: &mut String,
+) {
     let name = func
         .header
         .symbol_name
@@ -232,7 +286,7 @@ fn write_c_function_decl(func: &FreeFunction, style: &Style, out: &mut String) {
     match &func.header.output {
         None => ret_buf.push_str("void"),
         Some(ty) if is_void(ty) => ret_buf.push_str("void"),
-        Some(ty) => write_c_type(ty, style, &mut ret_buf),
+        Some(ty) => write_c_type(ty, style, type_tags, &mut ret_buf),
     }
     if ret_buf.ends_with('*') {
         write!(out, "{ret_buf}{name}(").unwrap();
@@ -248,7 +302,7 @@ fn write_c_function_decl(func: &FreeFunction, style: &Style, out: &mut String) {
             if i > 0 {
                 out.push_str(", ");
             }
-            write_c_param(&input.type_, input.name.as_str(), style, out);
+            write_c_param(&input.type_, input.name.as_str(), style, type_tags, out);
         }
         if func.header.is_c_variadic {
             if !func.header.inputs.is_empty() {
@@ -261,9 +315,15 @@ fn write_c_function_decl(func: &FreeFunction, style: &Style, out: &mut String) {
     out.push_str(");");
 }
 
-fn write_c_param(ty: &Type, name: &str, style: &Style, out: &mut String) {
+fn write_c_param(
+    ty: &Type,
+    name: &str,
+    style: &Style,
+    type_tags: &HashMap<String, CTypeTag>,
+    out: &mut String,
+) {
     let mut type_buf = String::new();
-    write_c_type(ty, style, &mut type_buf);
+    write_c_type(ty, style, type_tags, &mut type_buf);
     if type_buf.ends_with('*') {
         write!(out, "{type_buf}{name}").unwrap();
     } else {
@@ -271,45 +331,54 @@ fn write_c_param(ty: &Type, name: &str, style: &Style, out: &mut String) {
     }
 }
 
-fn write_c_type(ty: &Type, style: &Style, out: &mut String) {
+fn write_c_type(
+    ty: &Type,
+    style: &Style,
+    type_tags: &HashMap<String, CTypeTag>,
+    out: &mut String,
+) {
     match ty {
         Type::ScalarPrimitive(p) => out.push_str(scalar_to_c(p)),
         Type::RawPointer(ptr) => {
             if ptr.is_mutable {
-                write_c_type(&ptr.inner, style, out);
+                write_c_type(&ptr.inner, style, type_tags, out);
                 out.push_str(" *");
             } else {
                 out.push_str("const ");
-                write_c_type(&ptr.inner, style, out);
+                write_c_type(&ptr.inner, style, type_tags, out);
                 out.push_str(" *");
             }
         }
         Type::Tuple(t) if t.elements.is_empty() => out.push_str("void"),
         Type::Array(a) => {
-            // Arrays in parameter position decay to pointers in C, but for type
-            // representation we write `type[N]`. This will need refinement for
-            // parameters vs typedefs.
-            write_c_type(&a.element_type, style, out);
+            write_c_type(&a.element_type, style, type_tags, out);
             write!(out, "[{}]", a.len).unwrap();
         }
         Type::Reference(r) => {
             if r.is_mutable {
-                write_c_type(&r.inner, style, out);
+                write_c_type(&r.inner, style, type_tags, out);
                 out.push_str(" *");
             } else {
                 out.push_str("const ");
-                write_c_type(&r.inner, style, out);
+                write_c_type(&r.inner, style, type_tags, out);
                 out.push_str(" *");
             }
         }
         Type::Path(_) => {
             let name = c_type_name(ty);
             match style {
-                Style::Tag => write!(out, "struct {name}").unwrap(),
+                Style::Tag => {
+                    let tag = type_tags.get(&name);
+                    match tag {
+                        Some(CTypeTag::Enum) => write!(out, "enum {name}").unwrap(),
+                        Some(CTypeTag::Union) => write!(out, "union {name}").unwrap(),
+                        Some(CTypeTag::IntTypedef) => out.push_str(&name),
+                        Some(CTypeTag::Struct) | None => write!(out, "struct {name}").unwrap(),
+                    }
+                }
                 Style::Type | Style::Both => out.push_str(&name),
             }
         }
-        // These should have been rejected earlier.
         Type::Tuple(_)
         | Type::Slice(_)
         | Type::Generic(_) => {
@@ -321,20 +390,44 @@ fn write_c_type(ty: &Type, style: &Style, out: &mut String) {
 fn write_c_type_definitions(
     type_defs: &[CTypeDefinition],
     style: &Style,
+    type_tags: &HashMap<String, CTypeTag>,
     config: &CommonConfig,
     index: &CrateItemIndex,
     out: &mut String,
 ) {
-    // Emit forward declarations first (always valid ordering in C).
+    // Partition into categories for ordering: fieldless enums, opaques, then structs + tagged unions.
+    let fieldless_enum_defs: Vec<_> = type_defs
+        .iter()
+        .filter(|d| matches!(d.kind, CTypeKind::FieldlessEnum(_)))
+        .collect();
     let opaque_defs: Vec<_> = type_defs
         .iter()
         .filter(|d| matches!(d.kind, CTypeKind::Opaque))
         .collect();
-    let struct_defs: Vec<_> = type_defs
+    let compound_defs: Vec<_> = type_defs
         .iter()
-        .filter(|d| matches!(d.kind, CTypeKind::Struct(_)))
+        .filter(|d| matches!(d.kind, CTypeKind::Struct(_) | CTypeKind::TaggedUnion(_)))
         .collect();
 
+    // Fieldless enums first.
+    for (i, def) in fieldless_enum_defs.iter().enumerate() {
+        let CTypeKind::FieldlessEnum(ref enum_def) = def.kind else {
+            unreachable!();
+        };
+        let docs = lookup_docs(def.rustdoc_id.as_ref(), index);
+        write_doc_comment(docs.as_deref(), config, out);
+        write_c_fieldless_enum(&def.name, enum_def, style, out);
+        if i + 1 < fieldless_enum_defs.len() {
+            out.push('\n');
+        }
+    }
+
+    // Blank line between sections.
+    if !fieldless_enum_defs.is_empty() && (!opaque_defs.is_empty() || !compound_defs.is_empty()) {
+        out.push('\n');
+    }
+
+    // Opaques.
     for (i, def) in opaque_defs.iter().enumerate() {
         let name = &def.name;
         let docs = lookup_docs(def.rustdoc_id.as_ref(), index);
@@ -348,20 +441,25 @@ fn write_c_type_definitions(
         }
     }
 
-    // Blank line between opaque and struct sections.
-    if !opaque_defs.is_empty() && !struct_defs.is_empty() {
+    // Blank line between opaques and compounds.
+    if !opaque_defs.is_empty() && !compound_defs.is_empty() {
         out.push('\n');
     }
 
-    for (i, def) in struct_defs.iter().enumerate() {
-        let name = &def.name;
-        let CTypeKind::Struct(ref struct_def) = def.kind else {
-            unreachable!();
-        };
+    // Structs and tagged unions.
+    for (i, def) in compound_defs.iter().enumerate() {
         let docs = lookup_docs(def.rustdoc_id.as_ref(), index);
         write_doc_comment(docs.as_deref(), config, out);
-        write_c_struct_definition(name, struct_def, style, out);
-        if i + 1 < struct_defs.len() {
+        match &def.kind {
+            CTypeKind::Struct(struct_def) => {
+                write_c_struct_definition(&def.name, struct_def, style, type_tags, out);
+            }
+            CTypeKind::TaggedUnion(tagged_def) => {
+                write_c_tagged_union(&def.name, tagged_def, style, type_tags, out);
+            }
+            _ => unreachable!(),
+        }
+        if i + 1 < compound_defs.len() {
             out.push('\n');
         }
     }
@@ -370,8 +468,9 @@ fn write_c_type_definitions(
 /// Emit a full C struct definition with fields.
 fn write_c_struct_definition(
     name: &str,
-    def: &crate::analysis::CStructDef,
+    def: &CStructDef,
     style: &Style,
+    type_tags: &HashMap<String, CTypeTag>,
     out: &mut String,
 ) {
     // In "Both" style, field types use Tag form for inner references.
@@ -385,7 +484,7 @@ fn write_c_struct_definition(
             writeln!(out, "typedef struct {{").unwrap();
             for field in &def.fields {
                 out.push_str("  ");
-                write_c_decl(&field.type_, &field.name, &field_style, out);
+                write_c_decl(&field.type_, &field.name, &field_style, type_tags, out);
                 writeln!(out, ";").unwrap();
             }
             writeln!(out, "}} {name};").unwrap();
@@ -394,7 +493,7 @@ fn write_c_struct_definition(
             writeln!(out, "struct {name} {{").unwrap();
             for field in &def.fields {
                 out.push_str("  ");
-                write_c_decl(&field.type_, &field.name, &Style::Tag, out);
+                write_c_decl(&field.type_, &field.name, &Style::Tag, type_tags, out);
                 writeln!(out, ";").unwrap();
             }
             writeln!(out, "}};").unwrap();
@@ -403,12 +502,316 @@ fn write_c_struct_definition(
             writeln!(out, "typedef struct {name} {{").unwrap();
             for field in &def.fields {
                 out.push_str("  ");
-                write_c_decl(&field.type_, &field.name, &field_style, out);
+                write_c_decl(&field.type_, &field.name, &field_style, type_tags, out);
                 writeln!(out, ";").unwrap();
             }
             writeln!(out, "}} {name};").unwrap();
         }
     }
+}
+
+/// Emit a fieldless C enum.
+fn write_c_fieldless_enum(
+    name: &str,
+    def: &CFieldlessEnumDef,
+    style: &Style,
+    out: &mut String,
+) {
+    match &def.repr {
+        CEnumRepr::Int { int_type, .. } => {
+            // Always: enum Name { variants }; typedef intN_t Name;
+            writeln!(out, "enum {name} {{").unwrap();
+            write_enum_variant_list(&def.variants, out);
+            writeln!(out, "}};").unwrap();
+            let c_int = repr_int_to_c(int_type);
+            writeln!(out, "typedef {c_int} {name};").unwrap();
+        }
+        CEnumRepr::C => {
+            match style {
+                Style::Type => {
+                    writeln!(out, "typedef enum {{").unwrap();
+                    write_enum_variant_list(&def.variants, out);
+                    writeln!(out, "}} {name};").unwrap();
+                }
+                Style::Tag => {
+                    writeln!(out, "enum {name} {{").unwrap();
+                    write_enum_variant_list(&def.variants, out);
+                    writeln!(out, "}};").unwrap();
+                }
+                Style::Both => {
+                    writeln!(out, "typedef enum {name} {{").unwrap();
+                    write_enum_variant_list(&def.variants, out);
+                    writeln!(out, "}} {name};").unwrap();
+                }
+            }
+        }
+    }
+}
+
+/// Write the inner variant list of an enum (indented, with trailing commas).
+fn write_enum_variant_list(
+    variants: &[crate::analysis::CEnumVariant],
+    out: &mut String,
+) {
+    for (i, variant) in variants.iter().enumerate() {
+        out.push_str("  ");
+        out.push_str(&variant.name);
+        if let Some(ref disc) = variant.discriminant {
+            write!(out, " = {disc}").unwrap();
+        }
+        out.push(',');
+        if i + 1 < variants.len() {
+            out.push('\n');
+        }
+    }
+    out.push('\n');
+}
+
+/// Emit a tagged union (enum with data variants).
+fn write_c_tagged_union(
+    name: &str,
+    def: &CTaggedUnionDef,
+    style: &Style,
+    type_tags: &HashMap<String, CTypeTag>,
+    out: &mut String,
+) {
+    let tag_name = format!("{name}_Tag");
+
+    // 1. Emit the tag enum.
+    let tag_variants: Vec<crate::analysis::CEnumVariant> = def
+        .variants
+        .iter()
+        .map(|v| {
+            let variant_name = if def.prefix_with_name {
+                format!("{}_{}", name, v.name)
+            } else {
+                v.name.clone()
+            };
+            crate::analysis::CEnumVariant {
+                name: variant_name,
+                discriminant: None,
+            }
+        })
+        .collect();
+
+    let tag_repr = if def.repr.is_repr_c() {
+        // Pure repr(C) → tag is a C enum; repr(C, uN) → tag uses Int repr
+        match &def.repr {
+            CEnumRepr::C => CEnumRepr::C,
+            CEnumRepr::Int { int_type, .. } => CEnumRepr::Int {
+                is_repr_c: false,
+                int_type: int_type.clone(),
+            },
+        }
+    } else {
+        // repr(uN) → tag uses Int repr
+        match &def.repr {
+            CEnumRepr::Int { int_type, .. } => CEnumRepr::Int {
+                is_repr_c: false,
+                int_type: int_type.clone(),
+            },
+            _ => unreachable!(),
+        }
+    };
+
+    let tag_enum_def = CFieldlessEnumDef {
+        repr: tag_repr,
+        variants: tag_variants,
+    };
+    write_c_fieldless_enum(&tag_name, &tag_enum_def, style, out);
+    out.push('\n');
+
+    // In "Both" style, field types use Tag form for inner references.
+    let field_style = match style {
+        Style::Both => Style::Tag,
+        other => other.clone(),
+    };
+
+    // Determine the tag type string for use in fields.
+    let tag_type_str = match &def.repr {
+        CEnumRepr::Int { .. } => tag_name.clone(),
+        CEnumRepr::C => match style {
+            Style::Tag => format!("enum {tag_name}"),
+            Style::Type | Style::Both => tag_name.clone(),
+        },
+    };
+
+    // 2. Emit body structs for multi-field variants.
+    for variant in &def.variants {
+        let Some(ref body) = variant.body else {
+            continue;
+        };
+        if body.fields.len() < 2 {
+            continue;
+        }
+        let body_name = if def.prefix_with_name {
+            format!("{name}_{}_Body", variant.name)
+        } else {
+            format!("{}_Body", variant.name)
+        };
+
+        // For repr(uN) body structs, the tag is the first field.
+        let include_tag_field = !def.repr.is_repr_c();
+
+        match style {
+            Style::Type => {
+                writeln!(out, "typedef struct {{").unwrap();
+                if include_tag_field {
+                    writeln!(out, "  {tag_type_str} tag;").unwrap();
+                }
+                for field in &body.fields {
+                    out.push_str("  ");
+                    write_c_decl(&field.type_, &field.name, &field_style, type_tags, out);
+                    writeln!(out, ";").unwrap();
+                }
+                writeln!(out, "}} {body_name};").unwrap();
+            }
+            Style::Tag => {
+                writeln!(out, "struct {body_name} {{").unwrap();
+                if include_tag_field {
+                    writeln!(out, "  {tag_type_str} tag;").unwrap();
+                }
+                for field in &body.fields {
+                    out.push_str("  ");
+                    write_c_decl(&field.type_, &field.name, &Style::Tag, type_tags, out);
+                    writeln!(out, ";").unwrap();
+                }
+                writeln!(out, "}};").unwrap();
+            }
+            Style::Both => {
+                writeln!(out, "typedef struct {body_name} {{").unwrap();
+                if include_tag_field {
+                    writeln!(out, "  {tag_type_str} tag;").unwrap();
+                }
+                for field in &body.fields {
+                    out.push_str("  ");
+                    write_c_decl(&field.type_, &field.name, &field_style, type_tags, out);
+                    writeln!(out, ";").unwrap();
+                }
+                writeln!(out, "}} {body_name};").unwrap();
+            }
+        }
+        out.push('\n');
+    }
+
+    // 3. Emit the outer container.
+    if def.repr.is_repr_c() {
+        // repr(C) or repr(C, uN) → struct with tag + anonymous union
+        write_tagged_union_repr_c(name, def, style, type_tags, &tag_type_str, out);
+    } else {
+        // repr(uN) → union with tag + anonymous struct members
+        write_tagged_union_repr_int(name, def, style, type_tags, &tag_type_str, out);
+    }
+}
+
+/// Emit the outer container for a repr(C) tagged union.
+fn write_tagged_union_repr_c(
+    name: &str,
+    def: &CTaggedUnionDef,
+    style: &Style,
+    type_tags: &HashMap<String, CTypeTag>,
+    tag_type_str: &str,
+    out: &mut String,
+) {
+    let field_style = match style {
+        Style::Both => Style::Tag,
+        other => other.clone(),
+    };
+
+    let body_prefix = if def.prefix_with_name {
+        format!("{name}_")
+    } else {
+        String::new()
+    };
+
+    // Check if there are any non-unit variants that need a union.
+    let has_data_variants = def.variants.iter().any(|v| v.body.is_some());
+
+    let open = match style {
+        Style::Type => format!("typedef struct {{\n"),
+        Style::Tag => format!("struct {name} {{\n"),
+        Style::Both => format!("typedef struct {name} {{\n"),
+    };
+    out.push_str(&open);
+    writeln!(out, "  {tag_type_str} tag;").unwrap();
+
+    if has_data_variants {
+        writeln!(out, "  union {{").unwrap();
+        for variant in &def.variants {
+            let Some(ref body) = variant.body else {
+                continue;
+            };
+            let field_name = variant.name.to_lowercase();
+            if body.fields.len() == 1 {
+                // Single-field: anonymous struct
+                writeln!(out, "    struct {{").unwrap();
+                let field = &body.fields[0];
+                out.push_str("      ");
+                write_c_decl(&field.type_, &field.name, &field_style, type_tags, out);
+                writeln!(out, ";").unwrap();
+                writeln!(out, "    }};").unwrap();
+            } else {
+                // Multi-field: reference to _Body struct
+                let body_name = format!("{body_prefix}{}_Body", variant.name);
+                match &field_style {
+                    Style::Tag => writeln!(out, "    struct {body_name} {field_name};").unwrap(),
+                    _ => writeln!(out, "    {body_name} {field_name};").unwrap(),
+                }
+            }
+        }
+        writeln!(out, "  }};").unwrap();
+    }
+
+    writeln!(out, "}} {name};").unwrap();
+}
+
+/// Emit the outer container for a repr(uN) tagged union.
+fn write_tagged_union_repr_int(
+    name: &str,
+    def: &CTaggedUnionDef,
+    style: &Style,
+    type_tags: &HashMap<String, CTypeTag>,
+    tag_type_str: &str,
+    out: &mut String,
+) {
+    let field_style = match style {
+        Style::Both => Style::Tag,
+        other => other.clone(),
+    };
+
+    let open = match style {
+        Style::Type => format!("typedef union {{\n"),
+        Style::Tag => format!("union {name} {{\n"),
+        Style::Both => format!("typedef union {name} {{\n"),
+    };
+    out.push_str(&open);
+    writeln!(out, "  {tag_type_str} tag;").unwrap();
+
+    for variant in &def.variants {
+        let Some(ref body) = variant.body else {
+            continue;
+        };
+        let field_name = variant.name.to_lowercase();
+        if body.fields.len() == 1 {
+            // Single-field tuple variant: anonymous struct with tag + field
+            let field = &body.fields[0];
+            writeln!(out, "  struct {{").unwrap();
+            writeln!(out, "    {tag_type_str} {field_name}_tag;").unwrap();
+            out.push_str("    ");
+            write_c_decl(&field.type_, &field_name, &field_style, type_tags, out);
+            writeln!(out, ";").unwrap();
+            writeln!(out, "  }};").unwrap();
+        } else {
+            // Multi-field: reference to _Body struct
+            let body_name = format!("{}_Body", variant.name);
+            match &field_style {
+                Style::Tag => writeln!(out, "  struct {body_name} {field_name};").unwrap(),
+                _ => writeln!(out, "  {body_name} {field_name};").unwrap(),
+            }
+        }
+    }
+
+    writeln!(out, "}} {name};").unwrap();
 }
 
 fn scalar_to_c(p: &ScalarPrimitive) -> &'static str {
