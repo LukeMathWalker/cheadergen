@@ -6,9 +6,7 @@ use rustdoc_processor::CrateCollection;
 use rustdoc_processor::indexing::{CrateIndexer, NoAnnotations};
 use rustdoc_processor::queries::Crate;
 use rustdoc_resolver::{resolve_free_function, resolve_type};
-use rustdoc_types::{
-    Abi, Attribute, AttributeRepr, ItemEnum, ReprKind, StructKind, VariantKind,
-};
+use rustdoc_types::{Abi, Attribute, AttributeRepr, ItemEnum, ReprKind, StructKind, VariantKind};
 
 use crate::config::SortKey;
 use crate::static_item::{StaticItem, resolve_static};
@@ -104,7 +102,11 @@ pub struct ExternItems {
 }
 
 /// Walk the crate's import index and collect extern "C" functions and exported statics.
-pub fn find_extern_items(krate: &Crate, fn_sort_by: SortKey, static_sort_by: SortKey) -> ExternItems {
+pub fn find_extern_items(
+    krate: &Crate,
+    fn_sort_by: SortKey,
+    static_sort_by: SortKey,
+) -> ExternItems {
     let mut fn_ids = Vec::new();
     let mut static_ids = Vec::new();
 
@@ -207,10 +209,7 @@ pub fn resolve_statics(
 }
 
 /// Extract symbol names from function and static IDs.
-pub fn collect_symbols(
-    items: &ExternItems,
-    krate: &Crate,
-) -> BTreeSet<String> {
+pub fn collect_symbols(items: &ExternItems, krate: &Crate) -> BTreeSet<String> {
     let mut symbols = BTreeSet::new();
     for id in items.fn_ids.iter().chain(&items.static_ids) {
         let Some(item) = krate.core.krate.index.get(id) else {
@@ -312,11 +311,7 @@ pub fn c_type_name(ty: &Type) -> String {
     }
 }
 
-fn collect_paths_from_type(
-    ty: &Type,
-    behind_pointer: bool,
-    seen: &mut HashMap<PathType, bool>,
-) {
+fn collect_paths_from_type(ty: &Type, behind_pointer: bool, seen: &mut HashMap<PathType, bool>) {
     match ty {
         Type::Path(p) => {
             let used_directly = !behind_pointer;
@@ -462,7 +457,9 @@ fn resolve_type_kind<I: CrateIndexer>(
             resolve_enum_kind(name, enum_def, &item.attrs, krate, collection)
         }
         _ => {
-            eprintln!("warning: type `{name}` is not a struct or enum; emitting forward declaration");
+            eprintln!(
+                "warning: type `{name}` is not a struct or enum; emitting forward declaration"
+            );
             Ok(CTypeKind::Opaque)
         }
     }
@@ -487,9 +484,7 @@ fn resolve_struct_kind<I: CrateIndexer>(
         )
     });
     if !is_repr_c {
-        eprintln!(
-            "warning: type `{name}` is not #[repr(C)]; emitting opaque forward declaration"
-        );
+        eprintln!("warning: type `{name}` is not #[repr(C)]; emitting opaque forward declaration");
         return Ok(CTypeKind::Opaque);
     }
 
@@ -512,29 +507,23 @@ fn resolve_struct_kind<I: CrateIndexer>(
                 );
                 return Ok(CTypeKind::Opaque);
             }
-            let c_fields =
-                resolve_plain_fields(fields, krate, collection)?;
+            let c_fields = resolve_plain_fields(fields, krate, collection)?;
             Ok(CTypeKind::Struct(CStructDef { fields: c_fields }))
         }
         StructKind::Tuple(fields) => {
-            let c_fields =
-                resolve_tuple_fields(fields, krate, collection)?;
+            let c_fields = resolve_tuple_fields(fields, krate, collection)?;
             Ok(CTypeKind::Struct(CStructDef { fields: c_fields }))
         }
-        StructKind::Unit => Ok(CTypeKind::Struct(CStructDef {
-            fields: Vec::new(),
-        })),
+        StructKind::Unit => Ok(CTypeKind::Struct(CStructDef { fields: Vec::new() })),
     }
 }
 
 /// Returns true if the generics contain unbound type parameters.
 fn has_type_params(generics: &rustdoc_types::Generics) -> bool {
-    generics.params.iter().any(|p| {
-        matches!(
-            p.kind,
-            rustdoc_types::GenericParamDefKind::Type { .. }
-        )
-    })
+    generics
+        .params
+        .iter()
+        .any(|p| matches!(p.kind, rustdoc_types::GenericParamDefKind::Type { .. }))
 }
 
 /// Extract a `CEnumRepr` from the item's attributes.
@@ -605,9 +594,7 @@ fn resolve_enum_kind<I: CrateIndexer>(
     }
 
     if enum_def.has_stripped_variants {
-        eprintln!(
-            "warning: enum `{name}` has stripped variants; emitting forward declaration"
-        );
+        eprintln!("warning: enum `{name}` has stripped variants; emitting forward declaration");
         return Ok(CTypeKind::Opaque);
     }
 
@@ -619,7 +606,10 @@ fn resolve_enum_kind<I: CrateIndexer>(
             return Ok(CTypeKind::Opaque);
         };
         let ItemEnum::Variant(variant) = &variant_item.inner else {
-            anyhow::bail!("Expected Variant for enum `{name}` variant id {:?}", variant_id);
+            anyhow::bail!(
+                "Expected Variant for enum `{name}` variant id {:?}",
+                variant_id
+            );
         };
         if !matches!(variant.kind, VariantKind::Plain) {
             all_plain = false;
@@ -659,7 +649,10 @@ fn resolve_fieldless_enum(
             discriminant,
         });
     }
-    Ok(CTypeKind::FieldlessEnum(CFieldlessEnumDef { repr, variants }))
+    Ok(CTypeKind::FieldlessEnum(CFieldlessEnumDef {
+        repr,
+        variants,
+    }))
 }
 
 /// Resolve a tagged union (enum with data variants).
@@ -696,7 +689,10 @@ fn resolve_tagged_union<I: CrateIndexer>(
                     Some(CTaggedVariantBody { fields: c_fields })
                 }
             }
-            VariantKind::Struct { fields, has_stripped_fields } => {
+            VariantKind::Struct {
+                fields,
+                has_stripped_fields,
+            } => {
                 if *has_stripped_fields {
                     eprintln!(
                         "warning: enum `{name}` variant `{variant_name}` has stripped fields; emitting forward declaration"
@@ -802,9 +798,7 @@ fn resolve_tuple_fields<I: CrateIndexer>(
             collection,
             &Default::default(),
         )
-        .map_err(|e| {
-            anyhow::anyhow!("Failed to resolve tuple field m{index}: {}", Arc::new(e))
-        })?;
+        .map_err(|e| anyhow::anyhow!("Failed to resolve tuple field m{index}: {}", Arc::new(e)))?;
 
         c_fields.push(CStructField {
             name: format!("m{index}"),
