@@ -1,6 +1,7 @@
 mod analysis;
 mod codegen;
 mod config;
+mod constant_item;
 mod metadata;
 mod static_item;
 
@@ -256,11 +257,20 @@ fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
         );
     }
 
-    let (fn_sort_by, static_sort_by) = match &config {
-        config::Config::C(c) => (c.common.fn_sort_by, c.common.static_sort_by),
-        config::Config::Cxx(cxx) => (cxx.common.fn_sort_by, cxx.common.static_sort_by),
+    let (fn_sort_by, static_sort_by, constant_sort_by) = match &config {
+        config::Config::C(c) => (
+            c.common.fn_sort_by,
+            c.common.static_sort_by,
+            c.common.constant_sort_by,
+        ),
+        config::Config::Cxx(cxx) => (
+            cxx.common.fn_sort_by,
+            cxx.common.static_sort_by,
+            cxx.common.constant_sort_by,
+        ),
     };
-    let extern_items = analysis::find_extern_items(krate, fn_sort_by, static_sort_by);
+    let extern_items =
+        analysis::find_extern_items(krate, fn_sort_by, static_sort_by, constant_sort_by);
 
     if !cli.quiet {
         eprintln!(
@@ -305,10 +315,13 @@ fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
             analysis::resolve_functions(&extern_items.fn_ids, krate, &collection)?;
         let resolved_statics =
             analysis::resolve_statics(&extern_items.static_ids, krate, &collection)?;
+        let resolved_constants =
+            analysis::resolve_constants(&extern_items.constant_ids, krate, &collection);
 
         if !cli.quiet {
             eprintln!("Resolved {} function(s) to IR", resolved_fns.len());
             eprintln!("Resolved {} static(s) to IR", resolved_statics.len());
+            eprintln!("Resolved {} constant(s) to IR", resolved_constants.len());
         }
 
         let type_defs = analysis::collect_type_definitions(
@@ -327,6 +340,7 @@ fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
         codegen::generate_c_header(
             c_config,
             &type_defs,
+            &resolved_constants,
             &resolved_fns,
             &resolved_statics,
             &krate.core.krate.index,

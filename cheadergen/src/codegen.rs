@@ -7,6 +7,7 @@ use crate::analysis::{
     c_type_name,
 };
 use crate::config::{CConfig, CommonConfig, DocumentationLength, DocumentationStyle, Style};
+use crate::constant_item::ConstantItem;
 use crate::static_item::StaticItem;
 use rustdoc_ir::{FreeFunction, ScalarPrimitive, Type};
 use rustdoc_processor::crate_data::CrateItemIndex;
@@ -53,6 +54,7 @@ fn build_type_tag_map(type_defs: &[CTypeDefinition]) -> HashMap<String, CTypeTag
 pub fn generate_c_header(
     config: &CConfig,
     type_defs: &[CTypeDefinition],
+    constants: &[ConstantItem],
     functions: &[FreeFunction],
     statics: &[StaticItem],
     index: &CrateItemIndex,
@@ -120,6 +122,14 @@ pub fn generate_c_header(
             index,
             out,
         );
+    }
+
+    // Constants as #define macros (after types, before extern "C" block).
+    for c in constants {
+        out.push('\n');
+        let docs = lookup_docs(Some(&c.rustdoc_id), index);
+        write_doc_comment(docs.as_deref(), common, out);
+        writeln!(out, "#define {} {}", c.name, c.value).unwrap();
     }
 
     let has_declarations = !functions.is_empty() || !statics.is_empty();
@@ -404,7 +414,8 @@ fn write_c_type(
         }
         Type::Tuple(_)
         | Type::Slice(_)
-        | Type::Generic(_) => {
+        | Type::Generic(_)
+        | Type::FunctionPointer(_) => {
             unreachable!("unsupported type in C codegen: {ty:?}")
         }
     }

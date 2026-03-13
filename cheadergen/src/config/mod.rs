@@ -78,6 +78,14 @@ pub struct RawStaticSection {
     pub sort_by: Option<SortKey>,
 }
 
+/// Constant-specific configuration inside the `[constant]` TOML section.
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RawConstantSection {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sort_by: Option<SortKey>,
+}
+
 /// The declaration style for C struct and enum definitions.
 ///
 /// This only applies when the target language is [`Language::C`].
@@ -164,6 +172,9 @@ pub struct RawConfig {
     /// Static-specific configuration.
     #[serde(rename = "static", skip_serializing_if = "Option::is_none")]
     pub static_: Option<RawStaticSection>,
+    /// Constant-specific configuration.
+    #[serde(rename = "constant", skip_serializing_if = "Option::is_none")]
+    pub constant_: Option<RawConstantSection>,
 
     /// C-specific configuration section.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -296,6 +307,8 @@ pub struct CommonConfig {
     pub fn_sort_by: SortKey,
     /// Resolved sort order for statics: `[static].sort_by` → top-level `sort_by` → `SourceOrder`.
     pub static_sort_by: SortKey,
+    /// Resolved sort order for constants: `[constant].sort_by` → top-level `sort_by` → `SourceOrder`.
+    pub constant_sort_by: SortKey,
     /// Whether to emit Rust doc comments. Defaults to `true`.
     pub documentation: bool,
     /// Comment style for doc comments.
@@ -359,6 +372,7 @@ struct RawCommonFields {
     sort_by: Option<SortKey>,
     fn_sort_by: Option<SortKey>,
     static_sort_by: Option<SortKey>,
+    constant_sort_by: Option<SortKey>,
     documentation: Option<bool>,
     documentation_style: Option<DocumentationStyle>,
     documentation_length: Option<DocumentationLength>,
@@ -404,6 +418,7 @@ impl RawCommonFields {
             after_includes: overrides.after_includes.or(self.after_includes),
             fn_sort_by: self.fn_sort_by.or(self.sort_by).unwrap_or_default(),
             static_sort_by: self.static_sort_by.or(self.sort_by).unwrap_or_default(),
+            constant_sort_by: self.constant_sort_by.or(self.sort_by).unwrap_or_default(),
             documentation: overrides
                 .documentation
                 .or(self.documentation)
@@ -478,6 +493,7 @@ impl RawConfig {
             sort_by: self.sort_by,
             fn_sort_by: self.fn_.and_then(|s| s.sort_by),
             static_sort_by: self.static_.and_then(|s| s.sort_by),
+            constant_sort_by: self.constant_.and_then(|s| s.sort_by),
             documentation: self.documentation,
             documentation_style: self.documentation_style,
             documentation_length: self.documentation_length,

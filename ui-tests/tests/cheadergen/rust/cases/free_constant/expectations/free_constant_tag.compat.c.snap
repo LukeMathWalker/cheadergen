@@ -1,0 +1,37 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 171
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+/**
+ * The maximum buffer size.
+ */
+#define MAX_SIZE 1024
+
+#define MIN_VALUE -42
+
+#define PI_APPROX 3.1415899999999999
+
+#define IS_ENABLED true
+
+#define BYTE_MASK 255
+
+#define BIG_NUMBER 1000000
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+/**
+ * This function uses MAX_SIZE to demonstrate constants alongside functions.
+ */
+uintptr_t get_max_size(void);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

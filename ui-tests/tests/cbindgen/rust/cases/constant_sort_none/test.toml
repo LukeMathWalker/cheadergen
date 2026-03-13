@@ -1,4 +1,2 @@
-"c/compat" = "xfail"
-"c/plain" = "xfail"
 "cpp/plain" = "xfail"
 "cython/plain" = "xfail"

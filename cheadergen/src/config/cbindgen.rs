@@ -222,6 +222,7 @@ fn translate_config(cb: &CbindgenConfig) -> (RawConfig, Vec<String>) {
         sort_by: top_sort_by,
         fn_: fn_section,
         static_: static_section,
+        constant_: None,
         c: None,
         cxx: None,
     };

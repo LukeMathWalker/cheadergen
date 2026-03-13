@@ -11,6 +11,10 @@ name = "fieldless_enum"
 version = "0.1.0"
 
 [[package]]
+name = "free_constant"
+version = "0.1.0"
+
+[[package]]
 name = "generic_enum"
 version = "0.1.0"
 

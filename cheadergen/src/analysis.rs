@@ -9,6 +9,7 @@ use rustdoc_resolver::{GenericBindings, resolve_free_function, resolve_type};
 use rustdoc_types::{Abi, Attribute, AttributeRepr, ItemEnum, ReprKind, StructKind, VariantKind};
 
 use crate::config::SortKey;
+use crate::constant_item::{ConstantItem, resolve_constant};
 use crate::static_item::{StaticItem, resolve_static};
 
 /// A user-defined type that needs a C declaration in the header.
@@ -152,20 +153,24 @@ pub struct CTaggedVariantBody {
     pub fields: Vec<CStructField>,
 }
 
-/// Extern "C" function IDs and exported static IDs found in a crate.
+/// Extern "C" function IDs, exported static IDs, and constant IDs found in a crate.
 pub struct ExternItems {
     pub fn_ids: Vec<rustdoc_types::Id>,
     pub static_ids: Vec<rustdoc_types::Id>,
+    pub constant_ids: Vec<rustdoc_types::Id>,
 }
 
-/// Walk the crate's import index and collect extern "C" functions and exported statics.
+/// Walk the crate's import index and collect extern "C" functions, exported statics,
+/// and public constants.
 pub fn find_extern_items(
     krate: &Crate,
     fn_sort_by: SortKey,
     static_sort_by: SortKey,
+    constant_sort_by: SortKey,
 ) -> ExternItems {
     let mut fn_ids = Vec::new();
     let mut static_ids = Vec::new();
+    let mut constant_ids = Vec::new();
 
     for id in krate.import_index.items.keys() {
         let Some(item) = krate.core.krate.index.get(id) else {
@@ -178,14 +183,22 @@ pub fn find_extern_items(
             ItemEnum::Static(_) if has_export_attr(&item.attrs) => {
                 static_ids.push(*id);
             }
+            ItemEnum::Constant { .. } => {
+                constant_ids.push(*id);
+            }
             _ => {}
         }
     }
 
     sort_ids(&mut fn_ids, fn_sort_by, krate);
     sort_ids(&mut static_ids, static_sort_by, krate);
+    sort_ids(&mut constant_ids, constant_sort_by, krate);
 
-    ExternItems { fn_ids, static_ids }
+    ExternItems {
+        fn_ids,
+        static_ids,
+        constant_ids,
+    }
 }
 
 /// Sort key: (line, column) from the item's span, falling back to name for items without spans.
@@ -263,6 +276,24 @@ pub fn resolve_statics(
         resolved.push(static_item);
     }
     Ok(resolved)
+}
+
+/// Resolve each constant ID into a [`ConstantItem`], skipping unsupported types.
+pub fn resolve_constants(
+    constant_ids: &[rustdoc_types::Id],
+    krate: &Crate,
+    collection: &CrateCollection<NoAnnotations>,
+) -> Vec<ConstantItem> {
+    let mut resolved = Vec::new();
+    for id in constant_ids {
+        let Some(item) = krate.core.krate.index.get(id) else {
+            continue;
+        };
+        if let Some(constant) = resolve_constant(&item, krate, collection) {
+            resolved.push(constant);
+        }
+    }
+    resolved
 }
 
 /// Extract symbol names from function and static IDs.
@@ -365,6 +396,9 @@ pub fn c_type_name(ty: &Type) -> String {
         Type::Slice(s) => c_type_name(&s.element_type),
         Type::Array(a) => c_type_name(&a.element_type),
         Type::Generic(g) => g.name.clone(),
+        Type::FunctionPointer(_) => {
+            unreachable!("unsupported type in C type name: {ty:?}")
+        }
     }
 }
 
@@ -386,7 +420,7 @@ fn collect_paths_from_type(ty: &Type, behind_pointer: bool, seen: &mut HashMap<P
         }
         Type::Slice(s) => collect_paths_from_type(&s.element_type, behind_pointer, seen),
         Type::Array(a) => collect_paths_from_type(&a.element_type, behind_pointer, seen),
-        Type::ScalarPrimitive(_) | Type::Generic(_) => {}
+        Type::ScalarPrimitive(_) | Type::Generic(_) | Type::FunctionPointer(_) => {}
     }
 }
 
