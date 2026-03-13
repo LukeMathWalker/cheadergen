@@ -8,15 +8,18 @@ expression: output
 #include <stdint.h>
 #include <stdlib.h>
 
+typedef struct Parent Parent;
+typedef struct Ping Ping;
+
 typedef struct {
   uint8_t value;
   const Parent *parent;
 } Child;
 
-typedef struct {
+struct Parent {
   int32_t id;
   Child child;
-} Parent;
+};
 
 typedef enum {
   Pong_Done,
@@ -45,12 +48,12 @@ typedef struct {
   Pong next;
 } Ping_Continue_Body;
 
-typedef struct {
+struct Ping {
   Ping_Tag tag;
   union {
     Ping_Continue_Body continue_;
   };
-} Ping;
+};
 
 Parent use_parent(Parent p);
 

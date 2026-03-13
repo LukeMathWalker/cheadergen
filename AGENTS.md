@@ -69,6 +69,7 @@ Pass `--profile machine` to any test command to write JUnit XML alongside normal
     just test-generate --profile machine
 
 Then read `target/nextest/machine/junit.xml` for structured results. The XML contains one `<testcase>` per test with:
+
 - **name** and **classname** — the test identity
 - **time** — execution duration in seconds
 - **`<failure>`** — present only for failed tests, contains the failure message and captured output

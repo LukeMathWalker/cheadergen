@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fmt::Write;
 use std::path::Path;
 
@@ -590,16 +590,45 @@ fn write_c_type_definitions(
         out.push('\n');
     }
 
+    // For Plain (Type) style, emit forward declarations only for compounds
+    // that are referenced by pointer before their definition (self-referential
+    // types, corecursive pointer back-references, etc.).
+    if matches!(style, Style::Type) && !compound_defs.is_empty() {
+        let forward_decls = compute_needed_forward_decls(&compound_defs);
+        if !forward_decls.is_empty() {
+            for def in &compound_defs {
+                if forward_decls.contains(def.name.as_str()) {
+                    let name = &def.name;
+                    match &def.kind {
+                        CTypeKind::TaggedUnion(t) if !t.repr.is_repr_c() => {
+                            writeln!(out, "typedef union {name} {name};").unwrap();
+                        }
+                        _ => {
+                            writeln!(out, "typedef struct {name} {name};").unwrap();
+                        }
+                    }
+                }
+            }
+            out.push('\n');
+        }
+    }
+
     // Structs and tagged unions.
+    let forward_declared: HashSet<&str> = if matches!(style, Style::Type) {
+        compute_needed_forward_decls(&compound_defs)
+    } else {
+        HashSet::new()
+    };
     for (i, def) in compound_defs.iter().enumerate() {
         let docs = lookup_docs(def.rustdoc_id.as_ref(), index);
         write_doc_comment(docs.as_deref(), config, out);
+        let has_fwd_decl = forward_declared.contains(def.name.as_str());
         match &def.kind {
             CTypeKind::Struct(struct_def) => {
-                write_c_struct_definition(&def.name, struct_def, style, type_tags, out);
+                write_c_struct_definition(&def.name, struct_def, style, has_fwd_decl, type_tags, out);
             }
             CTypeKind::TaggedUnion(tagged_def) => {
-                write_c_tagged_union(&def.name, tagged_def, style, cpp_compat, type_tags, out);
+                write_c_tagged_union(&def.name, tagged_def, style, has_fwd_decl, cpp_compat, type_tags, out);
             }
             _ => unreachable!(),
         }
@@ -614,10 +643,21 @@ fn write_c_struct_definition(
     name: &str,
     def: &CStructDef,
     style: &Style,
+    has_fwd_decl: bool,
     type_tags: &HashMap<String, CTypeTag>,
     out: &mut String,
 ) {
     match style {
+        Style::Type if has_fwd_decl => {
+            // typedef already emitted as a forward declaration.
+            writeln!(out, "struct {name} {{").unwrap();
+            for field in &def.fields {
+                out.push_str("  ");
+                write_c_decl(&field.type_, &field.name, style, type_tags, out);
+                writeln!(out, ";").unwrap();
+            }
+            writeln!(out, "}};").unwrap();
+        }
         Style::Type => {
             writeln!(out, "typedef struct {{").unwrap();
             for field in &def.fields {
@@ -723,6 +763,7 @@ fn write_c_tagged_union(
     name: &str,
     def: &CTaggedUnionDef,
     style: &Style,
+    has_fwd_decl: bool,
     cpp_compat: bool,
     type_tags: &HashMap<String, CTypeTag>,
     out: &mut String,
@@ -831,10 +872,10 @@ fn write_c_tagged_union(
     // 3. Emit the outer container.
     if def.repr.is_repr_c() {
         // repr(C) or repr(C, uN) → struct with tag + anonymous union
-        write_tagged_union_repr_c(name, def, style, type_tags, &tag_type_str, out);
+        write_tagged_union_repr_c(name, def, style, has_fwd_decl, type_tags, &tag_type_str, out);
     } else {
         // repr(uN) → union with tag + anonymous struct members
-        write_tagged_union_repr_int(name, def, style, type_tags, &tag_type_str, out);
+        write_tagged_union_repr_int(name, def, style, has_fwd_decl, type_tags, &tag_type_str, out);
     }
 }
 
@@ -843,6 +884,7 @@ fn write_tagged_union_repr_c(
     name: &str,
     def: &CTaggedUnionDef,
     style: &Style,
+    has_fwd_decl: bool,
     type_tags: &HashMap<String, CTypeTag>,
     tag_type_str: &str,
     out: &mut String,
@@ -856,10 +898,11 @@ fn write_tagged_union_repr_c(
     // Check if there are any non-unit variants that need a union.
     let has_data_variants = def.variants.iter().any(|v| v.body.is_some());
 
-    match style {
-        Style::Type => out.push_str("typedef struct {\n"),
-        Style::Tag => writeln!(out, "struct {name} {{").unwrap(),
-        Style::Both => writeln!(out, "typedef struct {name} {{").unwrap(),
+    match (style, has_fwd_decl) {
+        (Style::Type, true) => writeln!(out, "struct {name} {{").unwrap(),
+        (Style::Type, false) => out.push_str("typedef struct {\n"),
+        (Style::Tag, _) => writeln!(out, "struct {name} {{").unwrap(),
+        (Style::Both, _) => writeln!(out, "typedef struct {name} {{").unwrap(),
     }
     writeln!(out, "  {tag_type_str} tag;").unwrap();
 
@@ -890,8 +933,8 @@ fn write_tagged_union_repr_c(
         writeln!(out, "  }};").unwrap();
     }
 
-    match style {
-        Style::Tag => writeln!(out, "}};").unwrap(),
+    match (style, has_fwd_decl) {
+        (Style::Type, true) | (Style::Tag, _) => writeln!(out, "}};").unwrap(),
         _ => writeln!(out, "}} {name};").unwrap(),
     }
 }
@@ -901,14 +944,16 @@ fn write_tagged_union_repr_int(
     name: &str,
     def: &CTaggedUnionDef,
     style: &Style,
+    has_fwd_decl: bool,
     type_tags: &HashMap<String, CTypeTag>,
     tag_type_str: &str,
     out: &mut String,
 ) {
-    match style {
-        Style::Type => out.push_str("typedef union {\n"),
-        Style::Tag => writeln!(out, "union {name} {{").unwrap(),
-        Style::Both => writeln!(out, "typedef union {name} {{").unwrap(),
+    match (style, has_fwd_decl) {
+        (Style::Type, true) => writeln!(out, "union {name} {{").unwrap(),
+        (Style::Type, false) => out.push_str("typedef union {\n"),
+        (Style::Tag, _) => writeln!(out, "union {name} {{").unwrap(),
+        (Style::Both, _) => writeln!(out, "typedef union {name} {{").unwrap(),
     }
     writeln!(out, "  {tag_type_str} tag;").unwrap();
 
@@ -936,9 +981,92 @@ fn write_tagged_union_repr_int(
         }
     }
 
-    match style {
-        Style::Tag => writeln!(out, "}};").unwrap(),
+    match (style, has_fwd_decl) {
+        (Style::Type, true) | (Style::Tag, _) => writeln!(out, "}};").unwrap(),
         _ => writeln!(out, "}} {name};").unwrap(),
+    }
+}
+
+/// Determine which compound types need a forward `typedef` declaration
+/// in Plain (Type) style.
+///
+/// A forward declaration is needed when a compound type is referenced via
+/// pointer from a compound that appears earlier in the emission order (the
+/// bare typedef name isn't available yet). This covers self-referential types
+/// and corecursive pointer back-references.
+fn compute_needed_forward_decls<'a>(compound_defs: &'a [&CTypeDefinition]) -> HashSet<&'a str> {
+    let all_compound_names: HashSet<&str> =
+        compound_defs.iter().map(|d| d.name.as_str()).collect();
+
+    // Track which types have been "defined" as we walk the list in order.
+    let mut defined: HashSet<&str> = HashSet::new();
+    let mut need_fwd: HashSet<&str> = HashSet::new();
+
+    for def in compound_defs {
+        // Collect all pointer-target type names from this compound's fields.
+        let ptr_refs = pointer_referenced_types(def);
+        for name in &ptr_refs {
+            // If this name is a compound that hasn't been defined yet
+            // (or is the current type itself), it needs a forward declaration.
+            if all_compound_names.contains(name.as_str()) && !defined.contains(name.as_str()) {
+                need_fwd.insert(
+                    compound_defs
+                        .iter()
+                        .find(|d| d.name == *name)
+                        .unwrap()
+                        .name
+                        .as_str(),
+                );
+            }
+        }
+        defined.insert(def.name.as_str());
+    }
+
+    need_fwd
+}
+
+/// Collect all type names that appear behind a pointer/reference in a compound's fields.
+fn pointer_referenced_types(def: &CTypeDefinition) -> Vec<String> {
+    let mut refs = Vec::new();
+    match &def.kind {
+        CTypeKind::Struct(s) => {
+            for field in &s.fields {
+                collect_pointer_targets(&field.type_, &mut refs);
+            }
+        }
+        CTypeKind::TaggedUnion(t) => {
+            for variant in &t.variants {
+                if let Some(ref body) = variant.body {
+                    for field in &body.fields {
+                        collect_pointer_targets(&field.type_, &mut refs);
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+    refs
+}
+
+/// Walk a type tree and collect the C names of types found behind pointers/references.
+fn collect_pointer_targets(ty: &Type, refs: &mut Vec<String>) {
+    match ty {
+        Type::RawPointer(p) => collect_by_value_names(&p.inner, refs),
+        Type::Reference(r) => collect_by_value_names(&r.inner, refs),
+        Type::Array(a) => collect_pointer_targets(&a.element_type, refs),
+        // By-value Path types are not pointer targets.
+        _ => {}
+    }
+}
+
+/// Collect the C name of any Path type found by value (recursing into arrays).
+fn collect_by_value_names(ty: &Type, refs: &mut Vec<String>) {
+    match ty {
+        Type::Path(_) => refs.push(c_type_name(ty)),
+        Type::Array(a) => collect_by_value_names(&a.element_type, refs),
+        Type::RawPointer(p) => collect_by_value_names(&p.inner, refs),
+        Type::Reference(r) => collect_by_value_names(&r.inner, refs),
+        _ => {}
     }
 }
 

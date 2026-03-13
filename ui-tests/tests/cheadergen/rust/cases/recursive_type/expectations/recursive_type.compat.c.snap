@@ -8,10 +8,13 @@ expression: output
 #include <stdint.h>
 #include <stdlib.h>
 
-typedef struct {
+typedef struct ListNode ListNode;
+typedef struct TreeNode TreeNode;
+
+struct ListNode {
   int32_t value;
   const ListNode *next;
-} ListNode;
+};
 
 typedef enum {
   TreeNode_Leaf,
@@ -24,12 +27,12 @@ typedef struct {
   TreeNode *right;
 } TreeNode_Branch_Body;
 
-typedef struct {
+struct TreeNode {
   TreeNode_Tag tag;
   union {
     TreeNode_Branch_Body branch;
   };
-} TreeNode;
+};
 
 #ifdef __cplusplus
 extern "C" {

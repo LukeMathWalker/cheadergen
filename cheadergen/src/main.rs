@@ -4,6 +4,7 @@ mod config;
 mod constant_item;
 mod metadata;
 mod static_item;
+mod topological_sort;
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -329,9 +330,11 @@ fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
             &collection,
         )?;
 
-        // Sort type definitions after resolution — they are discovered
-        // transitively and don't have a pre-existing order.
-        analysis::sort_by_key(&mut type_defs, c_config.common.type_sort_by, krate);
+        // First, establish a baseline source order (type_defs come from a
+        // HashMap and have no inherent order). Then apply topological sort
+        // to reorder compounds so by-value dependencies are defined first.
+        analysis::sort_by_key(&mut type_defs, config::SortKey::SourceOrder, krate);
+        topological_sort::topological_sort(&mut type_defs, krate);
 
         let mut header = String::new();
         codegen::generate_c_header(
