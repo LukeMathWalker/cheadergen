@@ -257,20 +257,7 @@ fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
         );
     }
 
-    let (fn_sort_by, static_sort_by, constant_sort_by) = match &config {
-        config::Config::C(c) => (
-            c.common.fn_sort_by,
-            c.common.static_sort_by,
-            c.common.constant_sort_by,
-        ),
-        config::Config::Cxx(cxx) => (
-            cxx.common.fn_sort_by,
-            cxx.common.static_sort_by,
-            cxx.common.constant_sort_by,
-        ),
-    };
-    let extern_items =
-        analysis::find_extern_items(krate, fn_sort_by, static_sort_by, constant_sort_by);
+    let mut extern_items = analysis::find_extern_items(krate);
 
     if !cli.quiet {
         eprintln!(
@@ -311,6 +298,17 @@ fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
 
     // Resolve each extern "C" function and static into the IR and generate the header.
     if !cli.no_header {
+        let c_config = match &config {
+            config::Config::C(c) => c,
+            _ => anyhow::bail!("Only C output is currently supported"),
+        };
+
+        // Sort IDs before resolution — resolvers preserve input order,
+        // so the output inherits the sort.
+        analysis::sort_by_key(&mut extern_items.fn_ids, c_config.common.fn_sort_by, krate);
+        analysis::sort_by_key(&mut extern_items.static_ids, c_config.common.static_sort_by, krate);
+        analysis::sort_by_key(&mut extern_items.constant_ids, c_config.common.constant_sort_by, krate);
+
         let resolved_fns =
             analysis::resolve_functions(&extern_items.fn_ids, krate, &collection)?;
         let resolved_statics =
@@ -324,17 +322,16 @@ fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
             eprintln!("Resolved {} constant(s) to IR", resolved_constants.len());
         }
 
-        let type_defs = analysis::collect_type_definitions(
+        let mut type_defs = analysis::collect_type_definitions(
             &resolved_fns,
             &resolved_statics,
             krate,
             &collection,
         )?;
 
-        let c_config = match &config {
-            config::Config::C(c) => c,
-            _ => anyhow::bail!("Only C output is currently supported"),
-        };
+        // Sort type definitions after resolution — they are discovered
+        // transitively and don't have a pre-existing order.
+        analysis::sort_by_key(&mut type_defs, c_config.common.type_sort_by, krate);
 
         let mut header = String::new();
         codegen::generate_c_header(

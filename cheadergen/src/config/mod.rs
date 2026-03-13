@@ -309,6 +309,8 @@ pub struct CommonConfig {
     pub static_sort_by: SortKey,
     /// Resolved sort order for constants: `[constant].sort_by` → top-level `sort_by` → `SourceOrder`.
     pub constant_sort_by: SortKey,
+    /// Resolved sort order for type definitions: top-level `sort_by` → `SourceOrder`.
+    pub type_sort_by: SortKey,
     /// Whether to emit Rust doc comments. Defaults to `true`.
     pub documentation: bool,
     /// Comment style for doc comments.
@@ -419,6 +421,7 @@ impl RawCommonFields {
             fn_sort_by: self.fn_sort_by.or(self.sort_by).unwrap_or_default(),
             static_sort_by: self.static_sort_by.or(self.sort_by).unwrap_or_default(),
             constant_sort_by: self.constant_sort_by.or(self.sort_by).unwrap_or_default(),
+            type_sort_by: self.sort_by.unwrap_or_default(),
             documentation: overrides
                 .documentation
                 .or(self.documentation)

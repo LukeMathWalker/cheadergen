@@ -8,17 +8,17 @@ expression: output
 #include <stdint.h>
 #include <stdlib.h>
 
-struct Pair_i32__f32 {
-  int32_t first;
-  float second;
-};
-
 struct Wrapper_f32 {
   float value;
 };
 
 struct Wrapper_i32 {
   int32_t value;
+};
+
+struct Pair_i32__f32 {
+  int32_t first;
+  float second;
 };
 
 struct Wrapper_i32 use_wrapper_i32(struct Wrapper_i32 w);

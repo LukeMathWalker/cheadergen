@@ -8,11 +8,6 @@ expression: output
 #include <stdint.h>
 #include <stdlib.h>
 
-typedef struct Pair_i32__f32 {
-  int32_t first;
-  float second;
-} Pair_i32__f32;
-
 typedef struct Wrapper_f32 {
   float value;
 } Wrapper_f32;
@@ -20,6 +15,11 @@ typedef struct Wrapper_f32 {
 typedef struct Wrapper_i32 {
   int32_t value;
 } Wrapper_i32;
+
+typedef struct Pair_i32__f32 {
+  int32_t first;
+  float second;
+} Pair_i32__f32;
 
 struct Wrapper_i32 use_wrapper_i32(struct Wrapper_i32 w);
 

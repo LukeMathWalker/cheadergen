@@ -18,23 +18,6 @@ typedef struct Parent {
   struct Child child;
 } Parent;
 
-typedef enum Ping_Tag {
-  Ping_Done,
-  Ping_Continue,
-} Ping_Tag;
-
-typedef struct Ping_Continue_Body {
-  int32_t value;
-  struct Pong next;
-} Ping_Continue_Body;
-
-typedef struct Ping {
-  Ping_Tag tag;
-  union {
-    struct Ping_Continue_Body continue;
-  };
-} Ping;
-
 typedef enum Pong_Tag {
   Pong_Done,
   Pong_Continue,
@@ -51,6 +34,23 @@ typedef struct Pong {
     struct Pong_Continue_Body continue;
   };
 } Pong;
+
+typedef enum Ping_Tag {
+  Ping_Done,
+  Ping_Continue,
+} Ping_Tag;
+
+typedef struct Ping_Continue_Body {
+  int32_t value;
+  struct Pong next;
+} Ping_Continue_Body;
+
+typedef struct Ping {
+  Ping_Tag tag;
+  union {
+    struct Ping_Continue_Body continue;
+  };
+} Ping;
 
 #ifdef __cplusplus
 extern "C" {

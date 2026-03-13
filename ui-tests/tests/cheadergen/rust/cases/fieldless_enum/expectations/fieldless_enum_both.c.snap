@@ -8,13 +8,6 @@ expression: output
 #include <stdint.h>
 #include <stdlib.h>
 
-enum Big {
-  First = 0,
-  Second = 2,
-  Third,
-};
-typedef uintptr_t Big;
-
 typedef enum Color {
   Red,
   Green,
@@ -29,11 +22,43 @@ enum Direction {
 };
 typedef uint8_t Direction;
 
-enum I128Enum {
-  I128A,
-  I128B,
+enum Sign {
+  Negative = -1,
+  Zero = 0,
+  Positive = 1,
 };
-typedef __int128_t I128Enum;
+typedef int8_t Sign;
+
+enum Big {
+  First = 0,
+  Second = 2,
+  Third,
+};
+typedef uintptr_t Big;
+
+enum U16Enum {
+  U16A,
+  U16B,
+};
+typedef uint16_t U16Enum;
+
+enum U32Enum {
+  U32A,
+  U32B,
+};
+typedef uint32_t U32Enum;
+
+enum U64Enum {
+  U64A,
+  U64B,
+};
+typedef uint64_t U64Enum;
+
+enum U128Enum {
+  U128A,
+  U128B,
+};
+typedef __uint128_t U128Enum;
 
 enum I16Enum {
   I16A,
@@ -53,42 +78,17 @@ enum I64Enum {
 };
 typedef int64_t I64Enum;
 
+enum I128Enum {
+  I128A,
+  I128B,
+};
+typedef __int128_t I128Enum;
+
 enum IsizeEnum {
   IsizeA,
   IsizeB,
 };
 typedef intptr_t IsizeEnum;
-
-enum Sign {
-  Negative = -1,
-  Zero = 0,
-  Positive = 1,
-};
-typedef int8_t Sign;
-
-enum U128Enum {
-  U128A,
-  U128B,
-};
-typedef __uint128_t U128Enum;
-
-enum U16Enum {
-  U16A,
-  U16B,
-};
-typedef uint16_t U16Enum;
-
-enum U32Enum {
-  U32A,
-  U32B,
-};
-typedef uint32_t U32Enum;
-
-enum U64Enum {
-  U64A,
-  U64B,
-};
-typedef uint64_t U64Enum;
 
 /**
  * No repr — should be emitted as opaque.

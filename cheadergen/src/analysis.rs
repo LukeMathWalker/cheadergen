@@ -162,12 +162,7 @@ pub struct ExternItems {
 
 /// Walk the crate's import index and collect extern "C" functions, exported statics,
 /// and public constants.
-pub fn find_extern_items(
-    krate: &Crate,
-    fn_sort_by: SortKey,
-    static_sort_by: SortKey,
-    constant_sort_by: SortKey,
-) -> ExternItems {
+pub fn find_extern_items(krate: &Crate) -> ExternItems {
     let mut fn_ids = Vec::new();
     let mut static_ids = Vec::new();
     let mut constant_ids = Vec::new();
@@ -190,10 +185,6 @@ pub fn find_extern_items(
         }
     }
 
-    sort_ids(&mut fn_ids, fn_sort_by, krate);
-    sort_ids(&mut static_ids, static_sort_by, krate);
-    sort_ids(&mut constant_ids, constant_sort_by, krate);
-
     ExternItems {
         fn_ids,
         static_ids,
@@ -201,26 +192,63 @@ pub fn find_extern_items(
     }
 }
 
-/// Sort key: (line, column) from the item's span, falling back to name for items without spans.
-fn span_sort_key(id: &rustdoc_types::Id, krate: &Crate) -> (usize, usize, String) {
+/// Sort key: (line, column) from the item's span.
+fn span_sort_key(id: &rustdoc_types::Id, krate: &Crate) -> (usize, usize) {
     let Some(item) = krate.core.krate.index.get(id) else {
-        return (usize::MAX, usize::MAX, String::new());
+        return (usize::MAX, usize::MAX);
     };
     match item.span.as_ref() {
-        Some(span) => (span.begin.0, span.begin.1, String::new()),
-        None => (
-            usize::MAX,
-            usize::MAX,
-            item.name.clone().unwrap_or_default(),
-        ),
+        Some(span) => (span.begin.0, span.begin.1),
+        None => (usize::MAX, usize::MAX),
     }
 }
 
-/// Sort a list of item IDs according to the given [`SortKey`].
-fn sort_ids(ids: &mut [rustdoc_types::Id], sort_by: SortKey, krate: &Crate) {
+/// Trait for items that can be sorted by their rustdoc ID.
+pub trait HasRustdocId {
+    fn rustdoc_id(&self) -> Option<&rustdoc_types::Id>;
+    fn fallback_name(&self) -> String;
+}
+
+impl HasRustdocId for rustdoc_types::Id {
+    fn rustdoc_id(&self) -> Option<&rustdoc_types::Id> {
+        Some(self)
+    }
+
+    fn fallback_name(&self) -> String {
+        String::new()
+    }
+}
+
+impl HasRustdocId for CTypeDefinition {
+    fn rustdoc_id(&self) -> Option<&rustdoc_types::Id> {
+        self.rustdoc_id.as_ref()
+    }
+
+    fn fallback_name(&self) -> String {
+        self.name.clone()
+    }
+}
+
+/// Sort a slice of items according to the given [`SortKey`], using each
+/// item's rustdoc ID to look up source position or name.
+pub fn sort_by_key<T: HasRustdocId>(items: &mut [T], sort_by: SortKey, krate: &Crate) {
     match sort_by {
-        SortKey::SourceOrder => ids.sort_by_cached_key(|id| span_sort_key(id, krate)),
-        SortKey::Name => ids.sort_by_cached_key(|id| name_sort_key(id, krate)),
+        SortKey::SourceOrder => items.sort_by_cached_key(|item| {
+            let (line, col) = match item.rustdoc_id() {
+                Some(id) => span_sort_key(id, krate),
+                None => (usize::MAX, usize::MAX),
+            };
+            // Tiebreak on the item's own name so that multiple
+            // monomorphisations of the same generic (same span) sort
+            // deterministically.
+            (line, col, item.fallback_name())
+        }),
+        SortKey::Name => items.sort_by_cached_key(|item| {
+            match item.rustdoc_id() {
+                Some(id) => name_sort_key(id, krate),
+                None => item.fallback_name(),
+            }
+        }),
     }
 }
 
@@ -524,8 +552,7 @@ fn resolve_all_type_definitions<I: CrateIndexer>(
         );
     }
 
-    let mut defs: Vec<CTypeDefinition> = resolved.into_values().collect();
-    defs.sort_by(|a, b| a.name.cmp(&b.name));
+    let defs: Vec<CTypeDefinition> = resolved.into_values().collect();
     Ok(defs)
 }
 
@@ -552,10 +579,10 @@ fn resolve_type_kind<I: CrateIndexer>(
 
     match &item.inner {
         ItemEnum::Struct(struct_def) => {
-            resolve_struct_kind(name, struct_def, &item.attrs, &path_type.generic_arguments, krate, collection)
+            resolve_struct_kind(name, struct_def, &item.attrs, path_type, krate, collection)
         }
         ItemEnum::Enum(enum_def) => {
-            resolve_enum_kind(name, enum_def, &item.attrs, &path_type.generic_arguments, krate, collection)
+            resolve_enum_kind(name, enum_def, &item.attrs, path_type, krate, collection)
         }
         _ => {
             eprintln!(
@@ -571,7 +598,7 @@ fn resolve_struct_kind<I: CrateIndexer>(
     name: &str,
     struct_def: &rustdoc_types::Struct,
     attrs: &[Attribute],
-    generic_args: &[GenericArgument],
+    path_type: &PathType,
     krate: &Crate,
     collection: &CrateCollection<I>,
 ) -> anyhow::Result<CTypeKind> {
@@ -591,8 +618,8 @@ fn resolve_struct_kind<I: CrateIndexer>(
     }
 
     // Build generic substitution bindings when concrete arguments are provided.
-    let generic_bindings = if has_type_params(&struct_def.generics) {
-        match build_generic_bindings(&struct_def.generics, generic_args) {
+    let mut generic_bindings = if has_type_params(&struct_def.generics) {
+        match build_generic_bindings(&struct_def.generics, &path_type.generic_arguments) {
             Some(bindings) => bindings,
             None => {
                 eprintln!(
@@ -604,6 +631,12 @@ fn resolve_struct_kind<I: CrateIndexer>(
     } else {
         GenericBindings::default()
     };
+
+    // Bind `Self` to the containing type so that `*const Self` / `*mut Self`
+    // fields resolve to the correct concrete type.
+    generic_bindings
+        .types
+        .insert("Self".into(), Type::Path(path_type.clone()));
 
     match &struct_def.kind {
         StructKind::Plain {
@@ -708,7 +741,7 @@ fn resolve_enum_kind<I: CrateIndexer>(
     name: &str,
     enum_def: &rustdoc_types::Enum,
     attrs: &[Attribute],
-    generic_args: &[GenericArgument],
+    path_type: &PathType,
     krate: &Crate,
     collection: &CrateCollection<I>,
 ) -> anyhow::Result<CTypeKind> {
@@ -719,8 +752,8 @@ fn resolve_enum_kind<I: CrateIndexer>(
         return Ok(CTypeKind::Opaque);
     };
 
-    let generic_bindings = if has_type_params(&enum_def.generics) {
-        match build_generic_bindings(&enum_def.generics, generic_args) {
+    let mut generic_bindings = if has_type_params(&enum_def.generics) {
+        match build_generic_bindings(&enum_def.generics, &path_type.generic_arguments) {
             Some(bindings) => bindings,
             None => {
                 eprintln!(
@@ -732,6 +765,12 @@ fn resolve_enum_kind<I: CrateIndexer>(
     } else {
         GenericBindings::default()
     };
+
+    // Bind `Self` to the containing type so that `*const Self` / `*mut Self`
+    // fields resolve to the correct concrete type.
+    generic_bindings
+        .types
+        .insert("Self".into(), Type::Path(path_type.clone()));
 
     if enum_def.has_stripped_variants {
         eprintln!("warning: enum `{name}` has stripped variants; emitting forward declaration");

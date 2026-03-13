@@ -9,27 +9,35 @@ expression: output
 #include <stdlib.h>
 
 typedef struct {
-  float value;
-} Wrapper_f32;
+  int32_t value;
+  const ListNode *next;
+} ListNode;
+
+typedef enum {
+  TreeNode_Leaf,
+  TreeNode_Branch,
+} TreeNode_Tag;
 
 typedef struct {
   int32_t value;
-} Wrapper_i32;
+  TreeNode *left;
+  TreeNode *right;
+} TreeNode_Branch_Body;
 
 typedef struct {
-  int32_t first;
-  float second;
-} Pair_i32__f32;
+  TreeNode_Tag tag;
+  union {
+    TreeNode_Branch_Body branch;
+  };
+} TreeNode;
 
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
 
-Wrapper_i32 use_wrapper_i32(Wrapper_i32 w);
+ListNode use_list(ListNode node);
 
-Wrapper_f32 use_wrapper_f32(Wrapper_f32 w);
-
-Pair_i32__f32 use_pair(Pair_i32__f32 p);
+TreeNode use_tree(TreeNode node);
 
 #ifdef __cplusplus
 }  // extern "C"

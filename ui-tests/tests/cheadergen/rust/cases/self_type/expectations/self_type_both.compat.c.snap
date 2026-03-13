@@ -1,0 +1,44 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 171
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct ListNode {
+  int32_t value;
+  const struct ListNode *next;
+} ListNode;
+
+typedef enum TreeNode_Tag {
+  TreeNode_Leaf,
+  TreeNode_Branch,
+} TreeNode_Tag;
+
+typedef struct TreeNode_Branch_Body {
+  int32_t value;
+  struct TreeNode *left;
+  struct TreeNode *right;
+} TreeNode_Branch_Body;
+
+typedef struct TreeNode {
+  TreeNode_Tag tag;
+  union {
+    struct TreeNode_Branch_Body branch;
+  };
+} TreeNode;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+struct ListNode use_list(struct ListNode node);
+
+struct TreeNode use_tree(struct TreeNode node);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

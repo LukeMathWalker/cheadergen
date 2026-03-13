@@ -8,6 +8,10 @@ expression: output
 #include <stdint.h>
 #include <stdlib.h>
 
+struct Foo {
+  const int32_t *data;
+};
+
 struct Bar {
   const uint32_t *first;
   double *second;
@@ -21,10 +25,6 @@ struct Baz_f64 {
 struct Baz_i32 {
   const int32_t *value;
   bool flag;
-};
-
-struct Foo {
-  const int32_t *data;
 };
 
 #ifdef __cplusplus

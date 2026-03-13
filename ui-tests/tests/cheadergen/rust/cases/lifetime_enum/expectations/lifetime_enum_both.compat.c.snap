@@ -8,23 +8,6 @@ expression: output
 #include <stdint.h>
 #include <stdlib.h>
 
-typedef enum MutOrConst_Tag {
-  MutOrConst_Shared,
-  MutOrConst_Exclusive,
-} MutOrConst_Tag;
-
-typedef struct MutOrConst {
-  MutOrConst_Tag tag;
-  union {
-    struct {
-      const uint8_t *shared;
-    };
-    struct {
-      uint8_t *exclusive;
-    };
-  };
-} MutOrConst;
-
 typedef enum Ref_Tag {
   Ref_Borrowed,
   Ref_Owned,
@@ -41,6 +24,23 @@ typedef struct Ref {
     };
   };
 } Ref;
+
+typedef enum MutOrConst_Tag {
+  MutOrConst_Shared,
+  MutOrConst_Exclusive,
+} MutOrConst_Tag;
+
+typedef struct MutOrConst {
+  MutOrConst_Tag tag;
+  union {
+    struct {
+      const uint8_t *shared;
+    };
+    struct {
+      uint8_t *exclusive;
+    };
+  };
+} MutOrConst;
 
 typedef enum RefOrVal_f64_Tag {
   RefOrVal_f64_Ref,

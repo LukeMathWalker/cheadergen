@@ -8,6 +8,34 @@ expression: output
 #include <stdint.h>
 #include <stdlib.h>
 
+enum Untagged_Tag
+#ifdef __cplusplus
+  : uint8_t
+#endif // __cplusplus
+ {
+  Foo,
+  Bar,
+  Baz,
+};
+#ifndef __cplusplus
+typedef uint8_t Untagged_Tag;
+#endif // __cplusplus
+
+struct Bar_Body {
+  Untagged_Tag tag;
+  uint8_t x;
+  int16_t y;
+};
+
+union Untagged {
+  Untagged_Tag tag;
+  struct {
+    Untagged_Tag foo_tag;
+    int16_t foo;
+  };
+  struct Bar_Body bar;
+};
+
 enum Tagged_Tag {
   Tagged_Foo,
   Tagged_Bar,
@@ -57,51 +85,103 @@ struct TaggedInt {
   };
 };
 
-enum Untagged_Tag
+enum UntaggedU16_Tag
 #ifdef __cplusplus
-  : uint8_t
+  : uint16_t
 #endif // __cplusplus
  {
-  Foo,
-  Bar,
-  Baz,
+  U16Data,
+  U16Unit,
 };
 #ifndef __cplusplus
-typedef uint8_t Untagged_Tag;
+typedef uint16_t UntaggedU16_Tag;
 #endif // __cplusplus
 
-struct Bar_Body {
-  Untagged_Tag tag;
-  uint8_t x;
-  int16_t y;
-};
-
-union Untagged {
-  Untagged_Tag tag;
+union UntaggedU16 {
+  UntaggedU16_Tag tag;
   struct {
-    Untagged_Tag foo_tag;
-    int16_t foo;
+    UntaggedU16_Tag u16data_tag;
+    int16_t u16data;
   };
-  struct Bar_Body bar;
 };
 
-enum UntaggedI128_Tag
+enum UntaggedU32_Tag
 #ifdef __cplusplus
-  : __int128_t
+  : uint32_t
 #endif // __cplusplus
  {
-  I128Data,
-  I128Unit,
+  U32Data,
+  U32Unit,
 };
 #ifndef __cplusplus
-typedef __int128_t UntaggedI128_Tag;
+typedef uint32_t UntaggedU32_Tag;
 #endif // __cplusplus
 
-union UntaggedI128 {
-  UntaggedI128_Tag tag;
+union UntaggedU32 {
+  UntaggedU32_Tag tag;
   struct {
-    UntaggedI128_Tag i128data_tag;
-    int16_t i128data;
+    UntaggedU32_Tag u32data_tag;
+    int16_t u32data;
+  };
+};
+
+enum UntaggedU64_Tag
+#ifdef __cplusplus
+  : uint64_t
+#endif // __cplusplus
+ {
+  U64Data,
+  U64Unit,
+};
+#ifndef __cplusplus
+typedef uint64_t UntaggedU64_Tag;
+#endif // __cplusplus
+
+union UntaggedU64 {
+  UntaggedU64_Tag tag;
+  struct {
+    UntaggedU64_Tag u64data_tag;
+    int16_t u64data;
+  };
+};
+
+enum UntaggedU128_Tag
+#ifdef __cplusplus
+  : __uint128_t
+#endif // __cplusplus
+ {
+  U128Data,
+  U128Unit,
+};
+#ifndef __cplusplus
+typedef __uint128_t UntaggedU128_Tag;
+#endif // __cplusplus
+
+union UntaggedU128 {
+  UntaggedU128_Tag tag;
+  struct {
+    UntaggedU128_Tag u128data_tag;
+    int16_t u128data;
+  };
+};
+
+enum UntaggedI8_Tag
+#ifdef __cplusplus
+  : int8_t
+#endif // __cplusplus
+ {
+  I8Data,
+  I8Unit,
+};
+#ifndef __cplusplus
+typedef int8_t UntaggedI8_Tag;
+#endif // __cplusplus
+
+union UntaggedI8 {
+  UntaggedI8_Tag tag;
+  struct {
+    UntaggedI8_Tag i8data_tag;
+    int16_t i8data;
   };
 };
 
@@ -165,23 +245,23 @@ union UntaggedI64 {
   };
 };
 
-enum UntaggedI8_Tag
+enum UntaggedI128_Tag
 #ifdef __cplusplus
-  : int8_t
+  : __int128_t
 #endif // __cplusplus
  {
-  I8Data,
-  I8Unit,
+  I128Data,
+  I128Unit,
 };
 #ifndef __cplusplus
-typedef int8_t UntaggedI8_Tag;
+typedef __int128_t UntaggedI128_Tag;
 #endif // __cplusplus
 
-union UntaggedI8 {
-  UntaggedI8_Tag tag;
+union UntaggedI128 {
+  UntaggedI128_Tag tag;
   struct {
-    UntaggedI8_Tag i8data_tag;
-    int16_t i8data;
+    UntaggedI128_Tag i128data_tag;
+    int16_t i128data;
   };
 };
 
@@ -202,86 +282,6 @@ union UntaggedIsize {
   struct {
     UntaggedIsize_Tag isizedata_tag;
     int16_t isizedata;
-  };
-};
-
-enum UntaggedU128_Tag
-#ifdef __cplusplus
-  : __uint128_t
-#endif // __cplusplus
- {
-  U128Data,
-  U128Unit,
-};
-#ifndef __cplusplus
-typedef __uint128_t UntaggedU128_Tag;
-#endif // __cplusplus
-
-union UntaggedU128 {
-  UntaggedU128_Tag tag;
-  struct {
-    UntaggedU128_Tag u128data_tag;
-    int16_t u128data;
-  };
-};
-
-enum UntaggedU16_Tag
-#ifdef __cplusplus
-  : uint16_t
-#endif // __cplusplus
- {
-  U16Data,
-  U16Unit,
-};
-#ifndef __cplusplus
-typedef uint16_t UntaggedU16_Tag;
-#endif // __cplusplus
-
-union UntaggedU16 {
-  UntaggedU16_Tag tag;
-  struct {
-    UntaggedU16_Tag u16data_tag;
-    int16_t u16data;
-  };
-};
-
-enum UntaggedU32_Tag
-#ifdef __cplusplus
-  : uint32_t
-#endif // __cplusplus
- {
-  U32Data,
-  U32Unit,
-};
-#ifndef __cplusplus
-typedef uint32_t UntaggedU32_Tag;
-#endif // __cplusplus
-
-union UntaggedU32 {
-  UntaggedU32_Tag tag;
-  struct {
-    UntaggedU32_Tag u32data_tag;
-    int16_t u32data;
-  };
-};
-
-enum UntaggedU64_Tag
-#ifdef __cplusplus
-  : uint64_t
-#endif // __cplusplus
- {
-  U64Data,
-  U64Unit,
-};
-#ifndef __cplusplus
-typedef uint64_t UntaggedU64_Tag;
-#endif // __cplusplus
-
-union UntaggedU64 {
-  UntaggedU64_Tag tag;
-  struct {
-    UntaggedU64_Tag u64data_tag;
-    int16_t u64data;
   };
 };
 

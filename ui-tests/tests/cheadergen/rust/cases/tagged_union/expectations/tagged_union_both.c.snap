@@ -8,6 +8,28 @@ expression: output
 #include <stdint.h>
 #include <stdlib.h>
 
+enum Untagged_Tag {
+  Foo,
+  Bar,
+  Baz,
+};
+typedef uint8_t Untagged_Tag;
+
+typedef struct Bar_Body {
+  Untagged_Tag tag;
+  uint8_t x;
+  int16_t y;
+} Bar_Body;
+
+typedef union Untagged {
+  Untagged_Tag tag;
+  struct {
+    Untagged_Tag foo_tag;
+    int16_t foo;
+  };
+  struct Bar_Body bar;
+} Untagged;
+
 typedef enum Tagged_Tag {
   Tagged_Foo,
   Tagged_Bar,
@@ -51,41 +73,75 @@ typedef struct TaggedInt {
   };
 } TaggedInt;
 
-enum Untagged_Tag {
-  Foo,
-  Bar,
-  Baz,
+enum UntaggedU16_Tag {
+  U16Data,
+  U16Unit,
 };
-typedef uint8_t Untagged_Tag;
+typedef uint16_t UntaggedU16_Tag;
 
-typedef struct Bar_Body {
-  Untagged_Tag tag;
-  uint8_t x;
-  int16_t y;
-} Bar_Body;
-
-typedef union Untagged {
-  Untagged_Tag tag;
+typedef union UntaggedU16 {
+  UntaggedU16_Tag tag;
   struct {
-    Untagged_Tag foo_tag;
-    int16_t foo;
+    UntaggedU16_Tag u16data_tag;
+    int16_t u16data;
   };
-  struct Bar_Body bar;
-} Untagged;
+} UntaggedU16;
 
-enum UntaggedI128_Tag {
-  I128Data,
-  I128Unit,
+enum UntaggedU32_Tag {
+  U32Data,
+  U32Unit,
 };
-typedef __int128_t UntaggedI128_Tag;
+typedef uint32_t UntaggedU32_Tag;
 
-typedef union UntaggedI128 {
-  UntaggedI128_Tag tag;
+typedef union UntaggedU32 {
+  UntaggedU32_Tag tag;
   struct {
-    UntaggedI128_Tag i128data_tag;
-    int16_t i128data;
+    UntaggedU32_Tag u32data_tag;
+    int16_t u32data;
   };
-} UntaggedI128;
+} UntaggedU32;
+
+enum UntaggedU64_Tag {
+  U64Data,
+  U64Unit,
+};
+typedef uint64_t UntaggedU64_Tag;
+
+typedef union UntaggedU64 {
+  UntaggedU64_Tag tag;
+  struct {
+    UntaggedU64_Tag u64data_tag;
+    int16_t u64data;
+  };
+} UntaggedU64;
+
+enum UntaggedU128_Tag {
+  U128Data,
+  U128Unit,
+};
+typedef __uint128_t UntaggedU128_Tag;
+
+typedef union UntaggedU128 {
+  UntaggedU128_Tag tag;
+  struct {
+    UntaggedU128_Tag u128data_tag;
+    int16_t u128data;
+  };
+} UntaggedU128;
+
+enum UntaggedI8_Tag {
+  I8Data,
+  I8Unit,
+};
+typedef int8_t UntaggedI8_Tag;
+
+typedef union UntaggedI8 {
+  UntaggedI8_Tag tag;
+  struct {
+    UntaggedI8_Tag i8data_tag;
+    int16_t i8data;
+  };
+} UntaggedI8;
 
 enum UntaggedI16_Tag {
   I16Data,
@@ -129,19 +185,19 @@ typedef union UntaggedI64 {
   };
 } UntaggedI64;
 
-enum UntaggedI8_Tag {
-  I8Data,
-  I8Unit,
+enum UntaggedI128_Tag {
+  I128Data,
+  I128Unit,
 };
-typedef int8_t UntaggedI8_Tag;
+typedef __int128_t UntaggedI128_Tag;
 
-typedef union UntaggedI8 {
-  UntaggedI8_Tag tag;
+typedef union UntaggedI128 {
+  UntaggedI128_Tag tag;
   struct {
-    UntaggedI8_Tag i8data_tag;
-    int16_t i8data;
+    UntaggedI128_Tag i128data_tag;
+    int16_t i128data;
   };
-} UntaggedI8;
+} UntaggedI128;
 
 enum UntaggedIsize_Tag {
   IsizeData,
@@ -156,61 +212,5 @@ typedef union UntaggedIsize {
     int16_t isizedata;
   };
 } UntaggedIsize;
-
-enum UntaggedU128_Tag {
-  U128Data,
-  U128Unit,
-};
-typedef __uint128_t UntaggedU128_Tag;
-
-typedef union UntaggedU128 {
-  UntaggedU128_Tag tag;
-  struct {
-    UntaggedU128_Tag u128data_tag;
-    int16_t u128data;
-  };
-} UntaggedU128;
-
-enum UntaggedU16_Tag {
-  U16Data,
-  U16Unit,
-};
-typedef uint16_t UntaggedU16_Tag;
-
-typedef union UntaggedU16 {
-  UntaggedU16_Tag tag;
-  struct {
-    UntaggedU16_Tag u16data_tag;
-    int16_t u16data;
-  };
-} UntaggedU16;
-
-enum UntaggedU32_Tag {
-  U32Data,
-  U32Unit,
-};
-typedef uint32_t UntaggedU32_Tag;
-
-typedef union UntaggedU32 {
-  UntaggedU32_Tag tag;
-  struct {
-    UntaggedU32_Tag u32data_tag;
-    int16_t u32data;
-  };
-} UntaggedU32;
-
-enum UntaggedU64_Tag {
-  U64Data,
-  U64Unit,
-};
-typedef uint64_t UntaggedU64_Tag;
-
-typedef union UntaggedU64 {
-  UntaggedU64_Tag tag;
-  struct {
-    UntaggedU64_Tag u64data_tag;
-    int16_t u64data;
-  };
-} UntaggedU64;
 
 void root(union Untagged a, struct Tagged b, struct TaggedInt c, union UntaggedU16 d, union UntaggedU32 e, union UntaggedU64 f, union UntaggedU128 g, union UntaggedI8 h, union UntaggedI16 i, union UntaggedI32 j, union UntaggedI64 k, union UntaggedI128 l, union UntaggedIsize m);

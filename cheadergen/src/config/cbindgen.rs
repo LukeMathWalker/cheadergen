@@ -2,7 +2,10 @@ use std::path::Path;
 
 use serde::Deserialize;
 
-use super::{ConfigError, DocumentationLength, DocumentationStyle, RawCSection, RawConfig, RawCxxSection, RawFnSection, RawStaticSection, SortKey, Style};
+use super::{
+    ConfigError, DocumentationLength, DocumentationStyle, RawCSection, RawConfig, RawCxxSection,
+    RawFnSection, RawStaticSection, SortKey, Style,
+};
 
 /// Permissive deserialization of a cbindgen config file.
 ///
@@ -81,15 +84,18 @@ struct CbindgenConstSection {
 /// emits warnings on stderr for unsupported fields, and writes the
 /// cheadergen TOML to `output`.
 pub fn translate(input: &Path, output: &Path) -> Result<(), ConfigError> {
-    let contents = fs_err::read_to_string(input)
-        .map_err(|e| ConfigError { message: format!("failed to read cbindgen config: {e}") })?;
-    let cbindgen: CbindgenConfig = toml::from_str(&contents)
-        .map_err(|e| ConfigError { message: format!("failed to parse cbindgen config: {e}") })?;
+    let contents = fs_err::read_to_string(input).map_err(|e| ConfigError {
+        message: format!("failed to read cbindgen config: {e}"),
+    })?;
+    let cbindgen: CbindgenConfig = toml::from_str(&contents).map_err(|e| ConfigError {
+        message: format!("failed to parse cbindgen config: {e}"),
+    })?;
 
     let (raw, skipped) = translate_config(&cbindgen);
 
-    let mut toml_str = toml::to_string_pretty(&raw)
-        .map_err(|e| ConfigError { message: format!("failed to serialize cheadergen config: {e}") })?;
+    let mut toml_str = toml::to_string_pretty(&raw).map_err(|e| ConfigError {
+        message: format!("failed to serialize cheadergen config: {e}"),
+    })?;
 
     if !skipped.is_empty() {
         if !toml_str.is_empty() {
@@ -102,8 +108,9 @@ pub fn translate(input: &Path, output: &Path) -> Result<(), ConfigError> {
         }
     }
 
-    fs_err::write(output, toml_str)
-        .map_err(|e| ConfigError { message: format!("failed to write cheadergen config: {e}") })?;
+    fs_err::write(output, toml_str).map_err(|e| ConfigError {
+        message: format!("failed to write cheadergen config: {e}"),
+    })?;
 
     Ok(())
 }
@@ -174,37 +181,27 @@ fn translate_config(cb: &CbindgenConfig) -> (RawConfig, Vec<String>) {
     // Translate documentation fields.
     // cbindgen defaults documentation to true, so we suppress that default.
     let documentation = cb.documentation.filter(|&v| !v);
-    let documentation_style = cb
-        .documentation_style
-        .as_deref()
-        .and_then(|s| match s {
-            "auto" | "Auto" => Some(DocumentationStyle::Auto),
-            "c" | "C" => Some(DocumentationStyle::C),
-            "c99" | "C99" => Some(DocumentationStyle::C99),
-            "doxy" | "Doxy" => Some(DocumentationStyle::Doxy),
-            "cxx" | "Cxx" => Some(DocumentationStyle::Cxx),
-            other => {
-                eprintln!(
-                    "warning: ignoring unrecognized cbindgen documentation_style `{other}`"
-                );
-                skipped.push("documentation_style".into());
-                None
-            }
-        });
-    let documentation_length = cb
-        .documentation_length
-        .as_deref()
-        .and_then(|s| match s {
-            "full" | "Full" => Some(DocumentationLength::Full),
-            "short" | "Short" => Some(DocumentationLength::Short),
-            other => {
-                eprintln!(
-                    "warning: ignoring unrecognized cbindgen documentation_length `{other}`"
-                );
-                skipped.push("documentation_length".into());
-                None
-            }
-        });
+    let documentation_style = cb.documentation_style.as_deref().and_then(|s| match s {
+        "auto" | "Auto" => Some(DocumentationStyle::Auto),
+        "c" | "C" => Some(DocumentationStyle::C),
+        "c99" | "C99" => Some(DocumentationStyle::C99),
+        "doxy" | "Doxy" => Some(DocumentationStyle::Doxy),
+        "cxx" | "Cxx" => Some(DocumentationStyle::Cxx),
+        other => {
+            eprintln!("warning: ignoring unrecognized cbindgen documentation_style `{other}`");
+            skipped.push("documentation_style".into());
+            None
+        }
+    });
+    let documentation_length = cb.documentation_length.as_deref().and_then(|s| match s {
+        "full" | "Full" => Some(DocumentationLength::Full),
+        "short" | "Short" => Some(DocumentationLength::Short),
+        other => {
+            eprintln!("warning: ignoring unrecognized cbindgen documentation_length `{other}`");
+            skipped.push("documentation_length".into());
+            None
+        }
+    });
 
     let mut config = RawConfig {
         header: cb.header.clone(),
@@ -434,7 +431,8 @@ mod tests {
 
     #[test]
     fn all_supported_fields() {
-        let output = translate_to_toml(r##"
+        let output = translate_to_toml(
+            r##"
 header = "/* License */"
 trailer = "/* End */"
 include_guard = "MY_H"
@@ -446,7 +444,8 @@ sys_includes = ["stdint.h"]
 autogen_warning = "// DO NOT EDIT"
 style = "Tag"
 cpp_compat = true
-"##);
+"##,
+        );
         insta::assert_snapshot!(output, @r##"
         header = "/* License */"
         trailer = "/* End */"
@@ -466,21 +465,25 @@ cpp_compat = true
 
     #[test]
     fn default_values_suppressed() {
-        let output = translate_to_toml(r#"
+        let output = translate_to_toml(
+            r#"
 pragma_once = false
 no_includes = false
 cpp_compat = false
 style = "Type"
-"#);
+"#,
+        );
         insta::assert_snapshot!(output, @"");
     }
 
     #[test]
     fn cxx_language_creates_cxx_section() {
-        let output = translate_to_toml(r#"
+        let output = translate_to_toml(
+            r#"
 language = "Cxx"
 header = "/* C++ */"
-"#);
+"#,
+        );
         insta::assert_snapshot!(output, @r#"
         header = "/* C++ */"
 
@@ -498,10 +501,12 @@ header = "/* C++ */"
 
     #[test]
     fn c_language_explicit() {
-        let output = translate_to_toml(r#"
+        let output = translate_to_toml(
+            r#"
 language = "C"
 style = "Both"
-"#);
+"#,
+        );
         insta::assert_snapshot!(output, @r#"
         [c]
         style = "Both"
@@ -510,14 +515,16 @@ style = "Both"
 
     #[test]
     fn roundtrip_serialization() {
-        let output = translate_to_toml(r##"
+        let output = translate_to_toml(
+            r##"
 header = "/* License */"
 include_guard = "MY_H"
 includes = ["foo.h"]
 sys_includes = ["stdint.h"]
 style = "Tag"
 cpp_compat = true
-"##);
+"##,
+        );
 
         // Verify the output parses back as valid cheadergen config.
         let _: RawConfig = toml::from_str(&output).unwrap();

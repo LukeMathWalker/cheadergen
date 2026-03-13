@@ -51,6 +51,10 @@ name = "ref_primitives"
 version = "0.1.0"
 
 [[package]]
+name = "self_type"
+version = "0.1.0"
+
+[[package]]
 name = "simple_struct"
 version = "0.1.0"
 

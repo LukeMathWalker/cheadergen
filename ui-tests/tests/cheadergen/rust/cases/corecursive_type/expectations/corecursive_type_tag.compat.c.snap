@@ -18,23 +18,6 @@ struct Parent {
   struct Child child;
 };
 
-enum Ping_Tag {
-  Ping_Done,
-  Ping_Continue,
-};
-
-struct Ping_Continue_Body {
-  int32_t value;
-  struct Pong next;
-};
-
-struct Ping {
-  enum Ping_Tag tag;
-  union {
-    struct Ping_Continue_Body continue;
-  };
-};
-
 enum Pong_Tag {
   Pong_Done,
   Pong_Continue,
@@ -49,6 +32,23 @@ struct Pong {
   enum Pong_Tag tag;
   union {
     struct Pong_Continue_Body continue;
+  };
+};
+
+enum Ping_Tag {
+  Ping_Done,
+  Ping_Continue,
+};
+
+struct Ping_Continue_Body {
+  int32_t value;
+  struct Pong next;
+};
+
+struct Ping {
+  enum Ping_Tag tag;
+  union {
+    struct Ping_Continue_Body continue;
   };
 };
 
