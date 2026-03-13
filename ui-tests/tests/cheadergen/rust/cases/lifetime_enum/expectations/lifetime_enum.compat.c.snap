@@ -1,0 +1,93 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 171
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef enum {
+  MutOrConst_Shared,
+  MutOrConst_Exclusive,
+} MutOrConst_Tag;
+
+typedef struct {
+  MutOrConst_Tag tag;
+  union {
+    struct {
+      const uint8_t *shared;
+    };
+    struct {
+      uint8_t *exclusive;
+    };
+  };
+} MutOrConst;
+
+typedef enum {
+  Ref_Borrowed,
+  Ref_Owned,
+} Ref_Tag;
+
+typedef struct {
+  Ref_Tag tag;
+  union {
+    struct {
+      const int32_t *borrowed;
+    };
+    struct {
+      int32_t owned;
+    };
+  };
+} Ref;
+
+typedef enum {
+  RefOrVal_f64_Ref,
+  RefOrVal_f64_Val,
+} RefOrVal_f64_Tag;
+
+typedef struct {
+  RefOrVal_f64_Tag tag;
+  union {
+    struct {
+      const double *ref;
+    };
+    struct {
+      double val;
+    };
+  };
+} RefOrVal_f64;
+
+typedef enum {
+  RefOrVal_i32_Ref,
+  RefOrVal_i32_Val,
+} RefOrVal_i32_Tag;
+
+typedef struct {
+  RefOrVal_i32_Tag tag;
+  union {
+    struct {
+      const int32_t *ref;
+    };
+    struct {
+      int32_t val;
+    };
+  };
+} RefOrVal_i32;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+Ref use_ref(Ref r);
+
+MutOrConst use_mut_or_const(MutOrConst m);
+
+RefOrVal_i32 use_ref_or_val_i32(RefOrVal_i32 r);
+
+RefOrVal_f64 use_ref_or_val_f64(RefOrVal_f64 r);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

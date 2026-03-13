@@ -27,6 +27,10 @@ name = "generic_struct_default"
 version = "0.1.0"
 
 [[package]]
+name = "lifetime_enum"
+version = "0.1.0"
+
+[[package]]
 name = "lifetime_struct"
 version = "0.1.0"
 
