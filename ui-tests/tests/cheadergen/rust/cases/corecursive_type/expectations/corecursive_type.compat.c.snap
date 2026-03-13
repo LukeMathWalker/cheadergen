@@ -31,7 +31,7 @@ typedef struct {
 typedef struct {
   Pong_Tag tag;
   union {
-    Pong_Continue_Body continue;
+    Pong_Continue_Body continue_;
   };
 } Pong;
 
@@ -48,7 +48,7 @@ typedef struct {
 typedef struct {
   Ping_Tag tag;
   union {
-    Ping_Continue_Body continue;
+    Ping_Continue_Body continue_;
   };
 } Ping;
 

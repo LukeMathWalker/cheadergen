@@ -31,7 +31,7 @@ struct Pong_Continue_Body {
 struct Pong {
   enum Pong_Tag tag;
   union {
-    struct Pong_Continue_Body continue;
+    struct Pong_Continue_Body continue_;
   };
 };
 
@@ -48,7 +48,7 @@ struct Ping_Continue_Body {
 struct Ping {
   enum Ping_Tag tag;
   union {
-    struct Ping_Continue_Body continue;
+    struct Ping_Continue_Body continue_;
   };
 };
 

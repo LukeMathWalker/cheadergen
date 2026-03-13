@@ -13,6 +13,115 @@ use rustdoc_ir::{FreeFunction, ScalarPrimitive, Type};
 use rustdoc_processor::crate_data::CrateItemIndex;
 use rustdoc_types::Id;
 
+/// C and C++ reserved keywords that cannot be used as identifiers.
+///
+/// Lowercasing Rust variant names (e.g. `Continue` → `continue`) can produce
+/// keywords. When that happens, [`escape_c_keyword`] appends `_`.
+const C_KEYWORDS: &[&str] = &[
+    "alignas",
+    "alignof",
+    "auto",
+    "bool",
+    "break",
+    "case",
+    "char",
+    "const",
+    "constexpr",
+    "continue",
+    "default",
+    "do",
+    "double",
+    "else",
+    "enum",
+    "extern",
+    "false",
+    "float",
+    "for",
+    "goto",
+    "if",
+    "inline",
+    "int",
+    "long",
+    "nullptr",
+    "register",
+    "restrict",
+    "return",
+    "short",
+    "signed",
+    "sizeof",
+    "static",
+    "static_assert",
+    "struct",
+    "switch",
+    "thread_local",
+    "true",
+    "typedef",
+    "typeof",
+    "typeof_unqual",
+    "union",
+    "unsigned",
+    "void",
+    "volatile",
+    "while",
+    // C++ additional keywords
+    "and",
+    "and_eq",
+    "asm",
+    "bitand",
+    "bitor",
+    "catch",
+    "class",
+    "compl",
+    "concept",
+    "const_cast",
+    "consteval",
+    "constinit",
+    "co_await",
+    "co_return",
+    "co_yield",
+    "decltype",
+    "delete",
+    "dynamic_cast",
+    "explicit",
+    "export",
+    "friend",
+    "mutable",
+    "namespace",
+    "new",
+    "noexcept",
+    "not",
+    "not_eq",
+    "operator",
+    "or",
+    "or_eq",
+    "private",
+    "protected",
+    "public",
+    "reinterpret_cast",
+    "requires",
+    "static_cast",
+    "template",
+    "this",
+    "throw",
+    "try",
+    "typeid",
+    "typename",
+    "using",
+    "virtual",
+    "wchar_t",
+    "xor",
+    "xor_eq",
+];
+
+/// If `name` is a C/C++ keyword, return it with a trailing `_`; otherwise return it unchanged.
+fn escape_c_keyword(name: String) -> String {
+    if C_KEYWORDS.contains(&name.as_str()) {
+        format!("{name}_")
+    } else {
+        name
+    }
+}
+
 /// What C type tag to use when referring to a user-defined type by name.
 enum CTypeTag {
     Struct,
@@ -760,7 +869,7 @@ fn write_tagged_union_repr_c(
             let Some(ref body) = variant.body else {
                 continue;
             };
-            let field_name = variant.name.to_lowercase();
+            let field_name = escape_c_keyword(variant.name.to_lowercase());
             if body.fields.len() == 1 {
                 // Single-field: anonymous struct with lowercased variant name
                 writeln!(out, "    struct {{").unwrap();
@@ -807,7 +916,7 @@ fn write_tagged_union_repr_int(
         let Some(ref body) = variant.body else {
             continue;
         };
-        let field_name = variant.name.to_lowercase();
+        let field_name = escape_c_keyword(variant.name.to_lowercase());
         if body.fields.len() == 1 {
             // Single-field tuple variant: anonymous struct with tag + field
             let field = &body.fields[0];
