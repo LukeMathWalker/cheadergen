@@ -62,6 +62,30 @@ and runs significantly faster. Use `just test-cbindgen` to scope down to the cbi
 without running cheadergen tests. All three commands accept extra nextest args,
 e.g. `just test "-E 'test(~alias)'"`.
 
+#### Structured test output
+
+Pass `--profile machine` to any test command to write JUnit XML alongside normal output:
+
+    just test-generate --profile machine
+
+Then read `target/nextest/machine/junit.xml` for structured results. The XML contains one `<testcase>` per test with:
+- **name** and **classname** — the test identity
+- **time** — execution duration in seconds
+- **`<failure>`** — present only for failed tests, contains the failure message and captured output
+
+Example: a passing test:
+
+    <testcase name="cbindgen::generate::c::plain::alias" classname="ui-tests::tests" time="0.200"/>
+
+Example: a failing test:
+
+    <testcase name="cbindgen::generate::c::plain::alias" classname="ui-tests::tests" time="0.200">
+      <failure message="assertion failed" type="test">
+        thread 'cbindgen::generate::c::plain::alias' panicked at ...
+        snapshot mismatch: ...
+      </failure>
+    </testcase>
+
 ### Scaffolding new test cases
 
 ```bash

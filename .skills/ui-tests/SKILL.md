@@ -129,6 +129,10 @@ just test -E 'test(=cbindgen::generate::c::plain::alias)'
 
 # Scaffold a new cheadergen test case
 just ui-tests new <name>
+
+# Write structured JUnit XML results (alongside normal output)
+just test-generate --profile machine
+# Then read target/nextest/machine/junit.xml for per-test results
 ```
 
 ## Config Files

@@ -16,3 +16,8 @@ setup = 'compute-metadata'
 [[profile.default.scripts]]
 filter = 'binary(~cli_errors)'
 setup = 'build-cheadergen'
+
+[profile.machine.junit]
+path = "junit.xml"
+store-success-output = false
+store-failure-output = true

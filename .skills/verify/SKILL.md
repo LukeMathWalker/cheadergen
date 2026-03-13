@@ -9,6 +9,8 @@ Run the project's verification workflow in stages, failing fast on the cheapest 
 
 ## Instructions
 
+**Tip:** Add `--profile machine` to any `just test*` command to also write structured results to `target/nextest/machine/junit.xml`. Read the file after the run to get per-test pass/fail, failure messages, and timing without re-running or parsing terminal output.
+
 ### Step 1: Format
 
 Run
