@@ -1,5 +1,5 @@
-//! Opaque unions (non-repr(C) or private fields) must emit `union` forward
-//! declarations, not `struct`.
+//! Opaque unions (non-repr(C)) must emit `union` forward declarations,
+//! not `struct`.
 
 /// A non-repr(C) union — opaque, should use `union` tag.
 pub union NonReprC {
@@ -7,15 +7,5 @@ pub union NonReprC {
     pub y: f32,
 }
 
-/// A repr(C) union with private fields — opaque, should use `union` tag.
-#[repr(C)]
-pub union PrivateFields {
-    x: i32,
-    y: f32,
-}
-
 #[unsafe(no_mangle)]
 pub extern "C" fn use_non_repr_c(a: *mut NonReprC) {}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn use_private(a: *mut PrivateFields) {}

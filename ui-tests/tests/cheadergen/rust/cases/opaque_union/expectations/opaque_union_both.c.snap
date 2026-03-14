@@ -13,11 +13,4 @@ expression: output
  */
 typedef union NonReprC NonReprC;
 
-/**
- * A repr(C) union with private fields — opaque, should use `union` tag.
- */
-typedef union PrivateFields PrivateFields;
-
 void use_non_repr_c(union NonReprC *a);
-
-void use_private(union PrivateFields *a);

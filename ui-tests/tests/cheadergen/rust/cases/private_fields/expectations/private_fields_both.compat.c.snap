@@ -1,0 +1,59 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 171
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+/**
+ * A repr(C) struct with private fields.
+ */
+typedef struct PrivateStruct {
+  int32_t x;
+  float y;
+} PrivateStruct;
+
+/**
+ * A repr(C) union with private fields.
+ */
+typedef union PrivateUnion {
+  int32_t x;
+  float y;
+} PrivateUnion;
+
+/**
+ * A repr(C) enum with a private-field variant.
+ */
+typedef enum PrivateEnum_Tag {
+  PrivateEnum_A,
+  PrivateEnum_B,
+} PrivateEnum_Tag;
+
+typedef struct PrivateEnum_A_Body {
+  int32_t x;
+  float y;
+} PrivateEnum_A_Body;
+
+typedef struct PrivateEnum {
+  PrivateEnum_Tag tag;
+  union {
+    struct PrivateEnum_A_Body a;
+  };
+} PrivateEnum;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+struct PrivateStruct use_struct(struct PrivateStruct a);
+
+union PrivateUnion use_union(union PrivateUnion a);
+
+struct PrivateEnum use_enum(struct PrivateEnum a);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

@@ -16,8 +16,7 @@ use super::type_collection::{
 /// Attempt to resolve a directly-used type into a full definition.
 ///
 /// Returns an opaque variant (with a warning on stderr) if the type cannot
-/// be fully defined — e.g. missing `rustdoc_id`, not `#[repr(C)]`, has
-/// stripped fields, etc.
+/// be fully defined — e.g. missing `rustdoc_id`, not `#[repr(C)]`, etc.
 pub(super) fn resolve_type_kind<I: CrateIndexer>(
     name: &str,
     path_type: &PathType,
@@ -110,16 +109,7 @@ fn resolve_struct_kind<I: CrateIndexer>(
     };
 
     match &struct_def.kind {
-        StructKind::Plain {
-            fields,
-            has_stripped_fields,
-        } => {
-            if *has_stripped_fields {
-                eprintln!(
-                    "warning: type `{name}` has private fields; emitting opaque forward declaration"
-                );
-                return Ok(CTypeKind::OpaqueStruct);
-            }
+        StructKind::Plain { fields, .. } => {
             let c_fields =
                 resolve_plain_fields(fields, &generic_bindings, &path_type.package_id, collection)?;
             Ok(CTypeKind::Struct(CStructDef { fields: c_fields }))
@@ -163,13 +153,6 @@ fn resolve_union_kind<I: CrateIndexer>(
         Ok(bindings) => bindings,
         Err(()) => return Ok(CTypeKind::OpaqueUnion),
     };
-
-    if union_def.has_stripped_fields {
-        eprintln!(
-            "warning: union `{name}` has private fields; emitting opaque forward declaration"
-        );
-        return Ok(CTypeKind::OpaqueUnion);
-    }
 
     let c_fields = resolve_plain_fields(&union_def.fields, &generic_bindings, &path_type.package_id, collection)?;
     Ok(CTypeKind::Union(CUnionDef { fields: c_fields }))
@@ -271,11 +254,6 @@ fn resolve_enum_kind<I: CrateIndexer>(
         Err(()) => return Ok(CTypeKind::OpaqueStruct),
     };
 
-    if enum_def.has_stripped_variants {
-        eprintln!("warning: enum `{name}` has stripped variants; emitting forward declaration");
-        return Ok(CTypeKind::OpaqueStruct);
-    }
-
     let package_id = &path_type.package_id;
 
     // Classify: all variants plain → fieldless, otherwise → tagged union.
@@ -369,16 +347,7 @@ fn resolve_tagged_union<I: CrateIndexer>(
                     Some(CTaggedVariantBody { fields: c_fields })
                 }
             }
-            VariantKind::Struct {
-                fields,
-                has_stripped_fields,
-            } => {
-                if *has_stripped_fields {
-                    eprintln!(
-                        "warning: enum `{name}` variant `{variant_name}` has stripped fields; emitting forward declaration"
-                    );
-                    return Ok(CTypeKind::OpaqueStruct);
-                }
+            VariantKind::Struct { fields, .. } => {
                 let c_fields =
                     resolve_plain_fields(fields, generic_bindings, package_id, collection)?;
                 if c_fields.is_empty() {
