@@ -1,0 +1,53 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 171
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+/**
+ * A pointer type that uniquely owns a heap allocation of type `T`.
+ *
+ * See the [module-level documentation](../../std/boxed/index.html) for more.
+ */
+struct Box_f32;
+
+/**
+ * A pointer type that uniquely owns a heap allocation of type `T`.
+ *
+ * See the [module-level documentation](../../std/boxed/index.html) for more.
+ */
+struct Box_i32;
+
+/**
+ * The `Option` type. See [the module level documentation](self) for more.
+ */
+struct Option_Box_i32;
+
+/**
+ * The `Option` type. See [the module level documentation](self) for more.
+ */
+struct Option_Box_u8;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+void take_box_i32(struct Box_i32 x);
+
+struct Box_i32 return_box_i32(void);
+
+void take_box_f32(struct Box_f32 x);
+
+void take_option_box_i32(struct Option_Box_i32 x);
+
+struct Option_Box_i32 return_option_box_i32(void);
+
+void take_option_box_u8(struct Option_Box_u8 x);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus
