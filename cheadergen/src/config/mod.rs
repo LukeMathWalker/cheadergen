@@ -435,6 +435,49 @@ impl RawCommonFields {
     }
 }
 
+/// Trait for language-specific sections that can provide common option overrides.
+trait IntoCommonOverrides {
+    fn into_common_overrides(self) -> RawCommonOverrides;
+}
+
+impl IntoCommonOverrides for RawCSection {
+    fn into_common_overrides(self) -> RawCommonOverrides {
+        RawCommonOverrides {
+            header: self.header,
+            trailer: self.trailer,
+            autogen_warning: self.autogen_warning,
+            include_guard: self.include_guard,
+            pragma_once: self.pragma_once,
+            sys_includes: self.sys_includes,
+            includes: self.includes,
+            no_includes: self.no_includes,
+            after_includes: self.after_includes,
+            documentation: self.documentation,
+            documentation_style: self.documentation_style,
+            documentation_length: self.documentation_length,
+        }
+    }
+}
+
+impl IntoCommonOverrides for RawCxxSection {
+    fn into_common_overrides(self) -> RawCommonOverrides {
+        RawCommonOverrides {
+            header: self.header,
+            trailer: self.trailer,
+            autogen_warning: self.autogen_warning,
+            include_guard: self.include_guard,
+            pragma_once: self.pragma_once,
+            sys_includes: self.sys_includes,
+            includes: self.includes,
+            no_includes: self.no_includes,
+            after_includes: self.after_includes,
+            documentation: self.documentation,
+            documentation_style: self.documentation_style,
+            documentation_length: self.documentation_length,
+        }
+    }
+}
+
 /// CLI overrides that can be applied to the config before validation.
 #[derive(Debug, Default)]
 pub struct CliOverrides {
@@ -502,32 +545,17 @@ impl RawConfig {
         match language {
             Language::C => {
                 let section = self.c.unwrap_or_default();
-                let section_overrides = RawCommonOverrides {
-                    header: section.header,
-                    trailer: section.trailer,
-                    autogen_warning: section.autogen_warning,
-                    include_guard: section.include_guard,
-                    pragma_once: section.pragma_once,
-                    sys_includes: section.sys_includes,
-                    includes: section.includes,
-                    no_includes: section.no_includes,
-                    after_includes: section.after_includes,
-                    documentation: section.documentation,
-                    documentation_style: section.documentation_style,
-                    documentation_length: section.documentation_length,
-                };
-                let common = base.resolve(section_overrides);
-
                 let style = overrides
                     .style
                     .clone()
-                    .or(section.style)
+                    .or(section.style.clone())
                     .unwrap_or(Style::Both);
                 let cpp_compat = if overrides.cpp_compat {
                     true
                 } else {
                     section.cpp_compat.unwrap_or(false)
                 };
+                let common = base.resolve(section.into_common_overrides());
 
                 Ok(Config::C(CConfig {
                     common,
@@ -537,21 +565,7 @@ impl RawConfig {
             }
             Language::Cxx => {
                 let section = self.cxx.unwrap_or_default();
-                let section_overrides = RawCommonOverrides {
-                    header: section.header,
-                    trailer: section.trailer,
-                    autogen_warning: section.autogen_warning,
-                    include_guard: section.include_guard,
-                    pragma_once: section.pragma_once,
-                    sys_includes: section.sys_includes,
-                    includes: section.includes,
-                    no_includes: section.no_includes,
-                    after_includes: section.after_includes,
-                    documentation: section.documentation,
-                    documentation_style: section.documentation_style,
-                    documentation_length: section.documentation_length,
-                };
-                let common = base.resolve(section_overrides);
+                let common = base.resolve(section.into_common_overrides());
                 Ok(Config::Cxx(CxxConfig { common }))
             }
             Language::Cython => unreachable!(),

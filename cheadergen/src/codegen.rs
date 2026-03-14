@@ -3,8 +3,8 @@ use std::fmt::Write;
 use std::path::Path;
 
 use crate::analysis::{
-    CEnumRepr, CFieldlessEnumDef, CStructDef, CTaggedUnionDef, CTypeDefinition, CTypeKind,
-    c_type_name,
+    CEnumRepr, CFieldlessEnumDef, CIdentifier, CStructDef, CTaggedUnionDef, CTypeDefinition,
+    CTypeKind, c_type_name,
 };
 use crate::config::{CConfig, CommonConfig, DocumentationLength, DocumentationStyle, Style};
 use crate::constant_item::ConstantItem;
@@ -12,115 +12,6 @@ use crate::static_item::StaticItem;
 use rustdoc_ir::{FreeFunction, ScalarPrimitive, Type};
 use rustdoc_processor::crate_data::CrateItemIndex;
 use rustdoc_types::Id;
-
-/// C and C++ reserved keywords that cannot be used as identifiers.
-///
-/// Lowercasing Rust variant names (e.g. `Continue` → `continue`) can produce
-/// keywords. When that happens, [`escape_c_keyword`] appends `_`.
-const C_KEYWORDS: &[&str] = &[
-    "alignas",
-    "alignof",
-    "auto",
-    "bool",
-    "break",
-    "case",
-    "char",
-    "const",
-    "constexpr",
-    "continue",
-    "default",
-    "do",
-    "double",
-    "else",
-    "enum",
-    "extern",
-    "false",
-    "float",
-    "for",
-    "goto",
-    "if",
-    "inline",
-    "int",
-    "long",
-    "nullptr",
-    "register",
-    "restrict",
-    "return",
-    "short",
-    "signed",
-    "sizeof",
-    "static",
-    "static_assert",
-    "struct",
-    "switch",
-    "thread_local",
-    "true",
-    "typedef",
-    "typeof",
-    "typeof_unqual",
-    "union",
-    "unsigned",
-    "void",
-    "volatile",
-    "while",
-    // C++ additional keywords
-    "and",
-    "and_eq",
-    "asm",
-    "bitand",
-    "bitor",
-    "catch",
-    "class",
-    "compl",
-    "concept",
-    "const_cast",
-    "consteval",
-    "constinit",
-    "co_await",
-    "co_return",
-    "co_yield",
-    "decltype",
-    "delete",
-    "dynamic_cast",
-    "explicit",
-    "export",
-    "friend",
-    "mutable",
-    "namespace",
-    "new",
-    "noexcept",
-    "not",
-    "not_eq",
-    "operator",
-    "or",
-    "or_eq",
-    "private",
-    "protected",
-    "public",
-    "reinterpret_cast",
-    "requires",
-    "static_cast",
-    "template",
-    "this",
-    "throw",
-    "try",
-    "typeid",
-    "typename",
-    "using",
-    "virtual",
-    "wchar_t",
-    "xor",
-    "xor_eq",
-];
-
-/// If `name` is a C/C++ keyword, return it with a trailing `_`; otherwise return it unchanged.
-fn escape_c_keyword(name: String) -> String {
-    if C_KEYWORDS.contains(&name.as_str()) {
-        format!("{name}_")
-    } else {
-        name
-    }
-}
 
 /// What C type tag to use when referring to a user-defined type by name.
 enum CTypeTag {
@@ -653,7 +544,7 @@ fn write_c_struct_definition(
             writeln!(out, "struct {name} {{").unwrap();
             for field in &def.fields {
                 out.push_str("  ");
-                write_c_decl(&field.type_, &field.name, style, type_tags, out);
+                write_c_decl(&field.type_, field.name.as_str(), style, type_tags, out);
                 writeln!(out, ";").unwrap();
             }
             writeln!(out, "}};").unwrap();
@@ -662,7 +553,7 @@ fn write_c_struct_definition(
             writeln!(out, "typedef struct {{").unwrap();
             for field in &def.fields {
                 out.push_str("  ");
-                write_c_decl(&field.type_, &field.name, style, type_tags, out);
+                write_c_decl(&field.type_, field.name.as_str(), style, type_tags, out);
                 writeln!(out, ";").unwrap();
             }
             writeln!(out, "}} {name};").unwrap();
@@ -671,7 +562,7 @@ fn write_c_struct_definition(
             writeln!(out, "struct {name} {{").unwrap();
             for field in &def.fields {
                 out.push_str("  ");
-                write_c_decl(&field.type_, &field.name, &Style::Tag, type_tags, out);
+                write_c_decl(&field.type_, field.name.as_str(), &Style::Tag, type_tags, out);
                 writeln!(out, ";").unwrap();
             }
             writeln!(out, "}};").unwrap();
@@ -680,7 +571,7 @@ fn write_c_struct_definition(
             writeln!(out, "typedef struct {name} {{").unwrap();
             for field in &def.fields {
                 out.push_str("  ");
-                write_c_decl(&field.type_, &field.name, style, type_tags, out);
+                write_c_decl(&field.type_, field.name.as_str(), style, type_tags, out);
                 writeln!(out, ";").unwrap();
             }
             writeln!(out, "}} {name};").unwrap();
@@ -746,7 +637,7 @@ fn write_enum_variant_list(
 ) {
     for (i, variant) in variants.iter().enumerate() {
         out.push_str("  ");
-        out.push_str(&variant.name);
+        out.push_str(variant.name.as_str());
         if let Some(ref disc) = variant.discriminant {
             write!(out, " = {disc}").unwrap();
         }
@@ -781,7 +672,7 @@ fn write_c_tagged_union(
                 v.name.clone()
             };
             crate::analysis::CEnumVariant {
-                name: variant_name,
+                name: CIdentifier::new(variant_name),
                 discriminant: None,
             }
         })
@@ -836,7 +727,7 @@ fn write_c_tagged_union(
                 }
                 for field in &body.fields {
                     out.push_str("  ");
-                    write_c_decl(&field.type_, &field.name, style, type_tags, out);
+                    write_c_decl(&field.type_, field.name.as_str(), style, type_tags, out);
                     writeln!(out, ";").unwrap();
                 }
                 writeln!(out, "}} {body_name};").unwrap();
@@ -848,7 +739,7 @@ fn write_c_tagged_union(
                 }
                 for field in &body.fields {
                     out.push_str("  ");
-                    write_c_decl(&field.type_, &field.name, &Style::Tag, type_tags, out);
+                    write_c_decl(&field.type_, field.name.as_str(), &Style::Tag, type_tags, out);
                     writeln!(out, ";").unwrap();
                 }
                 writeln!(out, "}};").unwrap();
@@ -860,7 +751,7 @@ fn write_c_tagged_union(
                 }
                 for field in &body.fields {
                     out.push_str("  ");
-                    write_c_decl(&field.type_, &field.name, style, type_tags, out);
+                    write_c_decl(&field.type_, field.name.as_str(), style, type_tags, out);
                     writeln!(out, ";").unwrap();
                 }
                 writeln!(out, "}} {body_name};").unwrap();
@@ -912,13 +803,13 @@ fn write_tagged_union_repr_c(
             let Some(ref body) = variant.body else {
                 continue;
             };
-            let field_name = escape_c_keyword(variant.name.to_lowercase());
+            let field_name = CIdentifier::new(variant.name.to_lowercase());
             if body.fields.len() == 1 {
                 // Single-field: anonymous struct with lowercased variant name
                 writeln!(out, "    struct {{").unwrap();
                 let field = &body.fields[0];
                 out.push_str("      ");
-                write_c_decl(&field.type_, &field_name, style, type_tags, out);
+                write_c_decl(&field.type_, field_name.as_str(), style, type_tags, out);
                 writeln!(out, ";").unwrap();
                 writeln!(out, "    }};").unwrap();
             } else {
@@ -961,14 +852,14 @@ fn write_tagged_union_repr_int(
         let Some(ref body) = variant.body else {
             continue;
         };
-        let field_name = escape_c_keyword(variant.name.to_lowercase());
+        let field_name = CIdentifier::new(variant.name.to_lowercase());
         if body.fields.len() == 1 {
             // Single-field tuple variant: anonymous struct with tag + field
             let field = &body.fields[0];
             writeln!(out, "  struct {{").unwrap();
             writeln!(out, "    {tag_type_str} {field_name}_tag;").unwrap();
             out.push_str("    ");
-            write_c_decl(&field.type_, &field_name, style, type_tags, out);
+            write_c_decl(&field.type_, field_name.as_str(), style, type_tags, out);
             writeln!(out, ";").unwrap();
             writeln!(out, "  }};").unwrap();
         } else {

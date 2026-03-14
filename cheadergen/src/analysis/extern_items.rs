@@ -1,0 +1,144 @@
+use std::collections::BTreeSet;
+
+use rustdoc_ir::FreeFunction;
+use rustdoc_processor::CrateCollection;
+use rustdoc_processor::indexing::NoAnnotations;
+use rustdoc_processor::queries::Crate;
+use rustdoc_resolver::resolve_free_function;
+use rustdoc_types::{Abi, Attribute, ItemEnum};
+
+use crate::constant_item::{ConstantItem, resolve_constant};
+use crate::static_item::{StaticItem, resolve_static};
+
+/// Extern "C" function IDs, exported static IDs, and constant IDs found in a crate.
+pub struct ExternItems {
+    pub fn_ids: Vec<rustdoc_types::Id>,
+    pub static_ids: Vec<rustdoc_types::Id>,
+    pub constant_ids: Vec<rustdoc_types::Id>,
+}
+
+/// Walk the crate's import index and collect extern "C" functions, exported statics,
+/// and public constants.
+pub fn find_extern_items(krate: &Crate) -> ExternItems {
+    let mut fn_ids = Vec::new();
+    let mut static_ids = Vec::new();
+    let mut constant_ids = Vec::new();
+
+    for id in krate.import_index.items.keys() {
+        let Some(item) = krate.core.krate.index.get(id) else {
+            continue;
+        };
+        match &item.inner {
+            ItemEnum::Function(func) if matches!(func.header.abi, Abi::C { .. }) => {
+                fn_ids.push(*id);
+            }
+            ItemEnum::Static(_) if has_export_attr(&item.attrs) => {
+                static_ids.push(*id);
+            }
+            ItemEnum::Constant { .. } => {
+                constant_ids.push(*id);
+            }
+            _ => {}
+        }
+    }
+
+    ExternItems {
+        fn_ids,
+        static_ids,
+        constant_ids,
+    }
+}
+
+/// Resolve each extern "C" function ID into the IR, validating types along the way.
+pub fn resolve_functions(
+    fn_ids: &[rustdoc_types::Id],
+    krate: &Crate,
+    collection: &CrateCollection<NoAnnotations>,
+) -> anyhow::Result<Vec<FreeFunction>> {
+    let mut resolved_fns = Vec::new();
+    for id in fn_ids {
+        let item = krate
+            .core
+            .krate
+            .index
+            .get(id)
+            .ok_or_else(|| anyhow::anyhow!("Missing item for id {:?}", id))?;
+        let free_fn = resolve_free_function(&item, krate, collection)
+            .map_err(|e| anyhow::anyhow!("Failed to resolve function: {e}"))?;
+
+        resolved_fns.push(free_fn);
+    }
+    Ok(resolved_fns)
+}
+
+/// Resolve each exported static ID into a [`StaticItem`].
+pub fn resolve_statics(
+    static_ids: &[rustdoc_types::Id],
+    krate: &Crate,
+    collection: &CrateCollection<NoAnnotations>,
+) -> anyhow::Result<Vec<StaticItem>> {
+    let mut resolved = Vec::new();
+    for id in static_ids {
+        let item = krate
+            .core
+            .krate
+            .index
+            .get(id)
+            .ok_or_else(|| anyhow::anyhow!("Missing item for id {:?}", id))?;
+        let static_item = resolve_static(&item, krate, collection)
+            .map_err(|e| anyhow::anyhow!("Failed to resolve static: {e}"))?;
+        resolved.push(static_item);
+    }
+    Ok(resolved)
+}
+
+/// Resolve each constant ID into a [`ConstantItem`], skipping unsupported types.
+pub fn resolve_constants(
+    constant_ids: &[rustdoc_types::Id],
+    krate: &Crate,
+    collection: &CrateCollection<NoAnnotations>,
+) -> Vec<ConstantItem> {
+    let mut resolved = Vec::new();
+    for id in constant_ids {
+        let Some(item) = krate.core.krate.index.get(id) else {
+            continue;
+        };
+        if let Some(constant) = resolve_constant(&item, krate, collection) {
+            resolved.push(constant);
+        }
+    }
+    resolved
+}
+
+/// Extract symbol names from function and static IDs.
+pub fn collect_symbols(items: &ExternItems, krate: &Crate) -> BTreeSet<String> {
+    let mut symbols = BTreeSet::new();
+    for id in items.fn_ids.iter().chain(&items.static_ids) {
+        let Some(item) = krate.core.krate.index.get(id) else {
+            continue;
+        };
+        if let Some(name) = exported_symbol_name(&item) {
+            symbols.insert(name.to_owned());
+        }
+    }
+    symbols
+}
+
+/// Return the linker-visible symbol name for an item.
+///
+/// Priority: `#[export_name = "..."]` > `item.name` (for `#[no_mangle]`).
+fn exported_symbol_name(item: &rustdoc_types::Item) -> Option<&str> {
+    for attr in &item.attrs {
+        if let Attribute::ExportName(name) = attr {
+            return Some(name);
+        }
+    }
+    item.name.as_deref()
+}
+
+/// Returns `true` if the item has `#[no_mangle]` or `#[export_name = "..."]`.
+fn has_export_attr(attrs: &[Attribute]) -> bool {
+    attrs
+        .iter()
+        .any(|a| matches!(a, Attribute::NoMangle | Attribute::ExportName(_)))
+}
