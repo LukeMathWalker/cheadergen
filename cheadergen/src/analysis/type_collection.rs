@@ -4,6 +4,7 @@ use std::fmt;
 use rustdoc_ir::{FreeFunction, GenericArgument, PathType, ScalarPrimitive, Type};
 use rustdoc_processor::indexing::CrateIndexer;
 use rustdoc_processor::{CORE_PACKAGE_ID_REPR, CrateCollection, GlobalItemId, STD_PACKAGE_ID_REPR};
+use rustdoc_types::ItemEnum;
 
 use super::type_resolution::resolve_type_kind;
 use crate::static_item::StaticItem;
@@ -158,7 +159,9 @@ pub struct CTypeDefinition {
 /// The kind of C type definition to emit.
 pub enum CTypeKind {
     /// Emit only a forward declaration (`struct Foo;` / `typedef struct Foo Foo;`).
-    Opaque,
+    OpaqueStruct,
+    /// Emit only a forward declaration (`union Foo;` / `typedef union Foo Foo;`).
+    OpaqueUnion,
     /// Emit a full struct definition with fields.
     Struct(CStructDef),
     /// Emit a plain C union definition with fields.
@@ -478,7 +481,7 @@ fn resolve_all_type_definitions<I: CrateIndexer>(
                         }
                     }
                 }
-                CTypeKind::Opaque | CTypeKind::FieldlessEnum(_) => {}
+                CTypeKind::OpaqueStruct | CTypeKind::OpaqueUnion | CTypeKind::FieldlessEnum(_) => {}
             }
 
             resolved.insert(
@@ -505,11 +508,21 @@ fn resolve_all_type_definitions<I: CrateIndexer>(
         let rustdoc_id = path_type
             .rustdoc_id
             .map(|id| GlobalItemId::new(id, path_type.package_id.clone()));
+        // Determine if the underlying item is a union so we emit the correct tag.
+        let is_union = rustdoc_id
+            .as_ref()
+            .map(|gid| collection.get_item_by_global_type_id(gid))
+            .is_some_and(|item| matches!(item.inner, ItemEnum::Union(_)));
+        let kind = if is_union {
+            CTypeKind::OpaqueUnion
+        } else {
+            CTypeKind::OpaqueStruct
+        };
         resolved.insert(
             path_type,
             CTypeDefinition {
                 name,
-                kind: CTypeKind::Opaque,
+                kind,
                 rustdoc_id,
             },
         );

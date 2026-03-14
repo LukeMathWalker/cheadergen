@@ -181,7 +181,7 @@ fn by_value_dependencies(def: &CTypeDefinition) -> Vec<String> {
                 }
             }
         }
-        CTypeKind::Opaque | CTypeKind::FieldlessEnum(_) => {}
+        CTypeKind::OpaqueStruct | CTypeKind::OpaqueUnion | CTypeKind::FieldlessEnum(_) => {}
     }
     deps
 }

@@ -27,8 +27,8 @@ fn build_type_tag_map(type_defs: &[CTypeDefinition]) -> HashMap<String, CTypeTag
     let mut map = HashMap::new();
     for def in type_defs {
         let tag = match &def.kind {
-            CTypeKind::Opaque | CTypeKind::Struct(_) => CTypeTag::Struct,
-            CTypeKind::Union(_) => CTypeTag::Union,
+            CTypeKind::OpaqueStruct | CTypeKind::Struct(_) => CTypeTag::Struct,
+            CTypeKind::OpaqueUnion | CTypeKind::Union(_) => CTypeTag::Union,
             CTypeKind::FieldlessEnum(e) => match &e.repr {
                 CEnumRepr::C => CTypeTag::Enum,
                 CEnumRepr::Int { .. } => CTypeTag::IntTypedef,
@@ -428,7 +428,7 @@ fn write_c_type_definitions<I: CrateIndexer>(
         .collect();
     let opaque_defs: Vec<_> = type_defs
         .iter()
-        .filter(|d| matches!(d.kind, CTypeKind::Opaque))
+        .filter(|d| matches!(d.kind, CTypeKind::OpaqueStruct | CTypeKind::OpaqueUnion))
         .collect();
     let compound_defs: Vec<_> = type_defs
         .iter()
@@ -463,9 +463,14 @@ fn write_c_type_definitions<I: CrateIndexer>(
         let name = &def.name;
         let docs = lookup_docs(def.rustdoc_id.as_ref(), collection);
         write_doc_comment(docs.as_deref(), config, out);
+        let tag = if matches!(def.kind, CTypeKind::OpaqueUnion) {
+            "union"
+        } else {
+            "struct"
+        };
         match style {
-            Style::Tag => writeln!(out, "struct {name};").unwrap(),
-            Style::Type | Style::Both => writeln!(out, "typedef struct {name} {name};").unwrap(),
+            Style::Tag => writeln!(out, "{tag} {name};").unwrap(),
+            Style::Type | Style::Both => writeln!(out, "typedef {tag} {name} {name};").unwrap(),
         }
         if i + 1 < opaque_defs.len() {
             out.push('\n');

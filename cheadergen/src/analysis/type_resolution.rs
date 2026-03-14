@@ -15,7 +15,7 @@ use super::type_collection::{
 
 /// Attempt to resolve a directly-used type into a full definition.
 ///
-/// Returns `CTypeKind::Opaque` (with a warning on stderr) if the type cannot
+/// Returns an opaque variant (with a warning on stderr) if the type cannot
 /// be fully defined — e.g. missing `rustdoc_id`, not `#[repr(C)]`, has
 /// stripped fields, etc.
 pub(super) fn resolve_type_kind<I: CrateIndexer>(
@@ -25,7 +25,7 @@ pub(super) fn resolve_type_kind<I: CrateIndexer>(
 ) -> anyhow::Result<CTypeKind> {
     let Some(id) = &path_type.rustdoc_id else {
         eprintln!("warning: type `{name}` has no rustdoc ID; emitting forward declaration");
-        return Ok(CTypeKind::Opaque);
+        return Ok(CTypeKind::OpaqueStruct);
     };
 
     let global_id = GlobalItemId::new(*id, path_type.package_id.clone());
@@ -45,18 +45,19 @@ pub(super) fn resolve_type_kind<I: CrateIndexer>(
             eprintln!(
                 "warning: type `{name}` is not a struct, union, or enum; emitting forward declaration"
             );
-            Ok(CTypeKind::Opaque)
+            Ok(CTypeKind::OpaqueStruct)
         }
     }
 }
 
 /// Build generic bindings for a type with type parameters, returning
-/// `Ok(CTypeKind::Opaque)` (with a warning) if the type cannot be monomorphized.
+/// `Err(())` (with a warning) if the type cannot be monomorphized.
+/// Callers map the error to the appropriate opaque variant.
 fn setup_generic_bindings(
     name: &str,
     generics: &rustdoc_types::Generics,
     path_type: &PathType,
-) -> Result<GenericBindings, CTypeKind> {
+) -> Result<GenericBindings, ()> {
     let mut bindings = if has_type_params(generics) {
         match build_generic_bindings(generics, &path_type.generic_arguments) {
             Some(bindings) => bindings,
@@ -64,7 +65,7 @@ fn setup_generic_bindings(
                 eprintln!(
                     "warning: type `{name}` has generic type parameters; emitting forward declaration"
                 );
-                return Err(CTypeKind::Opaque);
+                return Err(());
             }
         }
     } else {
@@ -100,12 +101,12 @@ fn resolve_struct_kind<I: CrateIndexer>(
     });
     if !is_repr_c {
         eprintln!("warning: type `{name}` is not #[repr(C)]; emitting opaque forward declaration");
-        return Ok(CTypeKind::Opaque);
+        return Ok(CTypeKind::OpaqueStruct);
     }
 
     let generic_bindings = match setup_generic_bindings(name, &struct_def.generics, path_type) {
         Ok(bindings) => bindings,
-        Err(opaque) => return Ok(opaque),
+        Err(()) => return Ok(CTypeKind::OpaqueStruct),
     };
 
     match &struct_def.kind {
@@ -117,7 +118,7 @@ fn resolve_struct_kind<I: CrateIndexer>(
                 eprintln!(
                     "warning: type `{name}` has private fields; emitting opaque forward declaration"
                 );
-                return Ok(CTypeKind::Opaque);
+                return Ok(CTypeKind::OpaqueStruct);
             }
             let c_fields =
                 resolve_plain_fields(fields, &generic_bindings, &path_type.package_id, collection)?;
@@ -155,19 +156,19 @@ fn resolve_union_kind<I: CrateIndexer>(
     });
     if !is_repr_c {
         eprintln!("warning: union `{name}` is not #[repr(C)]; emitting opaque forward declaration");
-        return Ok(CTypeKind::Opaque);
+        return Ok(CTypeKind::OpaqueUnion);
     }
 
     let generic_bindings = match setup_generic_bindings(name, &union_def.generics, path_type) {
         Ok(bindings) => bindings,
-        Err(opaque) => return Ok(opaque),
+        Err(()) => return Ok(CTypeKind::OpaqueUnion),
     };
 
     if union_def.has_stripped_fields {
         eprintln!(
             "warning: union `{name}` has private fields; emitting opaque forward declaration"
         );
-        return Ok(CTypeKind::Opaque);
+        return Ok(CTypeKind::OpaqueUnion);
     }
 
     let c_fields = resolve_plain_fields(&union_def.fields, &generic_bindings, &path_type.package_id, collection)?;
@@ -262,17 +263,17 @@ fn resolve_enum_kind<I: CrateIndexer>(
         eprintln!(
             "warning: enum `{name}` has no C-compatible repr; emitting opaque forward declaration"
         );
-        return Ok(CTypeKind::Opaque);
+        return Ok(CTypeKind::OpaqueStruct);
     };
 
     let generic_bindings = match setup_generic_bindings(name, &enum_def.generics, path_type) {
         Ok(bindings) => bindings,
-        Err(opaque) => return Ok(opaque),
+        Err(()) => return Ok(CTypeKind::OpaqueStruct),
     };
 
     if enum_def.has_stripped_variants {
         eprintln!("warning: enum `{name}` has stripped variants; emitting forward declaration");
-        return Ok(CTypeKind::Opaque);
+        return Ok(CTypeKind::OpaqueStruct);
     }
 
     let package_id = &path_type.package_id;
@@ -376,7 +377,7 @@ fn resolve_tagged_union<I: CrateIndexer>(
                     eprintln!(
                         "warning: enum `{name}` variant `{variant_name}` has stripped fields; emitting forward declaration"
                     );
-                    return Ok(CTypeKind::Opaque);
+                    return Ok(CTypeKind::OpaqueStruct);
                 }
                 let c_fields =
                     resolve_plain_fields(fields, generic_bindings, package_id, collection)?;

@@ -12,7 +12,7 @@ expression: output
  * A non-repr(C) union — should be emitted as an opaque forward declaration
  * when only used behind a pointer.
  */
-typedef struct Opaque Opaque;
+typedef union Opaque Opaque;
 
 /**
  * A basic repr(C) union with primitive fields.
@@ -34,7 +34,7 @@ typedef union WithZST {
 extern "C" {
 #endif // __cplusplus
 
-void root(struct Opaque *a, union Normal b, union WithZST c);
+void root(union Opaque *a, union Normal b, union WithZST c);
 
 #ifdef __cplusplus
 }  // extern "C"

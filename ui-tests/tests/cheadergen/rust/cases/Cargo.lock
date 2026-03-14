@@ -47,6 +47,10 @@ name = "lifetime_struct"
 version = "0.1.0"
 
 [[package]]
+name = "opaque_union"
+version = "0.1.0"
+
+[[package]]
 name = "opaque_upgrade"
 version = "0.1.0"
 

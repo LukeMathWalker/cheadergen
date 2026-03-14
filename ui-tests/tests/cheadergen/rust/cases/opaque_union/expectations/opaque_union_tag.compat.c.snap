@@ -1,0 +1,31 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 171
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+/**
+ * A non-repr(C) union — opaque, should use `union` tag.
+ */
+union NonReprC;
+
+/**
+ * A repr(C) union with private fields — opaque, should use `union` tag.
+ */
+union PrivateFields;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+void use_non_repr_c(union NonReprC *a);
+
+void use_private(union PrivateFields *a);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus
