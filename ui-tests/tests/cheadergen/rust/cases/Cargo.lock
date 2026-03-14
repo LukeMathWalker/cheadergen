@@ -83,5 +83,9 @@ name = "tagged_union"
 version = "0.1.0"
 
 [[package]]
+name = "transparent"
+version = "0.1.0"
+
+[[package]]
 name = "zst_fields"
 version = "0.1.0"
