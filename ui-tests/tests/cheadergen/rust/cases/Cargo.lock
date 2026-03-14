@@ -71,6 +71,10 @@ name = "plain_union"
 version = "0.1.0"
 
 [[package]]
+name = "pointer_wrappers"
+version = "0.1.0"
+
+[[package]]
 name = "private_fields"
 version = "0.1.0"
 
