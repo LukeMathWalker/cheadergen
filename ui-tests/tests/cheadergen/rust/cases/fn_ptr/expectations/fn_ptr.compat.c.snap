@@ -1,0 +1,47 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 171
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+/**
+ * A callback that takes two integers and returns a boolean.
+ */
+typedef bool (*Predicate)(int32_t, int32_t);
+
+/**
+ * A nullable callback (Option<fn> should simplify to bare fn ptr).
+ */
+typedef void (*NullableCallback)(uint64_t);
+
+typedef struct {
+  void (*on_event)(uint32_t);
+  void (*on_error)(int32_t);
+} Dispatcher;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+/**
+ * Takes a bare function pointer as a parameter.
+ */
+void register_callback(bool (*cb)(uint8_t));
+
+/**
+ * Takes typedef'd function pointer types.
+ */
+void invoke(Predicate pred, NullableCallback fallback);
+
+/**
+ * Uses a struct with function pointer fields.
+ */
+void dispatch(Dispatcher d);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

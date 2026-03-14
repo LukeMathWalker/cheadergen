@@ -1,6 +1,7 @@
 mod extern_items;
 mod type_collection;
 mod type_resolution;
+mod type_transform;
 
 pub use extern_items::{
     collect_symbols, find_assoc_constants, find_extern_items, resolve_constants, resolve_functions,
@@ -11,6 +12,7 @@ pub use type_collection::{
     CTypeKind, CTypeDefinition, CTypedefDef, CUnionDef, c_type_name,
     collect_type_definitions,
 };
+pub use type_transform::simplify_option_fn_ptrs;
 
 use rustdoc_processor::indexing::CrateIndexer;
 use rustdoc_processor::queries::Crate;

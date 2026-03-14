@@ -390,7 +390,9 @@ pub fn c_type_name(ty: &Type) -> String {
         Type::Array(a) => c_type_name(&a.element_type),
         Type::Generic(g) => g.name.clone(),
         Type::FunctionPointer(_) => {
-            unreachable!("unsupported type in C type name: {ty:?}")
+            // Function pointers are emitted inline (not by name); this path is
+            // reached when computing names for wrapper types like Option<fn()>.
+            "fn".to_owned()
         }
     }
 }
@@ -416,7 +418,15 @@ pub(super) fn collect_paths_from_type(
         }
         Type::Slice(s) => collect_paths_from_type(&s.element_type, usage, seen),
         Type::Array(a) => collect_paths_from_type(&a.element_type, usage, seen),
-        Type::ScalarPrimitive(_) | Type::Generic(_) | Type::FunctionPointer(_) => {}
+        Type::FunctionPointer(fp) => {
+            for input in &fp.inputs {
+                collect_paths_from_type(input, TypeUsage::BehindPointer, seen);
+            }
+            if let Some(output) = &fp.output {
+                collect_paths_from_type(output, TypeUsage::BehindPointer, seen);
+            }
+        }
+        Type::ScalarPrimitive(_) | Type::Generic(_) => {}
     }
 }
 

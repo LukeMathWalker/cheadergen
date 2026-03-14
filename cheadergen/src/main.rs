@@ -321,8 +321,9 @@ fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
             krate,
         );
 
-        let resolved_fns = analysis::resolve_functions(&extern_items.fn_ids, krate, &collection)?;
-        let resolved_statics =
+        let mut resolved_fns =
+            analysis::resolve_functions(&extern_items.fn_ids, krate, &collection)?;
+        let mut resolved_statics =
             analysis::resolve_statics(&extern_items.static_ids, krate, &collection)?;
         let resolved_constants =
             analysis::resolve_constants(&extern_items.constant_ids, krate, &collection);
@@ -335,6 +336,13 @@ fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
 
         let mut type_defs =
             analysis::collect_type_definitions(&resolved_fns, &resolved_statics, &collection, c_config.enum_prefix_with_name)?;
+
+        // Simplify Option<fn(...)> → fn(...) before codegen.
+        analysis::simplify_option_fn_ptrs(
+            &mut type_defs,
+            &mut resolved_fns,
+            &mut resolved_statics,
+        );
 
         // First, establish a baseline source order (type_defs come from a
         // HashMap and have no inherent order). Then apply topological sort

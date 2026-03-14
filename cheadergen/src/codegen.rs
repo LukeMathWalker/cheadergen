@@ -9,7 +9,7 @@ use crate::analysis::{
 use crate::config::{CConfig, CommonConfig, DocumentationLength, DocumentationStyle, Style};
 use crate::constant_item::ConstantItem;
 use crate::static_item::StaticItem;
-use rustdoc_ir::{FreeFunction, ScalarPrimitive, Type};
+use rustdoc_ir::{FreeFunction, FunctionPointer, ScalarPrimitive, Type};
 use rustdoc_processor::indexing::CrateIndexer;
 use rustdoc_processor::{CrateCollection, GlobalItemId};
 
@@ -274,8 +274,8 @@ fn write_c_static_decl(
     out.push(';');
 }
 
-/// Write a C declaration in cdecl style: handles arrays by placing the name
-/// between the element type and `[N]`, e.g. `char NAME[128]`.
+/// Write a C declaration in cdecl style: handles arrays, function pointers,
+/// and pointer-to-function-pointers by placing the name inside the declarator.
 fn write_c_decl(
     ty: &Type,
     name: &str,
@@ -283,19 +283,19 @@ fn write_c_decl(
     type_tags: &HashMap<String, CTypeTag>,
     out: &mut String,
 ) {
-    match ty {
-        Type::Array(a) => {
-            write_c_type(&a.element_type, style, type_tags, out);
-            write!(out, " {name}[{}]", a.len).unwrap();
-        }
-        _ => {
-            let mut type_buf = String::new();
-            write_c_type(ty, style, type_tags, &mut type_buf);
-            if type_buf.ends_with('*') {
-                write!(out, "{type_buf}{name}").unwrap();
-            } else {
-                write!(out, "{type_buf} {name}").unwrap();
-            }
+    if let Type::Array(a) = ty {
+        write_c_type(&a.element_type, style, type_tags, out);
+        write!(out, " {name}[{}]", a.len).unwrap();
+    } else if let Some((fp, depth)) = fn_ptr_through_pointers(ty) {
+        let declarator = format!("{}{name}", "*".repeat(depth));
+        write_fn_ptr_decl(fp, &declarator, style, type_tags, out);
+    } else {
+        let mut type_buf = String::new();
+        write_c_type(ty, style, type_tags, &mut type_buf);
+        if type_buf.ends_with('*') {
+            write!(out, "{type_buf}{name}").unwrap();
+        } else {
+            write!(out, "{type_buf} {name}").unwrap();
         }
     }
 }
@@ -358,12 +358,17 @@ fn write_c_param(
     type_tags: &HashMap<String, CTypeTag>,
     out: &mut String,
 ) {
-    let mut type_buf = String::new();
-    write_c_type(ty, style, type_tags, &mut type_buf);
-    if type_buf.ends_with('*') {
-        write!(out, "{type_buf}{name}").unwrap();
+    if let Some((fp, depth)) = fn_ptr_through_pointers(ty) {
+        let declarator = format!("{}{name}", "*".repeat(depth));
+        write_fn_ptr_decl(fp, &declarator, style, type_tags, out);
     } else {
-        write!(out, "{type_buf} {name}").unwrap();
+        let mut type_buf = String::new();
+        write_c_type(ty, style, type_tags, &mut type_buf);
+        if type_buf.ends_with('*') {
+            write!(out, "{type_buf}{name}").unwrap();
+        } else {
+            write!(out, "{type_buf} {name}").unwrap();
+        }
     }
 }
 
@@ -371,7 +376,10 @@ fn write_c_type(ty: &Type, style: &Style, type_tags: &HashMap<String, CTypeTag>,
     match ty {
         Type::ScalarPrimitive(p) => out.push_str(scalar_to_c(p)),
         Type::RawPointer(ptr) => {
-            if ptr.is_mutable {
+            if let Some((fp, depth)) = fn_ptr_through_pointers(&ptr.inner) {
+                let declarator = "*".repeat(depth + 1);
+                write_fn_ptr_decl(fp, &declarator, style, type_tags, out);
+            } else if ptr.is_mutable {
                 write_c_type(&ptr.inner, style, type_tags, out);
                 out.push_str(" *");
             } else {
@@ -395,6 +403,9 @@ fn write_c_type(ty: &Type, style: &Style, type_tags: &HashMap<String, CTypeTag>,
                 out.push_str(" *");
             }
         }
+        Type::FunctionPointer(fp) => {
+            write_fn_ptr_decl(fp, "", style, type_tags, out);
+        }
         Type::Path(_) | Type::TypeAlias(_) => {
             let name = c_type_name(ty);
             match style {
@@ -410,10 +421,62 @@ fn write_c_type(ty: &Type, style: &Style, type_tags: &HashMap<String, CTypeTag>,
                 Style::Type => out.push_str(&name),
             }
         }
-        Type::Tuple(_) | Type::Slice(_) | Type::Generic(_) | Type::FunctionPointer(_) => {
+        Type::Tuple(_) | Type::Slice(_) | Type::Generic(_) => {
             unreachable!("unsupported type in C codegen: {ty:?}")
         }
     }
+}
+
+/// Check if a type is a function pointer possibly wrapped in raw pointer layers.
+/// Returns the inner function pointer and the pointer depth (0 for bare fn ptr).
+fn fn_ptr_through_pointers(ty: &Type) -> Option<(&FunctionPointer, usize)> {
+    match ty {
+        Type::FunctionPointer(fp) => Some((fp, 0)),
+        Type::RawPointer(p) => {
+            let (fp, depth) = fn_ptr_through_pointers(&p.inner)?;
+            Some((fp, depth + 1))
+        }
+        _ => None,
+    }
+}
+
+/// Write a C function pointer declaration.
+///
+/// `declarator` goes between `(*` and `)` — it's the name for named declarations,
+/// extra `*`s for pointer-to-fn-ptr, or empty for unnamed.
+fn write_fn_ptr_decl(
+    fp: &FunctionPointer,
+    declarator: &str,
+    style: &Style,
+    type_tags: &HashMap<String, CTypeTag>,
+    out: &mut String,
+) {
+    // Return type.
+    let mut ret_buf = String::new();
+    match &fp.output {
+        None => ret_buf.push_str("void"),
+        Some(ty) if is_void(ty) => ret_buf.push_str("void"),
+        Some(ty) => write_c_type(ty, style, type_tags, &mut ret_buf),
+    }
+
+    if ret_buf.ends_with('*') {
+        write!(out, "{ret_buf}(*{declarator})(").unwrap();
+    } else {
+        write!(out, "{ret_buf} (*{declarator})(").unwrap();
+    }
+
+    // Parameters.
+    if fp.inputs.is_empty() {
+        out.push_str("void");
+    } else {
+        for (i, input) in fp.inputs.iter().enumerate() {
+            if i > 0 {
+                out.push_str(", ");
+            }
+            write_c_type(input, style, type_tags, out);
+        }
+    }
+    out.push(')');
 }
 
 #[allow(clippy::too_many_arguments)]
