@@ -64,6 +64,16 @@ just test
 
 If compilation tests fail but generation tests passed, the issue is in the generated header output rather than snapshot content.
 
+### Step 5: Xfail verification
+
+Run xfail tests to confirm they still fail as expected:
+
+```bash
+just test-xfail
+```
+
+These are tests marked `#[ignore]` that document known gaps. A **pass** here means the test is still failing as expected (good). A **failure** means an xfail test has started passing — the underlying issue was fixed and the test should be promoted to a regular (non-ignored) test.
+
 ## Scoping to specific cases
 
 All test commands accept extra nextest filter args:

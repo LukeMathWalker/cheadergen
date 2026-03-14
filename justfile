@@ -37,6 +37,10 @@ test-cbindgen-xfail +args="":
 test-symbol-xfail +args="":
     cargo nextest run --no-fail-fast -p ui-tests --run-ignored ignored-only --no-tests pass -E 'test(~::symbol::)' "$@"
 
+# Run all xfail tests (expected failures)
+test-xfail +args="":
+    cargo nextest run --no-fail-fast -p ui-tests --run-ignored ignored-only --no-tests pass "$@"
+
 # Compute project coverage by running tests with instrumentation enabled
 # Report formats: html (default), codecov, lcov, text
 #   just coverage          → HTML report in target/llvm-cov/html/
@@ -123,4 +127,4 @@ check-cbindgen-snapshots:
     fi
 
 # Run all checks
-verify: check-cbindgen-snapshots lint (fmt "check") test
+verify: check-cbindgen-snapshots lint (fmt "check") test test-xfail
