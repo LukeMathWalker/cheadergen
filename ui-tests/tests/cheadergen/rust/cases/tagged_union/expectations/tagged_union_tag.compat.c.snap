@@ -13,15 +13,15 @@ enum Untagged_Tag
   : uint8_t
 #endif // __cplusplus
  {
-  Foo,
-  Bar,
-  Baz,
+  Untagged_Foo,
+  Untagged_Bar,
+  Untagged_Baz,
 };
 #ifndef __cplusplus
 typedef uint8_t Untagged_Tag;
 #endif // __cplusplus
 
-struct Bar_Body {
+struct Untagged_Bar_Body {
   Untagged_Tag tag;
   uint8_t x;
   int16_t y;
@@ -33,7 +33,7 @@ union Untagged {
     Untagged_Tag foo_tag;
     int16_t foo;
   };
-  struct Bar_Body bar;
+  struct Untagged_Bar_Body bar;
 };
 
 enum Tagged_Tag {
@@ -90,8 +90,8 @@ enum UntaggedU16_Tag
   : uint16_t
 #endif // __cplusplus
  {
-  U16Data,
-  U16Unit,
+  UntaggedU16_U16Data,
+  UntaggedU16_U16Unit,
 };
 #ifndef __cplusplus
 typedef uint16_t UntaggedU16_Tag;
@@ -110,8 +110,8 @@ enum UntaggedU32_Tag
   : uint32_t
 #endif // __cplusplus
  {
-  U32Data,
-  U32Unit,
+  UntaggedU32_U32Data,
+  UntaggedU32_U32Unit,
 };
 #ifndef __cplusplus
 typedef uint32_t UntaggedU32_Tag;
@@ -130,8 +130,8 @@ enum UntaggedU64_Tag
   : uint64_t
 #endif // __cplusplus
  {
-  U64Data,
-  U64Unit,
+  UntaggedU64_U64Data,
+  UntaggedU64_U64Unit,
 };
 #ifndef __cplusplus
 typedef uint64_t UntaggedU64_Tag;
@@ -150,8 +150,8 @@ enum UntaggedU128_Tag
   : __uint128_t
 #endif // __cplusplus
  {
-  U128Data,
-  U128Unit,
+  UntaggedU128_U128Data,
+  UntaggedU128_U128Unit,
 };
 #ifndef __cplusplus
 typedef __uint128_t UntaggedU128_Tag;
@@ -170,8 +170,8 @@ enum UntaggedI8_Tag
   : int8_t
 #endif // __cplusplus
  {
-  I8Data,
-  I8Unit,
+  UntaggedI8_I8Data,
+  UntaggedI8_I8Unit,
 };
 #ifndef __cplusplus
 typedef int8_t UntaggedI8_Tag;
@@ -190,8 +190,8 @@ enum UntaggedI16_Tag
   : int16_t
 #endif // __cplusplus
  {
-  I16Data,
-  I16Unit,
+  UntaggedI16_I16Data,
+  UntaggedI16_I16Unit,
 };
 #ifndef __cplusplus
 typedef int16_t UntaggedI16_Tag;
@@ -210,8 +210,8 @@ enum UntaggedI32_Tag
   : int32_t
 #endif // __cplusplus
  {
-  I32Data,
-  I32Unit,
+  UntaggedI32_I32Data,
+  UntaggedI32_I32Unit,
 };
 #ifndef __cplusplus
 typedef int32_t UntaggedI32_Tag;
@@ -230,8 +230,8 @@ enum UntaggedI64_Tag
   : int64_t
 #endif // __cplusplus
  {
-  I64Data,
-  I64Unit,
+  UntaggedI64_I64Data,
+  UntaggedI64_I64Unit,
 };
 #ifndef __cplusplus
 typedef int64_t UntaggedI64_Tag;
@@ -250,8 +250,8 @@ enum UntaggedI128_Tag
   : __int128_t
 #endif // __cplusplus
  {
-  I128Data,
-  I128Unit,
+  UntaggedI128_I128Data,
+  UntaggedI128_I128Unit,
 };
 #ifndef __cplusplus
 typedef __int128_t UntaggedI128_Tag;
@@ -270,8 +270,8 @@ enum UntaggedIsize_Tag
   : intptr_t
 #endif // __cplusplus
  {
-  IsizeData,
-  IsizeUnit,
+  UntaggedIsize_IsizeData,
+  UntaggedIsize_IsizeUnit,
 };
 #ifndef __cplusplus
 typedef intptr_t UntaggedIsize_Tag;

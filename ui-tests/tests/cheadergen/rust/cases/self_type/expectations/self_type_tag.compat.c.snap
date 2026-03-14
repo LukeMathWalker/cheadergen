@@ -14,11 +14,11 @@ struct ListNode {
 };
 
 enum TreeNode_Tag {
-  TreeNode_Leaf,
-  TreeNode_Branch,
+  Leaf,
+  Branch,
 };
 
-struct TreeNode_Branch_Body {
+struct Branch_Body {
   int32_t value;
   struct TreeNode *left;
   struct TreeNode *right;
@@ -27,7 +27,7 @@ struct TreeNode_Branch_Body {
 struct TreeNode {
   enum TreeNode_Tag tag;
   union {
-    struct TreeNode_Branch_Body branch;
+    struct Branch_Body branch;
   };
 };
 

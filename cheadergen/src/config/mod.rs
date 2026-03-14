@@ -86,6 +86,16 @@ pub struct RawConstantSection {
     pub sort_by: Option<SortKey>,
 }
 
+/// Enum-specific configuration inside the `[enum]` TOML section.
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RawEnumSection {
+    /// When true, prefix tagged-union variant names with the enum name
+    /// (e.g. `Foo_A` instead of `A`). Defaults to `false`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prefix_with_name: Option<bool>,
+}
+
 /// The declaration style for C struct and enum definitions.
 ///
 /// This only applies when the target language is [`Language::C`].
@@ -175,6 +185,9 @@ pub struct RawConfig {
     /// Constant-specific configuration.
     #[serde(rename = "constant", skip_serializing_if = "Option::is_none")]
     pub constant_: Option<RawConstantSection>,
+    /// Enum-specific configuration.
+    #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
+    pub enum_: Option<RawEnumSection>,
 
     /// C-specific configuration section.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -327,6 +340,9 @@ pub struct CConfig {
     pub style: Style,
     /// See [`RawCSection::cpp_compat`]. Defaults to `false`.
     pub cpp_compat: bool,
+    /// Whether to prefix tagged-union variant names with the enum name.
+    /// Defaults to `false`.
+    pub enum_prefix_with_name: bool,
 }
 
 /// C++-specific configuration for [`Language::Cxx`] output.
@@ -551,12 +567,17 @@ impl RawConfig {
                 } else {
                     section.cpp_compat.unwrap_or(false)
                 };
+                let enum_prefix_with_name = self
+                    .enum_
+                    .and_then(|s| s.prefix_with_name)
+                    .unwrap_or(false);
                 let common = base.resolve(section.into_common_overrides());
 
                 Ok(Config::C(CConfig {
                     common,
                     style,
                     cpp_compat,
+                    enum_prefix_with_name,
                 }))
             }
             Language::Cxx => {

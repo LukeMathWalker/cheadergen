@@ -28,19 +28,19 @@ typedef union PrivateUnion {
  * A repr(C) enum with a private-field variant.
  */
 typedef enum PrivateEnum_Tag {
-  PrivateEnum_A,
-  PrivateEnum_B,
+  A,
+  B,
 } PrivateEnum_Tag;
 
-typedef struct PrivateEnum_A_Body {
+typedef struct A_Body {
   int32_t x;
   float y;
-} PrivateEnum_A_Body;
+} A_Body;
 
 typedef struct PrivateEnum {
   PrivateEnum_Tag tag;
   union {
-    struct PrivateEnum_A_Body a;
+    struct A_Body a;
   };
 } PrivateEnum;
 

@@ -17,20 +17,20 @@ struct ListNode {
 };
 
 typedef enum {
-  TreeNode_Leaf,
-  TreeNode_Branch,
+  Leaf,
+  Branch,
 } TreeNode_Tag;
 
 typedef struct {
   int32_t value;
   TreeNode *left;
   TreeNode *right;
-} TreeNode_Branch_Body;
+} Branch_Body;
 
 struct TreeNode {
   TreeNode_Tag tag;
   union {
-    TreeNode_Branch_Body branch;
+    Branch_Body branch;
   };
 };
 

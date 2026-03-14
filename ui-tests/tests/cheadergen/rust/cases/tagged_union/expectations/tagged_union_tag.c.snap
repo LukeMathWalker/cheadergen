@@ -9,13 +9,13 @@ expression: output
 #include <stdlib.h>
 
 enum Untagged_Tag {
-  Foo,
-  Bar,
-  Baz,
+  Untagged_Foo,
+  Untagged_Bar,
+  Untagged_Baz,
 };
 typedef uint8_t Untagged_Tag;
 
-struct Bar_Body {
+struct Untagged_Bar_Body {
   Untagged_Tag tag;
   uint8_t x;
   int16_t y;
@@ -27,7 +27,7 @@ union Untagged {
     Untagged_Tag foo_tag;
     int16_t foo;
   };
-  struct Bar_Body bar;
+  struct Untagged_Bar_Body bar;
 };
 
 enum Tagged_Tag {
@@ -74,8 +74,8 @@ struct TaggedInt {
 };
 
 enum UntaggedU16_Tag {
-  U16Data,
-  U16Unit,
+  UntaggedU16_U16Data,
+  UntaggedU16_U16Unit,
 };
 typedef uint16_t UntaggedU16_Tag;
 
@@ -88,8 +88,8 @@ union UntaggedU16 {
 };
 
 enum UntaggedU32_Tag {
-  U32Data,
-  U32Unit,
+  UntaggedU32_U32Data,
+  UntaggedU32_U32Unit,
 };
 typedef uint32_t UntaggedU32_Tag;
 
@@ -102,8 +102,8 @@ union UntaggedU32 {
 };
 
 enum UntaggedU64_Tag {
-  U64Data,
-  U64Unit,
+  UntaggedU64_U64Data,
+  UntaggedU64_U64Unit,
 };
 typedef uint64_t UntaggedU64_Tag;
 
@@ -116,8 +116,8 @@ union UntaggedU64 {
 };
 
 enum UntaggedU128_Tag {
-  U128Data,
-  U128Unit,
+  UntaggedU128_U128Data,
+  UntaggedU128_U128Unit,
 };
 typedef __uint128_t UntaggedU128_Tag;
 
@@ -130,8 +130,8 @@ union UntaggedU128 {
 };
 
 enum UntaggedI8_Tag {
-  I8Data,
-  I8Unit,
+  UntaggedI8_I8Data,
+  UntaggedI8_I8Unit,
 };
 typedef int8_t UntaggedI8_Tag;
 
@@ -144,8 +144,8 @@ union UntaggedI8 {
 };
 
 enum UntaggedI16_Tag {
-  I16Data,
-  I16Unit,
+  UntaggedI16_I16Data,
+  UntaggedI16_I16Unit,
 };
 typedef int16_t UntaggedI16_Tag;
 
@@ -158,8 +158,8 @@ union UntaggedI16 {
 };
 
 enum UntaggedI32_Tag {
-  I32Data,
-  I32Unit,
+  UntaggedI32_I32Data,
+  UntaggedI32_I32Unit,
 };
 typedef int32_t UntaggedI32_Tag;
 
@@ -172,8 +172,8 @@ union UntaggedI32 {
 };
 
 enum UntaggedI64_Tag {
-  I64Data,
-  I64Unit,
+  UntaggedI64_I64Data,
+  UntaggedI64_I64Unit,
 };
 typedef int64_t UntaggedI64_Tag;
 
@@ -186,8 +186,8 @@ union UntaggedI64 {
 };
 
 enum UntaggedI128_Tag {
-  I128Data,
-  I128Unit,
+  UntaggedI128_I128Data,
+  UntaggedI128_I128Unit,
 };
 typedef __int128_t UntaggedI128_Tag;
 
@@ -200,8 +200,8 @@ union UntaggedI128 {
 };
 
 enum UntaggedIsize_Tag {
-  IsizeData,
-  IsizeUnit,
+  UntaggedIsize_IsizeData,
+  UntaggedIsize_IsizeUnit,
 };
 typedef intptr_t UntaggedIsize_Tag;
 

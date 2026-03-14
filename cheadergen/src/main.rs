@@ -334,7 +334,7 @@ fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
         }
 
         let mut type_defs =
-            analysis::collect_type_definitions(&resolved_fns, &resolved_statics, &collection)?;
+            analysis::collect_type_definitions(&resolved_fns, &resolved_statics, &collection, c_config.enum_prefix_with_name)?;
 
         // First, establish a baseline source order (type_defs come from a
         // HashMap and have no inherent order). Then apply topological sort

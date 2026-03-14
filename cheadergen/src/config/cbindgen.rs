@@ -4,7 +4,7 @@ use serde::Deserialize;
 
 use super::{
     ConfigError, DocumentationLength, DocumentationStyle, RawCSection, RawConfig, RawCxxSection,
-    RawFnSection, RawStaticSection, SortKey, Style,
+    RawEnumSection, RawFnSection, RawStaticSection, SortKey, Style,
 };
 
 /// Permissive deserialization of a cbindgen config file.
@@ -51,7 +51,7 @@ pub(crate) struct CbindgenConfig {
     #[serde(rename = "struct")]
     structure: Option<toml::Value>,
     #[serde(rename = "enum")]
-    enumeration: Option<toml::Value>,
+    enumeration: Option<CbindgenEnumSection>,
     #[serde(rename = "const")]
     constant: Option<CbindgenConstSection>,
     layout: Option<toml::Value>,
@@ -74,6 +74,14 @@ struct CbindgenFnSection {
 #[derive(Deserialize)]
 struct CbindgenConstSection {
     sort_by: Option<String>,
+    #[serde(flatten)]
+    other: std::collections::HashMap<String, toml::Value>,
+}
+
+/// Cbindgen `[enum]` section. Currently only `prefix_with_name` is translatable.
+#[derive(Deserialize)]
+struct CbindgenEnumSection {
+    prefix_with_name: Option<bool>,
     #[serde(flatten)]
     other: std::collections::HashMap<String, toml::Value>,
 }
@@ -203,6 +211,22 @@ fn translate_config(cb: &CbindgenConfig) -> (RawConfig, Vec<String>) {
         }
     });
 
+    // Translate [enum] section.
+    let enum_section = cb.enumeration.as_ref().and_then(|section| {
+        if !section.other.is_empty() {
+            let other_keys: Vec<_> = section.other.keys().map(|k| k.as_str()).collect();
+            eprintln!(
+                "warning: ignoring unsupported cbindgen [enum] option(s): {}",
+                other_keys.join(", ")
+            );
+        }
+        // Only emit if prefix_with_name is true (false is our default).
+        let prefix = section.prefix_with_name.filter(|&v| v);
+        prefix.map(|p| RawEnumSection {
+            prefix_with_name: Some(p),
+        })
+    });
+
     let mut config = RawConfig {
         header: cb.header.clone(),
         trailer: cb.trailer.clone(),
@@ -220,6 +244,7 @@ fn translate_config(cb: &CbindgenConfig) -> (RawConfig, Vec<String>) {
         fn_: fn_section,
         static_: static_section,
         constant_: None,
+        enum_: enum_section,
         c: None,
         cxx: None,
     };
@@ -336,8 +361,10 @@ const UNSUPPORTED_FIELD_COLLECTORS: &[UnsupportedFieldCollector] = &[
         }
     }),
     ("enum", |cb, out| {
-        if let Some(v) = &cb.enumeration {
-            collect_table_keys("enum", v, out);
+        if let Some(s) = &cb.enumeration {
+            for key in s.other.keys() {
+                out.push(format!("enum.{key}"));
+            }
         }
     }),
     ("const", |cb, out| {

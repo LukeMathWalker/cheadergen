@@ -14,20 +14,20 @@ typedef struct ListNode {
 } ListNode;
 
 typedef enum TreeNode_Tag {
-  TreeNode_Leaf,
-  TreeNode_Branch,
+  Leaf,
+  Branch,
 } TreeNode_Tag;
 
-typedef struct TreeNode_Branch_Body {
+typedef struct Branch_Body {
   int32_t value;
   struct TreeNode *left;
   struct TreeNode *right;
-} TreeNode_Branch_Body;
+} Branch_Body;
 
 typedef struct TreeNode {
   TreeNode_Tag tag;
   union {
-    struct TreeNode_Branch_Body branch;
+    struct Branch_Body branch;
   };
 } TreeNode;
 

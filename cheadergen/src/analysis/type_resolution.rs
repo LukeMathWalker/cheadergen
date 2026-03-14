@@ -21,6 +21,7 @@ pub(super) fn resolve_type_kind<I: CrateIndexer>(
     name: &str,
     path_type: &PathType,
     collection: &CrateCollection<I>,
+    enum_prefix_with_name: bool,
 ) -> anyhow::Result<CTypeKind> {
     let Some(id) = &path_type.rustdoc_id else {
         eprintln!("warning: type `{name}` has no rustdoc ID; emitting forward declaration");
@@ -38,7 +39,7 @@ pub(super) fn resolve_type_kind<I: CrateIndexer>(
             resolve_union_kind(name, union_def, &item.attrs, path_type, collection)
         }
         ItemEnum::Enum(enum_def) => {
-            resolve_enum_kind(name, enum_def, &item.attrs, path_type, collection)
+            resolve_enum_kind(name, enum_def, &item.attrs, path_type, collection, enum_prefix_with_name)
         }
         ItemEnum::TypeAlias(type_alias) => {
             resolve_type_alias_kind(name, type_alias, path_type, collection)
@@ -327,6 +328,7 @@ fn resolve_enum_kind<I: CrateIndexer>(
     attrs: &[Attribute],
     path_type: &PathType,
     collection: &CrateCollection<I>,
+    enum_prefix_with_name: bool,
 ) -> anyhow::Result<CTypeKind> {
     let Some(repr) = extract_enum_repr(attrs)? else {
         eprintln!(
@@ -369,6 +371,7 @@ fn resolve_enum_kind<I: CrateIndexer>(
             &generic_bindings,
             package_id,
             collection,
+            enum_prefix_with_name,
         )
     }
 }
@@ -409,9 +412,9 @@ fn resolve_tagged_union<I: CrateIndexer>(
     generic_bindings: &GenericBindings,
     package_id: &PackageId,
     collection: &CrateCollection<I>,
+    enum_prefix_with_name: bool,
 ) -> anyhow::Result<CTypeKind> {
-    // repr(C) or repr(C, uN) → prefix variant names with enum name.
-    let prefix_with_name = repr.is_repr_c();
+    let prefix_with_name = enum_prefix_with_name;
 
     let mut variants = Vec::new();
     for variant_id in &enum_def.variants {

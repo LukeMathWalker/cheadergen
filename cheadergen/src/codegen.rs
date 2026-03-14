@@ -1015,6 +1015,12 @@ fn write_tagged_union_repr_int(
     }
     writeln!(out, "  {tag_type_str} tag;").unwrap();
 
+    let body_prefix = if def.prefix_with_name {
+        format!("{name}_")
+    } else {
+        String::new()
+    };
+
     for variant in &def.variants {
         let Some(ref body) = variant.body else {
             continue;
@@ -1031,7 +1037,7 @@ fn write_tagged_union_repr_int(
             writeln!(out, "  }};").unwrap();
         } else {
             // Multi-field: reference to _Body struct
-            let body_name = format!("{}_Body", variant.name);
+            let body_name = format!("{body_prefix}{}_Body", variant.name);
             match style {
                 Style::Tag | Style::Both => {
                     writeln!(out, "  struct {body_name} {field_name};").unwrap()
