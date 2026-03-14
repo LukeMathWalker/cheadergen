@@ -1,0 +1,23 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 171
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+union WithDefault_i32__f32 {
+  int32_t main;
+  float extra;
+};
+
+union WithDefault_i32__u8 {
+  int32_t main;
+  uint8_t extra;
+};
+
+union WithDefault_i32__f32 use_default(union WithDefault_i32__f32 w);
+
+union WithDefault_i32__u8 use_override(union WithDefault_i32__u8 w);

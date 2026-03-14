@@ -1,0 +1,33 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 171
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+/**
+ * A non-repr(C) union — should be emitted as an opaque forward declaration
+ * when only used behind a pointer.
+ */
+struct Opaque;
+
+/**
+ * A basic repr(C) union with primitive fields.
+ */
+union Normal {
+  int32_t x;
+  float y;
+};
+
+/**
+ * A repr(C) union where ZST fields (`()`, `PhantomData`) should be skipped.
+ */
+union WithZST {
+  int32_t x;
+  float y;
+};
+
+void root(struct Opaque *a, union Normal b, union WithZST c);

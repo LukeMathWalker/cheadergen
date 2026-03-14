@@ -7,7 +7,7 @@ pub use extern_items::{
 };
 pub use type_collection::{
     CEnumRepr, CEnumVariant, CFieldlessEnumDef, CIdentifier, CStructDef, CTaggedUnionDef,
-    CTypeDefinition, CTypeKind, c_type_name, collect_type_definitions,
+    CTypeDefinition, CTypeKind, CUnionDef, c_type_name, collect_type_definitions,
 };
 
 use rustdoc_processor::queries::Crate;

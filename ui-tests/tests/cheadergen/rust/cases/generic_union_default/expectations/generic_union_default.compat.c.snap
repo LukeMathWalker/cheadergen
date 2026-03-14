@@ -1,0 +1,31 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 171
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef union {
+  int32_t main;
+  float extra;
+} WithDefault_i32__f32;
+
+typedef union {
+  int32_t main;
+  uint8_t extra;
+} WithDefault_i32__u8;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+WithDefault_i32__f32 use_default(WithDefault_i32__f32 w);
+
+WithDefault_i32__u8 use_override(WithDefault_i32__u8 w);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

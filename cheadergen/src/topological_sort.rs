@@ -26,7 +26,10 @@ pub fn topological_sort(type_defs: &mut Vec<CTypeDefinition>, krate: &Crate) {
     let mut layout: Vec<bool> = Vec::new(); // true = compound slot
 
     for def in type_defs.drain(..) {
-        let is_compound = matches!(def.kind, CTypeKind::Struct(_) | CTypeKind::TaggedUnion(_));
+        let is_compound = matches!(
+            def.kind,
+            CTypeKind::Struct(_) | CTypeKind::Union(_) | CTypeKind::TaggedUnion(_)
+        );
         layout.push(is_compound);
         if is_compound {
             compounds.push(def);
@@ -164,6 +167,11 @@ fn by_value_dependencies(def: &CTypeDefinition) -> Vec<String> {
     match &def.kind {
         CTypeKind::Struct(s) => {
             for field in &s.fields {
+                collect_by_value_type_deps(&field.type_, &mut deps);
+            }
+        }
+        CTypeKind::Union(u) => {
+            for field in &u.fields {
                 collect_by_value_type_deps(&field.type_, &mut deps);
             }
         }

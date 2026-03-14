@@ -9,7 +9,8 @@ use rustdoc_types::{Attribute, AttributeRepr, ItemEnum, ReprKind, StructKind, Va
 
 use super::type_collection::{
     CEnumRepr, CEnumVariant, CFieldlessEnumDef, CIdentifier, CStructDef, CStructField,
-    CTaggedUnionDef, CTaggedVariant, CTaggedVariantBody, CTypeKind, ReprIntType, is_zst_type,
+    CTaggedUnionDef, CTaggedVariant, CTaggedVariantBody, CTypeKind, CUnionDef, ReprIntType,
+    is_zst_type,
 };
 
 /// Attempt to resolve a directly-used type into a full definition.
@@ -37,12 +38,15 @@ pub(super) fn resolve_type_kind<I: CrateIndexer>(
         ItemEnum::Struct(struct_def) => {
             resolve_struct_kind(name, struct_def, &item.attrs, path_type, krate, collection)
         }
+        ItemEnum::Union(union_def) => {
+            resolve_union_kind(name, union_def, &item.attrs, path_type, krate, collection)
+        }
         ItemEnum::Enum(enum_def) => {
             resolve_enum_kind(name, enum_def, &item.attrs, path_type, krate, collection)
         }
         _ => {
             eprintln!(
-                "warning: type `{name}` is not a struct or enum; emitting forward declaration"
+                "warning: type `{name}` is not a struct, union, or enum; emitting forward declaration"
             );
             Ok(CTypeKind::Opaque)
         }
@@ -128,6 +132,45 @@ fn resolve_struct_kind<I: CrateIndexer>(
         }
         StructKind::Unit => Ok(CTypeKind::Struct(CStructDef { fields: Vec::new() })),
     }
+}
+
+/// Resolve a union into a `CTypeKind`.
+fn resolve_union_kind<I: CrateIndexer>(
+    name: &str,
+    union_def: &rustdoc_types::Union,
+    attrs: &[Attribute],
+    path_type: &PathType,
+    krate: &Crate,
+    collection: &CrateCollection<I>,
+) -> anyhow::Result<CTypeKind> {
+    let is_repr_c = attrs.iter().any(|attr| {
+        matches!(
+            attr,
+            Attribute::Repr(AttributeRepr {
+                kind: ReprKind::C,
+                ..
+            })
+        )
+    });
+    if !is_repr_c {
+        eprintln!("warning: union `{name}` is not #[repr(C)]; emitting opaque forward declaration");
+        return Ok(CTypeKind::Opaque);
+    }
+
+    let generic_bindings = match setup_generic_bindings(name, &union_def.generics, path_type) {
+        Ok(bindings) => bindings,
+        Err(opaque) => return Ok(opaque),
+    };
+
+    if union_def.has_stripped_fields {
+        eprintln!(
+            "warning: union `{name}` has private fields; emitting opaque forward declaration"
+        );
+        return Ok(CTypeKind::Opaque);
+    }
+
+    let c_fields = resolve_plain_fields(&union_def.fields, &generic_bindings, krate, collection)?;
+    Ok(CTypeKind::Union(CUnionDef { fields: c_fields }))
 }
 
 /// Returns true if the generics contain unbound type parameters.

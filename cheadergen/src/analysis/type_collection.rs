@@ -161,6 +161,8 @@ pub enum CTypeKind {
     Opaque,
     /// Emit a full struct definition with fields.
     Struct(CStructDef),
+    /// Emit a plain C union definition with fields.
+    Union(CUnionDef),
     /// Emit a C-like enum (no data variants).
     FieldlessEnum(CFieldlessEnumDef),
     /// Emit a tagged union (enum with data variants).
@@ -170,6 +172,12 @@ pub enum CTypeKind {
 /// A resolved `#[repr(C)]` struct with its fields.
 pub struct CStructDef {
     /// The fields of the struct, in declaration order.
+    pub fields: Vec<CStructField>,
+}
+
+/// A resolved `#[repr(C)]` union with its fields.
+pub struct CUnionDef {
+    /// The fields of the union, in declaration order.
     pub fields: Vec<CStructField>,
 }
 
@@ -454,6 +462,11 @@ fn resolve_all_type_definitions<I: CrateIndexer>(
             // Discover transitive field types from full definitions.
             match &kind {
                 CTypeKind::Struct(def) => {
+                    for field in &def.fields {
+                        collect_paths_from_type(&field.type_, TypeUsage::ByValue, seen);
+                    }
+                }
+                CTypeKind::Union(def) => {
                     for field in &def.fields {
                         collect_paths_from_type(&field.type_, TypeUsage::ByValue, seen);
                     }

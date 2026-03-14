@@ -1,0 +1,38 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 171
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+union Wrapper_f32 {
+  float value;
+  uint32_t tag;
+};
+
+union Wrapper_i32 {
+  int32_t value;
+  uint32_t tag;
+};
+
+union Pair_i32__f32 {
+  int32_t first;
+  float second;
+};
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+union Wrapper_i32 use_wrapper_i32(union Wrapper_i32 w);
+
+union Wrapper_f32 use_wrapper_f32(union Wrapper_f32 w);
+
+union Pair_i32__f32 use_pair(union Pair_i32__f32 p);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

@@ -4,7 +4,7 @@ use std::path::Path;
 
 use crate::analysis::{
     CEnumRepr, CFieldlessEnumDef, CIdentifier, CStructDef, CTaggedUnionDef, CTypeDefinition,
-    CTypeKind, c_type_name,
+    CTypeKind, CUnionDef, c_type_name,
 };
 use crate::config::{CConfig, CommonConfig, DocumentationLength, DocumentationStyle, Style};
 use crate::constant_item::ConstantItem;
@@ -28,6 +28,7 @@ fn build_type_tag_map(type_defs: &[CTypeDefinition]) -> HashMap<String, CTypeTag
     for def in type_defs {
         let tag = match &def.kind {
             CTypeKind::Opaque | CTypeKind::Struct(_) => CTypeTag::Struct,
+            CTypeKind::Union(_) => CTypeTag::Union,
             CTypeKind::FieldlessEnum(e) => match &e.repr {
                 CEnumRepr::C => CTypeTag::Enum,
                 CEnumRepr::Int { .. } => CTypeTag::IntTypedef,
@@ -441,7 +442,12 @@ fn write_c_type_definitions(
         .collect();
     let compound_defs: Vec<_> = type_defs
         .iter()
-        .filter(|d| matches!(d.kind, CTypeKind::Struct(_) | CTypeKind::TaggedUnion(_)))
+        .filter(|d| {
+            matches!(
+                d.kind,
+                CTypeKind::Struct(_) | CTypeKind::Union(_) | CTypeKind::TaggedUnion(_)
+            )
+        })
         .collect();
 
     // Fieldless enums first.
@@ -491,7 +497,11 @@ fn write_c_type_definitions(
                 if forward_decls.contains(def.name.as_str()) {
                     let name = &def.name;
                     match &def.kind {
-                        CTypeKind::TaggedUnion(t) if !t.repr.is_repr_c() => {
+                        CTypeKind::Union(_)
+                        | CTypeKind::TaggedUnion(CTaggedUnionDef {
+                            repr: CEnumRepr::Int { .. },
+                            ..
+                        }) => {
                             writeln!(out, "typedef union {name} {name};").unwrap();
                         }
                         _ => {
@@ -517,6 +527,9 @@ fn write_c_type_definitions(
         match &def.kind {
             CTypeKind::Struct(struct_def) => {
                 write_c_struct_definition(&def.name, struct_def, style, has_fwd_decl, type_tags, out);
+            }
+            CTypeKind::Union(union_def) => {
+                write_c_union_definition(&def.name, union_def, style, has_fwd_decl, type_tags, out);
             }
             CTypeKind::TaggedUnion(tagged_def) => {
                 write_c_tagged_union(&def.name, tagged_def, style, has_fwd_decl, cpp_compat, type_tags, out);
@@ -569,6 +582,55 @@ fn write_c_struct_definition(
         }
         Style::Both => {
             writeln!(out, "typedef struct {name} {{").unwrap();
+            for field in &def.fields {
+                out.push_str("  ");
+                write_c_decl(&field.type_, field.name.as_str(), style, type_tags, out);
+                writeln!(out, ";").unwrap();
+            }
+            writeln!(out, "}} {name};").unwrap();
+        }
+    }
+}
+
+/// Emit a full C union definition with fields.
+fn write_c_union_definition(
+    name: &str,
+    def: &CUnionDef,
+    style: &Style,
+    has_fwd_decl: bool,
+    type_tags: &HashMap<String, CTypeTag>,
+    out: &mut String,
+) {
+    match style {
+        Style::Type if has_fwd_decl => {
+            writeln!(out, "union {name} {{").unwrap();
+            for field in &def.fields {
+                out.push_str("  ");
+                write_c_decl(&field.type_, field.name.as_str(), style, type_tags, out);
+                writeln!(out, ";").unwrap();
+            }
+            writeln!(out, "}};").unwrap();
+        }
+        Style::Type => {
+            writeln!(out, "typedef union {{").unwrap();
+            for field in &def.fields {
+                out.push_str("  ");
+                write_c_decl(&field.type_, field.name.as_str(), style, type_tags, out);
+                writeln!(out, ";").unwrap();
+            }
+            writeln!(out, "}} {name};").unwrap();
+        }
+        Style::Tag => {
+            writeln!(out, "union {name} {{").unwrap();
+            for field in &def.fields {
+                out.push_str("  ");
+                write_c_decl(&field.type_, field.name.as_str(), &Style::Tag, type_tags, out);
+                writeln!(out, ";").unwrap();
+            }
+            writeln!(out, "}};").unwrap();
+        }
+        Style::Both => {
+            writeln!(out, "typedef union {name} {{").unwrap();
             for field in &def.fields {
                 out.push_str("  ");
                 write_c_decl(&field.type_, field.name.as_str(), style, type_tags, out);
@@ -922,6 +984,11 @@ fn pointer_referenced_types(def: &CTypeDefinition) -> Vec<String> {
     match &def.kind {
         CTypeKind::Struct(s) => {
             for field in &s.fields {
+                collect_pointer_targets(&field.type_, &mut refs);
+            }
+        }
+        CTypeKind::Union(u) => {
+            for field in &u.fields {
                 collect_pointer_targets(&field.type_, &mut refs);
             }
         }
