@@ -170,6 +170,14 @@ pub enum CTypeKind {
     FieldlessEnum(CFieldlessEnumDef),
     /// Emit a tagged union (enum with data variants).
     TaggedUnion(CTaggedUnionDef),
+    /// Emit a typedef to the wrapped type (`typedef <inner> <name>;`).
+    TransparentTypedef(CTransparentDef),
+}
+
+/// A `#[repr(transparent)]` struct emitted as a C typedef.
+pub struct CTransparentDef {
+    /// The resolved type of the single non-ZST field.
+    pub inner: Type,
 }
 
 /// A resolved `#[repr(C)]` struct with its fields.
@@ -480,6 +488,9 @@ fn resolve_all_type_definitions<I: CrateIndexer>(
                             }
                         }
                     }
+                }
+                CTypeKind::TransparentTypedef(def) => {
+                    collect_paths_from_type(&def.inner, TypeUsage::ByValue, seen);
                 }
                 CTypeKind::OpaqueStruct | CTypeKind::OpaqueUnion | CTypeKind::FieldlessEnum(_) => {}
             }

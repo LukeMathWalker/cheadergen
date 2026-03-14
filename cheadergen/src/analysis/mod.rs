@@ -7,7 +7,8 @@ pub use extern_items::{
 };
 pub use type_collection::{
     CEnumRepr, CEnumVariant, CFieldlessEnumDef, CIdentifier, CStructDef, CTaggedUnionDef,
-    CTypeDefinition, CTypeKind, CUnionDef, c_type_name, collect_type_definitions,
+    CTransparentDef, CTypeDefinition, CTypeKind, CUnionDef, c_type_name,
+    collect_type_definitions,
 };
 
 use rustdoc_processor::indexing::CrateIndexer;

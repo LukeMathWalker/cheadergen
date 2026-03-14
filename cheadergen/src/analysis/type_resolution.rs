@@ -9,8 +9,8 @@ use rustdoc_types::{Attribute, AttributeRepr, ItemEnum, ReprKind, StructKind, Va
 
 use super::type_collection::{
     CEnumRepr, CEnumVariant, CFieldlessEnumDef, CIdentifier, CStructDef, CStructField,
-    CTaggedUnionDef, CTaggedVariant, CTaggedVariantBody, CTypeKind, CUnionDef, ReprIntType,
-    is_zst_type,
+    CTaggedUnionDef, CTaggedVariant, CTaggedVariantBody, CTransparentDef, CTypeKind, CUnionDef,
+    ReprIntType, is_zst_type,
 };
 
 /// Attempt to resolve a directly-used type into a full definition.
@@ -88,7 +88,7 @@ fn resolve_struct_kind<I: CrateIndexer>(
     path_type: &PathType,
     collection: &CrateCollection<I>,
 ) -> anyhow::Result<CTypeKind> {
-    // Check for #[repr(C)].
+    // Check for #[repr(C)] or #[repr(transparent)].
     let is_repr_c = attrs.iter().any(|attr| {
         matches!(
             attr,
@@ -98,7 +98,17 @@ fn resolve_struct_kind<I: CrateIndexer>(
             })
         )
     });
-    if !is_repr_c {
+    let is_repr_transparent = attrs.iter().any(|attr| {
+        matches!(
+            attr,
+            Attribute::Repr(AttributeRepr {
+                kind: ReprKind::Transparent,
+                ..
+            })
+        )
+    });
+
+    if !is_repr_c && !is_repr_transparent {
         eprintln!("warning: type `{name}` is not #[repr(C)]; emitting opaque forward declaration");
         return Ok(CTypeKind::OpaqueStruct);
     }
@@ -107,6 +117,16 @@ fn resolve_struct_kind<I: CrateIndexer>(
         Ok(bindings) => bindings,
         Err(()) => return Ok(CTypeKind::OpaqueStruct),
     };
+
+    if is_repr_transparent {
+        return resolve_transparent_struct(
+            name,
+            struct_def,
+            &generic_bindings,
+            path_type,
+            collection,
+        );
+    }
 
     match &struct_def.kind {
         StructKind::Plain { fields, .. } => {
@@ -124,6 +144,42 @@ fn resolve_struct_kind<I: CrateIndexer>(
             Ok(CTypeKind::Struct(CStructDef { fields: c_fields }))
         }
         StructKind::Unit => Ok(CTypeKind::Struct(CStructDef { fields: Vec::new() })),
+    }
+}
+
+/// Resolve a `#[repr(transparent)]` struct into a `CTypeKind`.
+///
+/// If exactly one non-ZST field exists, emits a typedef. If zero non-ZST
+/// fields exist, falls back to an empty struct.
+fn resolve_transparent_struct<I: CrateIndexer>(
+    name: &str,
+    struct_def: &rustdoc_types::Struct,
+    generic_bindings: &rustdoc_resolver::GenericBindings,
+    path_type: &PathType,
+    collection: &CrateCollection<I>,
+) -> anyhow::Result<CTypeKind> {
+    let c_fields = match &struct_def.kind {
+        StructKind::Plain { fields, .. } => {
+            resolve_plain_fields(fields, generic_bindings, &path_type.package_id, collection)?
+        }
+        StructKind::Tuple(fields) => {
+            resolve_tuple_fields(fields, generic_bindings, &path_type.package_id, collection)?
+        }
+        StructKind::Unit => Vec::new(),
+    };
+
+    match c_fields.len() {
+        0 => Ok(CTypeKind::Struct(CStructDef { fields: Vec::new() })),
+        1 => Ok(CTypeKind::TransparentTypedef(CTransparentDef {
+            inner: c_fields.into_iter().next().unwrap().type_,
+        })),
+        n => {
+            eprintln!(
+                "warning: repr(transparent) type `{name}` has {n} non-ZST fields; \
+                 emitting opaque forward declaration"
+            );
+            Ok(CTypeKind::OpaqueStruct)
+        }
     }
 }
 

@@ -3,8 +3,8 @@ use std::fmt::Write;
 use std::path::Path;
 
 use crate::analysis::{
-    CEnumRepr, CFieldlessEnumDef, CIdentifier, CStructDef, CTaggedUnionDef, CTypeDefinition,
-    CTypeKind, CUnionDef, c_type_name,
+    CEnumRepr, CFieldlessEnumDef, CIdentifier, CStructDef, CTaggedUnionDef, CTransparentDef,
+    CTypeDefinition, CTypeKind, CUnionDef, c_type_name,
 };
 use crate::config::{CConfig, CommonConfig, DocumentationLength, DocumentationStyle, Style};
 use crate::constant_item::ConstantItem;
@@ -33,6 +33,7 @@ fn build_type_tag_map(type_defs: &[CTypeDefinition]) -> HashMap<String, CTypeTag
                 CEnumRepr::C => CTypeTag::Enum,
                 CEnumRepr::Int { .. } => CTypeTag::IntTypedef,
             },
+            CTypeKind::TransparentTypedef(_) => CTypeTag::IntTypedef,
             CTypeKind::TaggedUnion(t) => {
                 if t.repr.is_repr_c() {
                     CTypeTag::Struct
@@ -435,7 +436,10 @@ fn write_c_type_definitions<I: CrateIndexer>(
         .filter(|d| {
             matches!(
                 d.kind,
-                CTypeKind::Struct(_) | CTypeKind::Union(_) | CTypeKind::TaggedUnion(_)
+                CTypeKind::Struct(_)
+                    | CTypeKind::Union(_)
+                    | CTypeKind::TaggedUnion(_)
+                    | CTypeKind::TransparentTypedef(_)
             )
         })
         .collect();
@@ -543,6 +547,9 @@ fn write_c_type_definitions<I: CrateIndexer>(
                     type_tags,
                     out,
                 );
+            }
+            CTypeKind::TransparentTypedef(transparent_def) => {
+                write_c_transparent_typedef(&def.name, transparent_def, style, type_tags, out);
             }
             _ => unreachable!(),
         }
@@ -1037,6 +1044,7 @@ fn pointer_referenced_types(def: &CTypeDefinition) -> Vec<String> {
                 }
             }
         }
+        CTypeKind::TransparentTypedef(_) => {}
         _ => {}
     }
     refs
@@ -1062,6 +1070,19 @@ fn collect_by_value_names(ty: &Type, refs: &mut Vec<String>) {
         Type::Reference(r) => collect_by_value_names(&r.inner, refs),
         _ => {}
     }
+}
+
+/// Emit a `#[repr(transparent)]` struct as `typedef <inner> <name>;`.
+fn write_c_transparent_typedef(
+    name: &str,
+    def: &CTransparentDef,
+    style: &Style,
+    type_tags: &HashMap<String, CTypeTag>,
+    out: &mut String,
+) {
+    out.push_str("typedef ");
+    write_c_decl(&def.inner, name, style, type_tags, out);
+    writeln!(out, ";").unwrap();
 }
 
 fn scalar_to_c(p: &ScalarPrimitive) -> &'static str {

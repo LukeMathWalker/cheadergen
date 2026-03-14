@@ -32,7 +32,10 @@ pub fn topological_sort<I: CrateIndexer>(
     for def in type_defs.drain(..) {
         let is_compound = matches!(
             def.kind,
-            CTypeKind::Struct(_) | CTypeKind::Union(_) | CTypeKind::TaggedUnion(_)
+            CTypeKind::Struct(_)
+                | CTypeKind::Union(_)
+                | CTypeKind::TaggedUnion(_)
+                | CTypeKind::TransparentTypedef(_)
         );
         layout.push(is_compound);
         if is_compound {
@@ -180,6 +183,9 @@ fn by_value_dependencies(def: &CTypeDefinition) -> Vec<String> {
                     }
                 }
             }
+        }
+        CTypeKind::TransparentTypedef(t) => {
+            collect_by_value_type_deps(&t.inner, &mut deps);
         }
         CTypeKind::OpaqueStruct | CTypeKind::OpaqueUnion | CTypeKind::FieldlessEnum(_) => {}
     }

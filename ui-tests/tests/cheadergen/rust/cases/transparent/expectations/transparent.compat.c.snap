@@ -1,0 +1,52 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 171
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct {
+  double x;
+  double y;
+} Inner;
+
+typedef uint32_t TransparentPrimitive;
+
+typedef Inner TransparentStruct;
+
+typedef uint32_t TransparentNamedPrimitive;
+
+typedef Inner TransparentNamedStruct;
+
+typedef uint32_t TransparentWithPhantomData;
+
+typedef uint32_t TransparentWithPhantomPinned;
+
+typedef uint32_t TransparentWithUnit;
+
+typedef struct {
+} TransparentEmpty;
+
+typedef const uint32_t *TransparentPointer;
+
+typedef Inner *TransparentMutPointer;
+
+typedef TransparentPrimitive TransparentChained;
+
+typedef struct {
+  TransparentPrimitive by_value;
+  const TransparentStruct *by_pointer;
+} UsesTransparent;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+void root(TransparentPrimitive _a, TransparentStruct _b, TransparentNamedPrimitive _c, TransparentNamedStruct _d, TransparentWithPhantomData _e, TransparentWithPhantomPinned _f, TransparentWithUnit _g, TransparentEmpty _h, TransparentPointer _i, TransparentMutPointer _j, TransparentChained _k, UsesTransparent _l);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus
