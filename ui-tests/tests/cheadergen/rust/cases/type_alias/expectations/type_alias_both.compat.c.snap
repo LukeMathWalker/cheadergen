@@ -1,0 +1,71 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 171
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef enum Color {
+  Red,
+  Green,
+  Blue,
+} Color;
+
+typedef struct Point {
+  double x;
+  double y;
+} Point;
+
+typedef union FloatOrInt {
+  float f;
+  int32_t i;
+} FloatOrInt;
+
+/**
+ * Alias to a primitive.
+ */
+typedef uint32_t Length;
+
+/**
+ * Alias to a repr(C) struct.
+ */
+typedef struct Point Position;
+
+/**
+ * Alias to a repr(C) enum.
+ */
+typedef enum Color Shade;
+
+/**
+ * Alias to a repr(C) union.
+ */
+typedef union FloatOrInt Number;
+
+/**
+ * Alias to an alias to a primitive.
+ */
+typedef uint32_t Size;
+
+/**
+ * Alias to an alias to a struct.
+ */
+typedef struct Point Coordinate;
+
+typedef struct Rect {
+  Position origin;
+  Length width;
+  Length height;
+} Rect;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+void use_aliases(Length _len, Position _pos, Shade _shade, Number _num, Size _size, Coordinate _coord, struct Rect _rect);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

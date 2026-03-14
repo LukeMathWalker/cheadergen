@@ -171,12 +171,17 @@ pub enum CTypeKind {
     /// Emit a tagged union (enum with data variants).
     TaggedUnion(CTaggedUnionDef),
     /// Emit a typedef to the wrapped type (`typedef <inner> <name>;`).
-    TransparentTypedef(CTransparentDef),
+    ///
+    /// Used for both `#[repr(transparent)]` structs and Rust `type` aliases.
+    Typedef(CTypedefDef),
 }
 
-/// A `#[repr(transparent)]` struct emitted as a C typedef.
-pub struct CTransparentDef {
-    /// The resolved type of the single non-ZST field.
+/// A type emitted as a C typedef (`typedef <inner> <name>;`).
+///
+/// Produced from `#[repr(transparent)]` structs (single non-ZST field)
+/// and Rust `type` aliases.
+pub struct CTypedefDef {
+    /// The resolved inner type that the typedef aliases.
     pub inner: Type,
 }
 
@@ -356,7 +361,7 @@ pub fn collect_type_definitions<I: CrateIndexer>(
 pub fn c_type_name(ty: &Type) -> String {
     match ty {
         Type::ScalarPrimitive(p) => p.as_str().to_owned(),
-        Type::Path(p) => {
+        Type::Path(p) | Type::TypeAlias(p) => {
             let base = p.base_type.last().expect("empty path");
             let type_args: Vec<String> = p
                 .generic_arguments
@@ -395,7 +400,7 @@ pub(super) fn collect_paths_from_type(
     seen: &mut HashMap<PathType, TypeUsage>,
 ) {
     match ty {
-        Type::Path(p) => {
+        Type::Path(p) | Type::TypeAlias(p) => {
             let entry = seen.entry(p.clone()).or_insert(TypeUsage::BehindPointer);
             if usage == TypeUsage::ByValue {
                 *entry = TypeUsage::ByValue;
@@ -489,7 +494,7 @@ fn resolve_all_type_definitions<I: CrateIndexer>(
                         }
                     }
                 }
-                CTypeKind::TransparentTypedef(def) => {
+                CTypeKind::Typedef(def) => {
                     collect_paths_from_type(&def.inner, TypeUsage::ByValue, seen);
                 }
                 CTypeKind::OpaqueStruct | CTypeKind::OpaqueUnion | CTypeKind::FieldlessEnum(_) => {}

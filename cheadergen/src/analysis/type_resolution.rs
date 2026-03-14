@@ -4,12 +4,12 @@ use guppy::PackageId;
 use rustdoc_ir::{GenericArgument, PathType, Type};
 use rustdoc_processor::indexing::CrateIndexer;
 use rustdoc_processor::{CrateCollection, GlobalItemId};
-use rustdoc_resolver::{GenericBindings, resolve_type};
+use rustdoc_resolver::{GenericBindings, TypeAliasResolution, resolve_type};
 use rustdoc_types::{Attribute, AttributeRepr, ItemEnum, ReprKind, StructKind, VariantKind};
 
 use super::type_collection::{
     CEnumRepr, CEnumVariant, CFieldlessEnumDef, CIdentifier, CStructDef, CStructField,
-    CTaggedUnionDef, CTaggedVariant, CTaggedVariantBody, CTransparentDef, CTypeKind, CUnionDef,
+    CTaggedUnionDef, CTaggedVariant, CTaggedVariantBody, CTypeKind, CTypedefDef, CUnionDef,
     ReprIntType, is_zst_type,
 };
 
@@ -40,9 +40,12 @@ pub(super) fn resolve_type_kind<I: CrateIndexer>(
         ItemEnum::Enum(enum_def) => {
             resolve_enum_kind(name, enum_def, &item.attrs, path_type, collection)
         }
+        ItemEnum::TypeAlias(type_alias) => {
+            resolve_type_alias_kind(name, type_alias, path_type, collection)
+        }
         _ => {
             eprintln!(
-                "warning: type `{name}` is not a struct, union, or enum; emitting forward declaration"
+                "warning: type `{name}` is not a struct, union, enum, or type alias; emitting forward declaration"
             );
             Ok(CTypeKind::OpaqueStruct)
         }
@@ -170,7 +173,7 @@ fn resolve_transparent_struct<I: CrateIndexer>(
 
     match c_fields.len() {
         0 => Ok(CTypeKind::Struct(CStructDef { fields: Vec::new() })),
-        1 => Ok(CTypeKind::TransparentTypedef(CTransparentDef {
+        1 => Ok(CTypeKind::Typedef(CTypedefDef {
             inner: c_fields.into_iter().next().unwrap().type_,
         })),
         n => {
@@ -181,6 +184,33 @@ fn resolve_transparent_struct<I: CrateIndexer>(
             Ok(CTypeKind::OpaqueStruct)
         }
     }
+}
+
+/// Resolve a Rust `type` alias into a `CTypeKind::Typedef`.
+fn resolve_type_alias_kind<I: CrateIndexer>(
+    name: &str,
+    type_alias: &rustdoc_types::TypeAlias,
+    path_type: &PathType,
+    collection: &CrateCollection<I>,
+) -> anyhow::Result<CTypeKind> {
+    let generic_bindings = match setup_generic_bindings(name, &type_alias.generics, path_type) {
+        Ok(bindings) => bindings,
+        Err(()) => return Ok(CTypeKind::OpaqueStruct),
+    };
+
+    // Resolve the aliased type fully (resolve through nested aliases).
+    let resolved = resolve_type(
+        &type_alias.type_,
+        &path_type.package_id,
+        collection,
+        &generic_bindings,
+        TypeAliasResolution::ResolveThrough,
+    )
+    .map_err(|e| {
+        anyhow::anyhow!("Failed to resolve type alias `{name}`: {}", Arc::new(e))
+    })?;
+
+    Ok(CTypeKind::Typedef(CTypedefDef { inner: resolved }))
 }
 
 /// Resolve a union into a `CTypeKind`.
@@ -447,7 +477,7 @@ fn resolve_plain_fields<I: CrateIndexer>(
             .clone()
             .unwrap_or_else(|| "<unnamed>".to_string());
         let resolved =
-            resolve_type(raw_type, package_id, collection, generic_bindings).map_err(|e| {
+            resolve_type(raw_type, package_id, collection, generic_bindings, TypeAliasResolution::Preserve).map_err(|e| {
                 anyhow::anyhow!("Failed to resolve field `{field_name}`: {}", Arc::new(e))
             })?;
 
@@ -485,7 +515,7 @@ fn resolve_tuple_fields<I: CrateIndexer>(
         };
 
         let resolved =
-            resolve_type(raw_type, package_id, collection, generic_bindings).map_err(|e| {
+            resolve_type(raw_type, package_id, collection, generic_bindings, TypeAliasResolution::Preserve).map_err(|e| {
                 anyhow::anyhow!("Failed to resolve tuple field m{index}: {}", Arc::new(e))
             })?;
 

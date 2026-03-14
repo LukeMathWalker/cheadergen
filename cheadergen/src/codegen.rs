@@ -3,7 +3,7 @@ use std::fmt::Write;
 use std::path::Path;
 
 use crate::analysis::{
-    CEnumRepr, CFieldlessEnumDef, CIdentifier, CStructDef, CTaggedUnionDef, CTransparentDef,
+    CEnumRepr, CFieldlessEnumDef, CIdentifier, CStructDef, CTaggedUnionDef, CTypedefDef,
     CTypeDefinition, CTypeKind, CUnionDef, c_type_name,
 };
 use crate::config::{CConfig, CommonConfig, DocumentationLength, DocumentationStyle, Style};
@@ -33,7 +33,7 @@ fn build_type_tag_map(type_defs: &[CTypeDefinition]) -> HashMap<String, CTypeTag
                 CEnumRepr::C => CTypeTag::Enum,
                 CEnumRepr::Int { .. } => CTypeTag::IntTypedef,
             },
-            CTypeKind::TransparentTypedef(_) => CTypeTag::IntTypedef,
+            CTypeKind::Typedef(_) => CTypeTag::IntTypedef,
             CTypeKind::TaggedUnion(t) => {
                 if t.repr.is_repr_c() {
                     CTypeTag::Struct
@@ -392,7 +392,7 @@ fn write_c_type(ty: &Type, style: &Style, type_tags: &HashMap<String, CTypeTag>,
                 out.push_str(" *");
             }
         }
-        Type::Path(_) => {
+        Type::Path(_) | Type::TypeAlias(_) => {
             let name = c_type_name(ty);
             match style {
                 Style::Tag | Style::Both => {
@@ -439,7 +439,7 @@ fn write_c_type_definitions<I: CrateIndexer>(
                 CTypeKind::Struct(_)
                     | CTypeKind::Union(_)
                     | CTypeKind::TaggedUnion(_)
-                    | CTypeKind::TransparentTypedef(_)
+                    | CTypeKind::Typedef(_)
             )
         })
         .collect();
@@ -548,8 +548,8 @@ fn write_c_type_definitions<I: CrateIndexer>(
                     out,
                 );
             }
-            CTypeKind::TransparentTypedef(transparent_def) => {
-                write_c_transparent_typedef(&def.name, transparent_def, style, type_tags, out);
+            CTypeKind::Typedef(typedef_def) => {
+                write_c_typedef(&def.name, typedef_def, style, type_tags, out);
             }
             _ => unreachable!(),
         }
@@ -1044,7 +1044,7 @@ fn pointer_referenced_types(def: &CTypeDefinition) -> Vec<String> {
                 }
             }
         }
-        CTypeKind::TransparentTypedef(_) => {}
+        CTypeKind::Typedef(_) => {}
         _ => {}
     }
     refs
@@ -1064,7 +1064,7 @@ fn collect_pointer_targets(ty: &Type, refs: &mut Vec<String>) {
 /// Collect the C name of any Path type found by value (recursing into arrays).
 fn collect_by_value_names(ty: &Type, refs: &mut Vec<String>) {
     match ty {
-        Type::Path(_) => refs.push(c_type_name(ty)),
+        Type::Path(_) | Type::TypeAlias(_) => refs.push(c_type_name(ty)),
         Type::Array(a) => collect_by_value_names(&a.element_type, refs),
         Type::RawPointer(p) => collect_by_value_names(&p.inner, refs),
         Type::Reference(r) => collect_by_value_names(&r.inner, refs),
@@ -1072,10 +1072,10 @@ fn collect_by_value_names(ty: &Type, refs: &mut Vec<String>) {
     }
 }
 
-/// Emit a `#[repr(transparent)]` struct as `typedef <inner> <name>;`.
-fn write_c_transparent_typedef(
+/// Emit a typedef: `typedef <inner> <name>;`.
+fn write_c_typedef(
     name: &str,
-    def: &CTransparentDef,
+    def: &CTypedefDef,
     style: &Style,
     type_tags: &HashMap<String, CTypeTag>,
     out: &mut String,

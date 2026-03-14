@@ -35,7 +35,7 @@ pub fn topological_sort<I: CrateIndexer>(
             CTypeKind::Struct(_)
                 | CTypeKind::Union(_)
                 | CTypeKind::TaggedUnion(_)
-                | CTypeKind::TransparentTypedef(_)
+                | CTypeKind::Typedef(_)
         );
         layout.push(is_compound);
         if is_compound {
@@ -184,7 +184,7 @@ fn by_value_dependencies(def: &CTypeDefinition) -> Vec<String> {
                 }
             }
         }
-        CTypeKind::TransparentTypedef(t) => {
+        CTypeKind::Typedef(t) => {
             collect_by_value_type_deps(&t.inner, &mut deps);
         }
         CTypeKind::OpaqueStruct | CTypeKind::OpaqueUnion | CTypeKind::FieldlessEnum(_) => {}
@@ -195,7 +195,7 @@ fn by_value_dependencies(def: &CTypeDefinition) -> Vec<String> {
 /// Recursively collect by-value type dependencies from a field type.
 fn collect_by_value_type_deps(ty: &Type, deps: &mut Vec<String>) {
     match ty {
-        Type::Path(_) => {
+        Type::Path(_) | Type::TypeAlias(_) => {
             deps.push(c_type_name(ty));
         }
         Type::Array(a) => {

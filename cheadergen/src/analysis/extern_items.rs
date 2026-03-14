@@ -4,7 +4,7 @@ use rustdoc_ir::FreeFunction;
 use rustdoc_processor::CrateCollection;
 use rustdoc_processor::indexing::NoAnnotations;
 use rustdoc_processor::queries::Crate;
-use rustdoc_resolver::resolve_free_function;
+use rustdoc_resolver::{TypeAliasResolution, resolve_free_function};
 use rustdoc_types::{Abi, Attribute, ItemEnum};
 
 use crate::constant_item::{ConstantItem, resolve_constant};
@@ -63,7 +63,7 @@ pub fn resolve_functions(
             .index
             .get(id)
             .ok_or_else(|| anyhow::anyhow!("Missing item for id {:?}", id))?;
-        let free_fn = resolve_free_function(&item, krate, collection)
+        let free_fn = resolve_free_function(&item, krate, collection, TypeAliasResolution::Preserve)
             .map_err(|e| anyhow::anyhow!("Failed to resolve function: {e}"))?;
 
         resolved_fns.push(free_fn);

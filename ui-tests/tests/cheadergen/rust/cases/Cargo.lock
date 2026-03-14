@@ -95,6 +95,10 @@ name = "transparent"
 version = "0.1.0"
 
 [[package]]
+name = "type_alias"
+version = "0.1.0"
+
+[[package]]
 name = "unsupported_constant"
 version = "0.1.0"
 

@@ -7,7 +7,7 @@ pub use extern_items::{
 };
 pub use type_collection::{
     CEnumRepr, CEnumVariant, CFieldlessEnumDef, CIdentifier, CStructDef, CTaggedUnionDef,
-    CTransparentDef, CTypeDefinition, CTypeKind, CUnionDef, c_type_name,
+    CTypeKind, CTypeDefinition, CTypedefDef, CUnionDef, c_type_name,
     collect_type_definitions,
 };
 

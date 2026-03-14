@@ -2,7 +2,7 @@ use rustdoc_ir::{ScalarPrimitive, Type};
 use rustdoc_processor::indexing::CrateIndexer;
 use rustdoc_processor::queries::Crate;
 use rustdoc_processor::{CrateCollection, GlobalItemId};
-use rustdoc_resolver::resolve_type;
+use rustdoc_resolver::{TypeAliasResolution, resolve_type};
 use rustdoc_types::{Item, ItemEnum};
 
 /// A resolved constant item ready for C codegen as `#define NAME VALUE`.
@@ -36,6 +36,7 @@ pub fn resolve_constant<I: CrateIndexer>(
         &krate.core.package_id,
         collection,
         &Default::default(),
+        TypeAliasResolution::ResolveThrough,
     ) {
         Ok(t) => t,
         Err(e) => {

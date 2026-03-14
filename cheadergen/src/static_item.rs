@@ -4,7 +4,7 @@ use rustdoc_ir::Type;
 use rustdoc_processor::indexing::CrateIndexer;
 use rustdoc_processor::queries::Crate;
 use rustdoc_processor::{CrateCollection, GlobalItemId};
-use rustdoc_resolver::resolve_type;
+use rustdoc_resolver::{TypeAliasResolution, resolve_type};
 use rustdoc_types::{Attribute, Item, ItemEnum};
 
 /// A resolved static item ready for C codegen.
@@ -38,6 +38,7 @@ pub fn resolve_static<I: CrateIndexer>(
         &krate.core.package_id,
         collection,
         &Default::default(),
+        TypeAliasResolution::Preserve,
     )
     .map_err(|e| StaticResolutionError {
         static_name: name.clone(),
