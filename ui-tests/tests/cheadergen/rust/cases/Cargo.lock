@@ -3,6 +3,14 @@
 version = 4
 
 [[package]]
+name = "char_str_constant"
+version = "0.1.0"
+
+[[package]]
+name = "computed_constant"
+version = "0.1.0"
+
+[[package]]
 name = "corecursive_type"
 version = "0.1.0"
 
@@ -84,6 +92,10 @@ version = "0.1.0"
 
 [[package]]
 name = "transparent"
+version = "0.1.0"
+
+[[package]]
+name = "unsupported_constant"
 version = "0.1.0"
 
 [[package]]

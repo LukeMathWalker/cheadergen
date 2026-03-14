@@ -23,6 +23,20 @@ expression: output
 
 #define BIG_NUMBER 1000000
 
+#define SMALL_UNSIGNED 256
+
+#define MEDIUM_UNSIGNED 100000
+
+#define TINY_SIGNED -1
+
+#define SMALL_SIGNED -1000
+
+#define BIG_SIGNED -9000000000
+
+#define PTR_OFFSET -8
+
+#define HALF_PRECISION 2.5
+
 /**
  * This function uses MAX_SIZE to demonstrate constants alongside functions.
  */

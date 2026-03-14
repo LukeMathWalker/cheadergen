@@ -1,0 +1,24 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 171
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+/**
+ * Computed number — still emitted because rustdoc evaluates numeric values.
+ */
+#define COMPUTED_NUM 42
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+void anchor(void);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

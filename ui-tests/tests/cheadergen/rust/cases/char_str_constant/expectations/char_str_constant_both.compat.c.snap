@@ -1,0 +1,41 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 171
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+/**
+ * ASCII delimiter.
+ */
+#define DELIMITER ':'
+
+#define LEFTCURLY '{'
+
+#define QUOTE '\''
+
+#define TAB '\t'
+
+#define NEWLINE '\n'
+
+/**
+ * A Unicode heart.
+ */
+#define HEART U'\U00002764'
+
+#define EQUID U'\U00010083'
+
+#define GREETING "hello world"
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+void anchor(void);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus
