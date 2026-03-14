@@ -3,8 +3,7 @@ use std::fmt;
 
 use rustdoc_ir::{FreeFunction, GenericArgument, PathType, ScalarPrimitive, Type};
 use rustdoc_processor::indexing::CrateIndexer;
-use rustdoc_processor::queries::Crate;
-use rustdoc_processor::{CORE_PACKAGE_ID_REPR, CrateCollection, STD_PACKAGE_ID_REPR};
+use rustdoc_processor::{CORE_PACKAGE_ID_REPR, CrateCollection, GlobalItemId, STD_PACKAGE_ID_REPR};
 
 use super::type_resolution::resolve_type_kind;
 use crate::static_item::StaticItem;
@@ -151,8 +150,9 @@ pub struct CTypeDefinition {
     pub name: String,
     /// Whether this is an opaque forward declaration or a full struct definition.
     pub kind: CTypeKind,
-    /// The rustdoc item ID, used for doc comment lookup at codegen time.
-    pub rustdoc_id: Option<rustdoc_types::Id>,
+    /// The global rustdoc item ID, used for doc comment lookup at codegen time.
+    /// Pairs the crate-local rustdoc ID with the package that defines the type.
+    pub rustdoc_id: Option<GlobalItemId>,
 }
 
 /// The kind of C type definition to emit.
@@ -314,7 +314,6 @@ pub(super) enum TypeUsage {
 pub fn collect_type_definitions<I: CrateIndexer>(
     functions: &[FreeFunction],
     statics: &[StaticItem],
-    krate: &Crate,
     collection: &CrateCollection<I>,
 ) -> anyhow::Result<Vec<CTypeDefinition>> {
     let mut seen: HashMap<PathType, TypeUsage> = HashMap::new();
@@ -332,7 +331,7 @@ pub fn collect_type_definitions<I: CrateIndexer>(
 
     // Resolve struct fields for directly-used types. This may discover new
     // transitive types that also need definitions.
-    resolve_all_type_definitions(&mut seen, krate, collection)
+    resolve_all_type_definitions(&mut seen, collection)
 }
 
 /// Compute the cbindgen-style monomorphized C name for a type.
@@ -436,7 +435,6 @@ pub(super) fn is_zst_type(ty: &Type) -> bool {
 /// point to discover transitive field types.
 fn resolve_all_type_definitions<I: CrateIndexer>(
     seen: &mut HashMap<PathType, TypeUsage>,
-    krate: &Crate,
     collection: &CrateCollection<I>,
 ) -> anyhow::Result<Vec<CTypeDefinition>> {
     // Phase 1: fixed-point loop over directly-used types.
@@ -457,7 +455,7 @@ fn resolve_all_type_definitions<I: CrateIndexer>(
 
         for path_type in direct {
             let name = c_type_name(&Type::Path(path_type.clone()));
-            let kind = resolve_type_kind(&name, &path_type, krate, collection)?;
+            let kind = resolve_type_kind(&name, &path_type, collection)?;
 
             // Discover transitive field types from full definitions.
             match &kind {
@@ -488,7 +486,9 @@ fn resolve_all_type_definitions<I: CrateIndexer>(
                 CTypeDefinition {
                     name,
                     kind,
-                    rustdoc_id: path_type.rustdoc_id,
+                    rustdoc_id: path_type
+                        .rustdoc_id
+                        .map(|id| GlobalItemId::new(id, path_type.package_id.clone())),
                 },
             );
         }
@@ -502,7 +502,9 @@ fn resolve_all_type_definitions<I: CrateIndexer>(
         .collect();
     for path_type in opaque {
         let name = c_type_name(&Type::Path(path_type.clone()));
-        let rustdoc_id = path_type.rustdoc_id;
+        let rustdoc_id = path_type
+            .rustdoc_id
+            .map(|id| GlobalItemId::new(id, path_type.package_id.clone()));
         resolved.insert(
             path_type,
             CTypeDefinition {

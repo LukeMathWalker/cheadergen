@@ -10,8 +10,8 @@ use crate::config::{CConfig, CommonConfig, DocumentationLength, DocumentationSty
 use crate::constant_item::ConstantItem;
 use crate::static_item::StaticItem;
 use rustdoc_ir::{FreeFunction, ScalarPrimitive, Type};
-use rustdoc_processor::crate_data::CrateItemIndex;
-use rustdoc_types::Id;
+use rustdoc_processor::indexing::CrateIndexer;
+use rustdoc_processor::{CrateCollection, GlobalItemId};
 
 /// What C type tag to use when referring to a user-defined type by name.
 enum CTypeTag {
@@ -52,13 +52,13 @@ fn build_type_tag_map(type_defs: &[CTypeDefinition]) -> HashMap<String, CTypeTag
 /// header, include guard/pragma once, autogen warning, includes,
 /// after_includes, cpp_compat open, declarations, cpp_compat close,
 /// include guard close, trailer.
-pub fn generate_c_header(
+pub fn generate_c_header<I: CrateIndexer>(
     config: &CConfig,
     type_defs: &[CTypeDefinition],
     constants: &[ConstantItem],
     functions: &[FreeFunction],
     statics: &[StaticItem],
-    index: &CrateItemIndex,
+    collection: &CrateCollection<I>,
     out: &mut String,
 ) {
     let common = &config.common;
@@ -120,7 +120,7 @@ pub fn generate_c_header(
             config.cpp_compat,
             &type_tags,
             common,
-            index,
+            collection,
             out,
         );
     }
@@ -128,7 +128,7 @@ pub fn generate_c_header(
     // Constants as #define macros (after types, before extern "C" block).
     for c in constants {
         out.push('\n');
-        let docs = lookup_docs(Some(&c.rustdoc_id), index);
+        let docs = lookup_docs(Some(&c.rustdoc_id), collection);
         write_doc_comment(docs.as_deref(), common, out);
         writeln!(out, "#define {} {}", c.name, c.value).unwrap();
     }
@@ -146,7 +146,7 @@ pub fn generate_c_header(
     // Static declarations (before functions, matching cbindgen order).
     for s in statics.iter() {
         out.push('\n');
-        let docs = lookup_docs(Some(&s.rustdoc_id), index);
+        let docs = lookup_docs(Some(&s.rustdoc_id), collection);
         write_doc_comment(docs.as_deref(), common, out);
         write_c_static_decl(s, &config.style, &type_tags, out);
         out.push('\n');
@@ -155,12 +155,7 @@ pub fn generate_c_header(
     // Function declarations.
     for func in functions.iter() {
         out.push('\n');
-        let docs = lookup_docs(
-            func.source_coordinates
-                .as_ref()
-                .map(|c| &c.rustdoc_item_id),
-            index,
-        );
+        let docs = lookup_docs(func.source_coordinates.as_ref(), collection);
         write_doc_comment(docs.as_deref(), common, out);
         write_c_function_decl(func, &config.style, &type_tags, out);
         out.push('\n');
@@ -186,9 +181,12 @@ pub fn generate_c_header(
     }
 }
 
-fn lookup_docs(id: Option<&Id>, index: &CrateItemIndex) -> Option<String> {
+fn lookup_docs<I: CrateIndexer>(
+    id: Option<&GlobalItemId>,
+    collection: &CrateCollection<I>,
+) -> Option<String> {
     let id = id?;
-    let item = index.get(id)?;
+    let item = collection.get_item_by_global_type_id(id);
     item.docs.clone()
 }
 
@@ -365,12 +363,7 @@ fn write_c_param(
     }
 }
 
-fn write_c_type(
-    ty: &Type,
-    style: &Style,
-    type_tags: &HashMap<String, CTypeTag>,
-    out: &mut String,
-) {
+fn write_c_type(ty: &Type, style: &Style, type_tags: &HashMap<String, CTypeTag>, out: &mut String) {
     match ty {
         Type::ScalarPrimitive(p) => out.push_str(scalar_to_c(p)),
         Type::RawPointer(ptr) => {
@@ -413,22 +406,19 @@ fn write_c_type(
                 Style::Type => out.push_str(&name),
             }
         }
-        Type::Tuple(_)
-        | Type::Slice(_)
-        | Type::Generic(_)
-        | Type::FunctionPointer(_) => {
+        Type::Tuple(_) | Type::Slice(_) | Type::Generic(_) | Type::FunctionPointer(_) => {
             unreachable!("unsupported type in C codegen: {ty:?}")
         }
     }
 }
 
-fn write_c_type_definitions(
+fn write_c_type_definitions<I: CrateIndexer>(
     type_defs: &[CTypeDefinition],
     style: &Style,
     cpp_compat: bool,
     type_tags: &HashMap<String, CTypeTag>,
     config: &CommonConfig,
-    index: &CrateItemIndex,
+    collection: &CrateCollection<I>,
     out: &mut String,
 ) {
     // Partition into categories for ordering: fieldless enums, opaques, then structs + tagged unions.
@@ -455,7 +445,7 @@ fn write_c_type_definitions(
         let CTypeKind::FieldlessEnum(ref enum_def) = def.kind else {
             unreachable!();
         };
-        let docs = lookup_docs(def.rustdoc_id.as_ref(), index);
+        let docs = lookup_docs(def.rustdoc_id.as_ref(), collection);
         write_doc_comment(docs.as_deref(), config, out);
         write_c_fieldless_enum(&def.name, enum_def, style, cpp_compat, out);
         if i + 1 < fieldless_enum_defs.len() {
@@ -471,7 +461,7 @@ fn write_c_type_definitions(
     // Opaques.
     for (i, def) in opaque_defs.iter().enumerate() {
         let name = &def.name;
-        let docs = lookup_docs(def.rustdoc_id.as_ref(), index);
+        let docs = lookup_docs(def.rustdoc_id.as_ref(), collection);
         write_doc_comment(docs.as_deref(), config, out);
         match style {
             Style::Tag => writeln!(out, "struct {name};").unwrap(),
@@ -521,18 +511,33 @@ fn write_c_type_definitions(
         HashSet::new()
     };
     for (i, def) in compound_defs.iter().enumerate() {
-        let docs = lookup_docs(def.rustdoc_id.as_ref(), index);
+        let docs = lookup_docs(def.rustdoc_id.as_ref(), collection);
         write_doc_comment(docs.as_deref(), config, out);
         let has_fwd_decl = forward_declared.contains(def.name.as_str());
         match &def.kind {
             CTypeKind::Struct(struct_def) => {
-                write_c_struct_definition(&def.name, struct_def, style, has_fwd_decl, type_tags, out);
+                write_c_struct_definition(
+                    &def.name,
+                    struct_def,
+                    style,
+                    has_fwd_decl,
+                    type_tags,
+                    out,
+                );
             }
             CTypeKind::Union(union_def) => {
                 write_c_union_definition(&def.name, union_def, style, has_fwd_decl, type_tags, out);
             }
             CTypeKind::TaggedUnion(tagged_def) => {
-                write_c_tagged_union(&def.name, tagged_def, style, has_fwd_decl, cpp_compat, type_tags, out);
+                write_c_tagged_union(
+                    &def.name,
+                    tagged_def,
+                    style,
+                    has_fwd_decl,
+                    cpp_compat,
+                    type_tags,
+                    out,
+                );
             }
             _ => unreachable!(),
         }
@@ -575,7 +580,13 @@ fn write_c_struct_definition(
             writeln!(out, "struct {name} {{").unwrap();
             for field in &def.fields {
                 out.push_str("  ");
-                write_c_decl(&field.type_, field.name.as_str(), &Style::Tag, type_tags, out);
+                write_c_decl(
+                    &field.type_,
+                    field.name.as_str(),
+                    &Style::Tag,
+                    type_tags,
+                    out,
+                );
                 writeln!(out, ";").unwrap();
             }
             writeln!(out, "}};").unwrap();
@@ -670,33 +681,28 @@ fn write_c_fieldless_enum(
                 writeln!(out, "typedef {c_int} {name};").unwrap();
             }
         }
-        CEnumRepr::C => {
-            match style {
-                Style::Type => {
-                    writeln!(out, "typedef enum {{").unwrap();
-                    write_enum_variant_list(&def.variants, out);
-                    writeln!(out, "}} {name};").unwrap();
-                }
-                Style::Tag => {
-                    writeln!(out, "enum {name} {{").unwrap();
-                    write_enum_variant_list(&def.variants, out);
-                    writeln!(out, "}};").unwrap();
-                }
-                Style::Both => {
-                    writeln!(out, "typedef enum {name} {{").unwrap();
-                    write_enum_variant_list(&def.variants, out);
-                    writeln!(out, "}} {name};").unwrap();
-                }
+        CEnumRepr::C => match style {
+            Style::Type => {
+                writeln!(out, "typedef enum {{").unwrap();
+                write_enum_variant_list(&def.variants, out);
+                writeln!(out, "}} {name};").unwrap();
             }
-        }
+            Style::Tag => {
+                writeln!(out, "enum {name} {{").unwrap();
+                write_enum_variant_list(&def.variants, out);
+                writeln!(out, "}};").unwrap();
+            }
+            Style::Both => {
+                writeln!(out, "typedef enum {name} {{").unwrap();
+                write_enum_variant_list(&def.variants, out);
+                writeln!(out, "}} {name};").unwrap();
+            }
+        },
     }
 }
 
 /// Write the inner variant list of an enum (indented, with trailing commas).
-fn write_enum_variant_list(
-    variants: &[crate::analysis::CEnumVariant],
-    out: &mut String,
-) {
+fn write_enum_variant_list(variants: &[crate::analysis::CEnumVariant], out: &mut String) {
     for (i, variant) in variants.iter().enumerate() {
         out.push_str("  ");
         out.push_str(variant.name.as_str());
@@ -801,7 +807,13 @@ fn write_c_tagged_union(
                 }
                 for field in &body.fields {
                     out.push_str("  ");
-                    write_c_decl(&field.type_, field.name.as_str(), &Style::Tag, type_tags, out);
+                    write_c_decl(
+                        &field.type_,
+                        field.name.as_str(),
+                        &Style::Tag,
+                        type_tags,
+                        out,
+                    );
                     writeln!(out, ";").unwrap();
                 }
                 writeln!(out, "}};").unwrap();
@@ -825,10 +837,26 @@ fn write_c_tagged_union(
     // 3. Emit the outer container.
     if def.repr.is_repr_c() {
         // repr(C) or repr(C, uN) → struct with tag + anonymous union
-        write_tagged_union_repr_c(name, def, style, has_fwd_decl, type_tags, &tag_type_str, out);
+        write_tagged_union_repr_c(
+            name,
+            def,
+            style,
+            has_fwd_decl,
+            type_tags,
+            &tag_type_str,
+            out,
+        );
     } else {
         // repr(uN) → union with tag + anonymous struct members
-        write_tagged_union_repr_int(name, def, style, has_fwd_decl, type_tags, &tag_type_str, out);
+        write_tagged_union_repr_int(
+            name,
+            def,
+            style,
+            has_fwd_decl,
+            type_tags,
+            &tag_type_str,
+            out,
+        );
     }
 }
 
@@ -878,7 +906,9 @@ fn write_tagged_union_repr_c(
                 // Multi-field: reference to _Body struct
                 let body_name = format!("{body_prefix}{}_Body", variant.name);
                 match style {
-                    Style::Tag | Style::Both => writeln!(out, "    struct {body_name} {field_name};").unwrap(),
+                    Style::Tag | Style::Both => {
+                        writeln!(out, "    struct {body_name} {field_name};").unwrap()
+                    }
                     _ => writeln!(out, "    {body_name} {field_name};").unwrap(),
                 }
             }
@@ -928,7 +958,9 @@ fn write_tagged_union_repr_int(
             // Multi-field: reference to _Body struct
             let body_name = format!("{}_Body", variant.name);
             match style {
-                Style::Tag | Style::Both => writeln!(out, "  struct {body_name} {field_name};").unwrap(),
+                Style::Tag | Style::Both => {
+                    writeln!(out, "  struct {body_name} {field_name};").unwrap()
+                }
                 _ => writeln!(out, "  {body_name} {field_name};").unwrap(),
             }
         }
@@ -948,8 +980,7 @@ fn write_tagged_union_repr_int(
 /// bare typedef name isn't available yet). This covers self-referential types
 /// and corecursive pointer back-references.
 fn compute_needed_forward_decls<'a>(compound_defs: &'a [&CTypeDefinition]) -> HashSet<&'a str> {
-    let all_compound_names: HashSet<&str> =
-        compound_defs.iter().map(|d| d.name.as_str()).collect();
+    let all_compound_names: HashSet<&str> = compound_defs.iter().map(|d| d.name.as_str()).collect();
 
     // Track which types have been "defined" as we walk the list in order.
     let mut defined: HashSet<&str> = HashSet::new();

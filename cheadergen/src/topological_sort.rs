@@ -1,9 +1,10 @@
 use std::collections::{BTreeMap, HashMap};
 
 use rustdoc_ir::Type;
-use rustdoc_processor::queries::Crate;
+use rustdoc_processor::CrateCollection;
+use rustdoc_processor::indexing::CrateIndexer;
 
-use crate::analysis::{CTypeDefinition, CTypeKind, c_type_name};
+use crate::analysis::{CTypeDefinition, CTypeKind, c_type_name, span_sort_key_global};
 
 /// Sort type definitions in dependency order: types used **by value** in
 /// another type's fields are emitted first.
@@ -14,7 +15,10 @@ use crate::analysis::{CTypeDefinition, CTypeKind, c_type_name};
 /// If a cycle exists in by-value dependencies (impossible in valid
 /// `#[repr(C)]` Rust), the remaining types are appended in source order
 /// with a warning.
-pub fn topological_sort(type_defs: &mut Vec<CTypeDefinition>, krate: &Crate) {
+pub fn topological_sort<I: CrateIndexer>(
+    type_defs: &mut Vec<CTypeDefinition>,
+    collection: &CrateCollection<I>,
+) {
     // Only compound types (structs, tagged unions) participate in ordering.
     // Fieldless enums and opaques have no by-value dependencies on other compounds.
     // We sort only the compounds and leave the rest untouched — codegen partitions
@@ -80,7 +84,7 @@ pub fn topological_sort(type_defs: &mut Vec<CTypeDefinition>, krate: &Crate) {
     // Kahn's algorithm with source-order tiebreaker.
     let sort_key = |idx: usize| -> (usize, usize, &str) {
         let def = &compounds[idx];
-        let (line, col) = span_sort_key_for_def(def, krate);
+        let (line, col) = span_sort_key_for_def(def, collection);
         (line, col, def.name.as_str())
     };
 
@@ -115,8 +119,7 @@ pub fn topological_sort(type_defs: &mut Vec<CTypeDefinition>, krate: &Crate) {
             "warning: cycle detected in by-value type dependencies; \
              appending remaining types in source order"
         );
-        let in_sorted: std::collections::HashSet<usize> =
-            sorted_indices.iter().copied().collect();
+        let in_sorted: std::collections::HashSet<usize> = sorted_indices.iter().copied().collect();
         let mut remaining: Vec<usize> = (0..n).filter(|i| !in_sorted.contains(i)).collect();
         remaining.sort_by_key(|&i| {
             let (l, c, name) = sort_key(i);
@@ -126,8 +129,7 @@ pub fn topological_sort(type_defs: &mut Vec<CTypeDefinition>, krate: &Crate) {
     }
 
     // Reorder compounds according to sorted_indices.
-    let mut compounds_opt: Vec<Option<CTypeDefinition>> =
-        compounds.into_iter().map(Some).collect();
+    let mut compounds_opt: Vec<Option<CTypeDefinition>> = compounds.into_iter().map(Some).collect();
     let sorted_compounds: Vec<CTypeDefinition> = sorted_indices
         .iter()
         .map(|&i| compounds_opt[i].take().unwrap())
@@ -146,19 +148,14 @@ pub fn topological_sort(type_defs: &mut Vec<CTypeDefinition>, krate: &Crate) {
     }
 }
 
-fn span_sort_key_for_def(def: &CTypeDefinition, krate: &Crate) -> (usize, usize) {
-    let id = match &def.rustdoc_id {
-        Some(id) => id,
-        None => return (usize::MAX, usize::MAX),
+fn span_sort_key_for_def<I: CrateIndexer>(
+    def: &CTypeDefinition,
+    collection: &CrateCollection<I>,
+) -> (usize, usize) {
+    let Some(gid) = &def.rustdoc_id else {
+        return (usize::MAX, usize::MAX);
     };
-    let item = match krate.core.krate.index.get(id) {
-        Some(item) => item,
-        None => return (usize::MAX, usize::MAX),
-    };
-    match item.span.as_ref() {
-        Some(span) => (span.begin.0, span.begin.1),
-        None => (usize::MAX, usize::MAX),
-    }
+    span_sort_key_global(gid, collection)
 }
 
 /// Extract the C type names that `def` depends on **by value** (not behind a pointer).

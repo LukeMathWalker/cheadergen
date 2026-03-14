@@ -405,16 +405,10 @@ impl RawCommonFields {
             trailer: overrides.trailer.or(self.trailer),
             autogen_warning: overrides.autogen_warning.or(self.autogen_warning),
             include_guard: overrides.include_guard.or(self.include_guard),
-            pragma_once: overrides
-                .pragma_once
-                .or(self.pragma_once)
-                .unwrap_or(false),
+            pragma_once: overrides.pragma_once.or(self.pragma_once).unwrap_or(false),
             sys_includes: overrides.sys_includes.unwrap_or(self.sys_includes),
             includes: overrides.includes.unwrap_or(self.includes),
-            no_includes: overrides
-                .no_includes
-                .or(self.no_includes)
-                .unwrap_or(false),
+            no_includes: overrides.no_includes.or(self.no_includes).unwrap_or(false),
             after_includes: overrides.after_includes.or(self.after_includes),
             fn_sort_by: self.fn_sort_by.or(self.sort_by).unwrap_or_default(),
             static_sort_by: self.static_sort_by.or(self.sort_by).unwrap_or_default(),
@@ -490,10 +484,12 @@ pub struct CliOverrides {
 impl RawConfig {
     /// Read and deserialize a [`RawConfig`] from a TOML file at `path`.
     pub fn from_toml_file(path: &Path) -> Result<Self, ConfigError> {
-        let contents = fs_err::read_to_string(path)
-            .map_err(|e| ConfigError { message: format!("failed to read config file: {e}") })?;
-        toml::from_str(&contents)
-            .map_err(|e| ConfigError { message: format!("failed to parse config file: {e}") })
+        let contents = fs_err::read_to_string(path).map_err(|e| ConfigError {
+            message: format!("failed to read config file: {e}"),
+        })?;
+        toml::from_str(&contents).map_err(|e| ConfigError {
+            message: format!("failed to parse config file: {e}"),
+        })
     }
 
     /// Validate and convert into a language-specific [`Config`].
@@ -580,7 +576,9 @@ mod tests {
     #[test]
     fn empty_config() {
         let raw: RawConfig = toml::from_str("").unwrap();
-        let config = raw.into_config(&Language::C, &CliOverrides::default()).unwrap();
+        let config = raw
+            .into_config(&Language::C, &CliOverrides::default())
+            .unwrap();
         assert!(matches!(config, Config::C(_)));
     }
 
@@ -602,7 +600,9 @@ style = "Tag"
 cpp_compat = true
 "#;
         let raw: RawConfig = toml::from_str(toml_str).unwrap();
-        let config = raw.into_config(&Language::C, &CliOverrides::default()).unwrap();
+        let config = raw
+            .into_config(&Language::C, &CliOverrides::default())
+            .unwrap();
         match config {
             Config::C(c) => {
                 assert!(matches!(c.style, Style::Tag));
@@ -618,7 +618,10 @@ cpp_compat = true
                 assert_eq!(c.common.sys_includes, vec!["stdint.h", "stdbool.h"]);
                 assert_eq!(c.common.includes, vec!["my_types.h"]);
                 assert!(!c.common.no_includes);
-                assert_eq!(c.common.after_includes.as_deref(), Some("/* after includes */"));
+                assert_eq!(
+                    c.common.after_includes.as_deref(),
+                    Some("/* after includes */")
+                );
             }
             _ => panic!("expected Config::C"),
         }
@@ -650,7 +653,9 @@ include_guard = "SHARED_H"
 include_guard = "C_ONLY_H"
 "#;
         let raw: RawConfig = toml::from_str(toml_str).unwrap();
-        let config = raw.into_config(&Language::C, &CliOverrides::default()).unwrap();
+        let config = raw
+            .into_config(&Language::C, &CliOverrides::default())
+            .unwrap();
         match config {
             Config::C(c) => {
                 assert_eq!(c.common.header.as_deref(), Some("/* Shared */"));
@@ -741,7 +746,6 @@ style = "Tag"
             _ => panic!("expected Config::C"),
         }
     }
-
 
     #[test]
     fn cxx_alias_parses() {

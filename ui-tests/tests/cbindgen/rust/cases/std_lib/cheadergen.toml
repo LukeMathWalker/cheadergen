@@ -1,0 +1,5 @@
+# `cbindgen` doesn't emit documentation for std types,
+# while `cheadergen` can (and does).
+# To avoid a mismatch, we disable documentation generation
+# entirely.
+documentation = false

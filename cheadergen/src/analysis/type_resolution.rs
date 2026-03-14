@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
+use guppy::PackageId;
 use rustdoc_ir::{GenericArgument, PathType, Type};
-use rustdoc_processor::CrateCollection;
 use rustdoc_processor::indexing::CrateIndexer;
-use rustdoc_processor::queries::Crate;
+use rustdoc_processor::{CrateCollection, GlobalItemId};
 use rustdoc_resolver::{GenericBindings, resolve_type};
 use rustdoc_types::{Attribute, AttributeRepr, ItemEnum, ReprKind, StructKind, VariantKind};
 
@@ -21,7 +21,6 @@ use super::type_collection::{
 pub(super) fn resolve_type_kind<I: CrateIndexer>(
     name: &str,
     path_type: &PathType,
-    krate: &Crate,
     collection: &CrateCollection<I>,
 ) -> anyhow::Result<CTypeKind> {
     let Some(id) = &path_type.rustdoc_id else {
@@ -29,20 +28,18 @@ pub(super) fn resolve_type_kind<I: CrateIndexer>(
         return Ok(CTypeKind::Opaque);
     };
 
-    let Some(item) = krate.core.krate.index.get(id) else {
-        eprintln!("warning: type `{name}` has no rustdoc ID; emitting forward declaration");
-        return Ok(CTypeKind::Opaque);
-    };
+    let global_id = GlobalItemId::new(*id, path_type.package_id.clone());
+    let item = collection.get_item_by_global_type_id(&global_id);
 
     match &item.inner {
         ItemEnum::Struct(struct_def) => {
-            resolve_struct_kind(name, struct_def, &item.attrs, path_type, krate, collection)
+            resolve_struct_kind(name, struct_def, &item.attrs, path_type, collection)
         }
         ItemEnum::Union(union_def) => {
-            resolve_union_kind(name, union_def, &item.attrs, path_type, krate, collection)
+            resolve_union_kind(name, union_def, &item.attrs, path_type, collection)
         }
         ItemEnum::Enum(enum_def) => {
-            resolve_enum_kind(name, enum_def, &item.attrs, path_type, krate, collection)
+            resolve_enum_kind(name, enum_def, &item.attrs, path_type, collection)
         }
         _ => {
             eprintln!(
@@ -89,7 +86,6 @@ fn resolve_struct_kind<I: CrateIndexer>(
     struct_def: &rustdoc_types::Struct,
     attrs: &[Attribute],
     path_type: &PathType,
-    krate: &Crate,
     collection: &CrateCollection<I>,
 ) -> anyhow::Result<CTypeKind> {
     // Check for #[repr(C)].
@@ -123,11 +119,17 @@ fn resolve_struct_kind<I: CrateIndexer>(
                 );
                 return Ok(CTypeKind::Opaque);
             }
-            let c_fields = resolve_plain_fields(fields, &generic_bindings, krate, collection)?;
+            let c_fields =
+                resolve_plain_fields(fields, &generic_bindings, &path_type.package_id, collection)?;
             Ok(CTypeKind::Struct(CStructDef { fields: c_fields }))
         }
         StructKind::Tuple(fields) => {
-            let c_fields = resolve_tuple_fields(fields, &generic_bindings, krate, collection)?;
+            let c_fields = resolve_tuple_fields(
+                fields,
+                &generic_bindings,
+                &path_type.package_id,
+                collection,
+            )?;
             Ok(CTypeKind::Struct(CStructDef { fields: c_fields }))
         }
         StructKind::Unit => Ok(CTypeKind::Struct(CStructDef { fields: Vec::new() })),
@@ -140,7 +142,6 @@ fn resolve_union_kind<I: CrateIndexer>(
     union_def: &rustdoc_types::Union,
     attrs: &[Attribute],
     path_type: &PathType,
-    krate: &Crate,
     collection: &CrateCollection<I>,
 ) -> anyhow::Result<CTypeKind> {
     let is_repr_c = attrs.iter().any(|attr| {
@@ -169,7 +170,7 @@ fn resolve_union_kind<I: CrateIndexer>(
         return Ok(CTypeKind::Opaque);
     }
 
-    let c_fields = resolve_plain_fields(&union_def.fields, &generic_bindings, krate, collection)?;
+    let c_fields = resolve_plain_fields(&union_def.fields, &generic_bindings, &path_type.package_id, collection)?;
     Ok(CTypeKind::Union(CUnionDef { fields: c_fields }))
 }
 
@@ -255,7 +256,6 @@ fn resolve_enum_kind<I: CrateIndexer>(
     enum_def: &rustdoc_types::Enum,
     attrs: &[Attribute],
     path_type: &PathType,
-    krate: &Crate,
     collection: &CrateCollection<I>,
 ) -> anyhow::Result<CTypeKind> {
     let Some(repr) = extract_enum_repr(attrs)? else {
@@ -275,13 +275,13 @@ fn resolve_enum_kind<I: CrateIndexer>(
         return Ok(CTypeKind::Opaque);
     }
 
+    let package_id = &path_type.package_id;
+
     // Classify: all variants plain → fieldless, otherwise → tagged union.
     let mut all_plain = true;
     for variant_id in &enum_def.variants {
-        let Some(variant_item) = krate.core.krate.index.get(variant_id) else {
-            eprintln!("warning: enum `{name}` has missing variant; emitting forward declaration");
-            return Ok(CTypeKind::Opaque);
-        };
+        let global_id = GlobalItemId::new(*variant_id, package_id.clone());
+        let variant_item = collection.get_item_by_global_type_id(&global_id);
         let ItemEnum::Variant(variant) = &variant_item.inner else {
             anyhow::bail!(
                 "Expected Variant for enum `{name}` variant id {:?}",
@@ -295,27 +295,31 @@ fn resolve_enum_kind<I: CrateIndexer>(
     }
 
     if all_plain {
-        resolve_fieldless_enum(name, enum_def, repr, krate)
+        resolve_fieldless_enum(name, enum_def, repr, package_id, collection)
     } else {
-        resolve_tagged_union(name, enum_def, repr, &generic_bindings, krate, collection)
+        resolve_tagged_union(
+            name,
+            enum_def,
+            repr,
+            &generic_bindings,
+            package_id,
+            collection,
+        )
     }
 }
 
 /// Resolve a fieldless enum.
-fn resolve_fieldless_enum(
+fn resolve_fieldless_enum<I: CrateIndexer>(
     name: &str,
     enum_def: &rustdoc_types::Enum,
     repr: CEnumRepr,
-    krate: &Crate,
+    package_id: &PackageId,
+    collection: &CrateCollection<I>,
 ) -> anyhow::Result<CTypeKind> {
     let mut variants = Vec::new();
     for variant_id in &enum_def.variants {
-        let variant_item = krate
-            .core
-            .krate
-            .index
-            .get(variant_id)
-            .ok_or_else(|| anyhow::anyhow!("Missing variant for enum `{name}`"))?;
+        let global_id = GlobalItemId::new(*variant_id, package_id.clone());
+        let variant_item = collection.get_item_by_global_type_id(&global_id);
         let ItemEnum::Variant(variant) = &variant_item.inner else {
             anyhow::bail!("Expected Variant for enum `{name}`");
         };
@@ -338,7 +342,7 @@ fn resolve_tagged_union<I: CrateIndexer>(
     enum_def: &rustdoc_types::Enum,
     repr: CEnumRepr,
     generic_bindings: &GenericBindings,
-    krate: &Crate,
+    package_id: &PackageId,
     collection: &CrateCollection<I>,
 ) -> anyhow::Result<CTypeKind> {
     // repr(C) or repr(C, uN) → prefix variant names with enum name.
@@ -346,12 +350,8 @@ fn resolve_tagged_union<I: CrateIndexer>(
 
     let mut variants = Vec::new();
     for variant_id in &enum_def.variants {
-        let variant_item = krate
-            .core
-            .krate
-            .index
-            .get(variant_id)
-            .ok_or_else(|| anyhow::anyhow!("Missing variant for enum `{name}`"))?;
+        let global_id = GlobalItemId::new(*variant_id, package_id.clone());
+        let variant_item = collection.get_item_by_global_type_id(&global_id);
         let ItemEnum::Variant(variant) = &variant_item.inner else {
             anyhow::bail!("Expected Variant for enum `{name}`");
         };
@@ -360,7 +360,8 @@ fn resolve_tagged_union<I: CrateIndexer>(
         let body = match &variant.kind {
             VariantKind::Plain => None,
             VariantKind::Tuple(fields) => {
-                let c_fields = resolve_tuple_fields(fields, generic_bindings, krate, collection)?;
+                let c_fields =
+                    resolve_tuple_fields(fields, generic_bindings, package_id, collection)?;
                 if c_fields.is_empty() {
                     None
                 } else {
@@ -377,7 +378,8 @@ fn resolve_tagged_union<I: CrateIndexer>(
                     );
                     return Ok(CTypeKind::Opaque);
                 }
-                let c_fields = resolve_plain_fields(fields, generic_bindings, krate, collection)?;
+                let c_fields =
+                    resolve_plain_fields(fields, generic_bindings, package_id, collection)?;
                 if c_fields.is_empty() {
                     None
                 } else {
@@ -403,17 +405,13 @@ fn resolve_tagged_union<I: CrateIndexer>(
 fn resolve_plain_fields<I: CrateIndexer>(
     field_ids: &[rustdoc_types::Id],
     generic_bindings: &GenericBindings,
-    krate: &Crate,
+    package_id: &PackageId,
     collection: &CrateCollection<I>,
 ) -> anyhow::Result<Vec<CStructField>> {
     let mut c_fields = Vec::new();
     for field_id in field_ids {
-        let field_item = krate
-            .core
-            .krate
-            .index
-            .get(field_id)
-            .ok_or_else(|| anyhow::anyhow!("Missing field item for id {:?}", field_id))?;
+        let global_id = GlobalItemId::new(*field_id, package_id.clone());
+        let field_item = collection.get_item_by_global_type_id(&global_id);
         let ItemEnum::StructField(ref raw_type) = field_item.inner else {
             anyhow::bail!("Expected StructField for id {:?}", field_id);
         };
@@ -422,13 +420,10 @@ fn resolve_plain_fields<I: CrateIndexer>(
             .name
             .clone()
             .unwrap_or_else(|| "<unnamed>".to_string());
-        let resolved = resolve_type(
-            raw_type,
-            &krate.core.package_id,
-            collection,
-            generic_bindings,
-        )
-        .map_err(|e| anyhow::anyhow!("Failed to resolve field `{field_name}`: {}", Arc::new(e)))?;
+        let resolved =
+            resolve_type(raw_type, package_id, collection, generic_bindings).map_err(|e| {
+                anyhow::anyhow!("Failed to resolve field `{field_name}`: {}", Arc::new(e))
+            })?;
 
         // Skip ZST fields (PhantomData, PhantomPinned, ()).
         if is_zst_type(&resolved) {
@@ -447,7 +442,7 @@ fn resolve_plain_fields<I: CrateIndexer>(
 fn resolve_tuple_fields<I: CrateIndexer>(
     fields: &[Option<rustdoc_types::Id>],
     generic_bindings: &GenericBindings,
-    krate: &Crate,
+    package_id: &PackageId,
     collection: &CrateCollection<I>,
 ) -> anyhow::Result<Vec<CStructField>> {
     let mut c_fields = Vec::new();
@@ -457,23 +452,16 @@ fn resolve_tuple_fields<I: CrateIndexer>(
             // Private/hidden field — we can't emit the full struct.
             anyhow::bail!("Tuple struct has private fields");
         };
-        let field_item = krate
-            .core
-            .krate
-            .index
-            .get(field_id)
-            .ok_or_else(|| anyhow::anyhow!("Missing tuple field item for id {:?}", field_id))?;
+        let global_id = GlobalItemId::new(*field_id, package_id.clone());
+        let field_item = collection.get_item_by_global_type_id(&global_id);
         let ItemEnum::StructField(ref raw_type) = field_item.inner else {
             anyhow::bail!("Expected StructField for tuple field id {:?}", field_id);
         };
 
-        let resolved = resolve_type(
-            raw_type,
-            &krate.core.package_id,
-            collection,
-            generic_bindings,
-        )
-        .map_err(|e| anyhow::anyhow!("Failed to resolve tuple field m{index}: {}", Arc::new(e)))?;
+        let resolved =
+            resolve_type(raw_type, package_id, collection, generic_bindings).map_err(|e| {
+                anyhow::anyhow!("Failed to resolve tuple field m{index}: {}", Arc::new(e))
+            })?;
 
         // Skip ZST fields.
         if is_zst_type(&resolved) {

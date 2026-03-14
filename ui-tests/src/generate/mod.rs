@@ -9,8 +9,8 @@ use std::{fs, str};
 
 use crate::{Language, Style};
 use cheadergen::{
-    CBINDGEN_CASES_METADATA, CBINDGEN_WORKSPACE_METADATA, CHEADERGEN_CASES_METADATA, run_cheadergen,
-    run_cheadergen_symbols,
+    CBINDGEN_CASES_METADATA, CBINDGEN_WORKSPACE_METADATA, CHEADERGEN_CASES_METADATA,
+    run_cheadergen, run_cheadergen_symbols,
 };
 
 const SKIP_WARNING_AS_ERROR_SUFFIX: &str = ".skip_warning_as_error";

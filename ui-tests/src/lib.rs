@@ -42,4 +42,3 @@ pub fn style_str(style: Style) -> &'static str {
         Style::Type => "type",
     }
 }
-

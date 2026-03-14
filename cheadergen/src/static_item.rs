@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use rustdoc_ir::Type;
-use rustdoc_processor::CrateCollection;
 use rustdoc_processor::indexing::CrateIndexer;
 use rustdoc_processor::queries::Crate;
+use rustdoc_processor::{CrateCollection, GlobalItemId};
 use rustdoc_resolver::resolve_type;
 use rustdoc_types::{Attribute, Item, ItemEnum};
 
@@ -17,8 +17,8 @@ pub struct StaticItem {
     pub type_: Type,
     /// `true` for `static mut`.
     pub is_mutable: bool,
-    /// The rustdoc item ID, used for doc comment lookup at codegen time.
-    pub rustdoc_id: rustdoc_types::Id,
+    /// The global rustdoc item ID, used for doc comment lookup at codegen time.
+    pub rustdoc_id: GlobalItemId,
 }
 
 /// Convert a static item from `rustdoc_types` into a [`StaticItem`].
@@ -31,10 +31,7 @@ pub fn resolve_static<I: CrateIndexer>(
         unreachable!("Expected a static item");
     };
 
-    let name = item
-        .name
-        .clone()
-        .unwrap_or_else(|| "<unnamed>".to_string());
+    let name = item.name.clone().unwrap_or_else(|| "<unnamed>".to_string());
 
     let type_ = resolve_type(
         &inner.type_,
@@ -58,7 +55,7 @@ pub fn resolve_static<I: CrateIndexer>(
         symbol_name,
         type_,
         is_mutable: inner.is_mutable,
-        rustdoc_id: item.id,
+        rustdoc_id: GlobalItemId::new(item.id, krate.core.package_id.clone()),
     })
 }
 

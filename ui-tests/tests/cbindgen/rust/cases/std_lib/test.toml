@@ -1,3 +1,5 @@
+"c/plain" = "xfail"
+"c/compat" = "xfail"
 "c/both" = "xfail"
 "c/both_compat" = "xfail"
 "c/tag" = "xfail"

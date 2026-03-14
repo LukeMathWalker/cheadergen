@@ -41,7 +41,8 @@ fn read_test_manifest(case_path: &Path) -> HashMap<String, VariantStatus> {
         })
         .collect();
 
-    let mut valid_keys: HashSet<String> = VARIANTS.iter().map(|v| v.module_path.join("/")).collect();
+    let mut valid_keys: HashSet<String> =
+        VARIANTS.iter().map(|v| v.module_path.join("/")).collect();
     valid_keys.insert("symbol".to_owned());
     let unknown: Vec<_> = result
         .keys()

@@ -156,8 +156,7 @@ fn main() -> ExitCode {
 }
 
 fn warm_cache(args: &WarmCacheArgs) -> anyhow::Result<()> {
-    let package_graph =
-        metadata::load_package_graph(args.metadata.as_ref(), args.input.as_ref())?;
+    let package_graph = metadata::load_package_graph(args.metadata.as_ref(), args.input.as_ref())?;
 
     let workspace_member_ids: Vec<_> = package_graph
         .workspace()
@@ -306,12 +305,23 @@ fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
 
         // Sort IDs before resolution — resolvers preserve input order,
         // so the output inherits the sort.
-        analysis::sort_by_key(&mut extern_items.fn_ids, c_config.common.fn_sort_by, krate);
-        analysis::sort_by_key(&mut extern_items.static_ids, c_config.common.static_sort_by, krate);
-        analysis::sort_by_key(&mut extern_items.constant_ids, c_config.common.constant_sort_by, krate);
+        analysis::sort_local_ids_by_key(
+            &mut extern_items.fn_ids,
+            c_config.common.fn_sort_by,
+            krate,
+        );
+        analysis::sort_local_ids_by_key(
+            &mut extern_items.static_ids,
+            c_config.common.static_sort_by,
+            krate,
+        );
+        analysis::sort_local_ids_by_key(
+            &mut extern_items.constant_ids,
+            c_config.common.constant_sort_by,
+            krate,
+        );
 
-        let resolved_fns =
-            analysis::resolve_functions(&extern_items.fn_ids, krate, &collection)?;
+        let resolved_fns = analysis::resolve_functions(&extern_items.fn_ids, krate, &collection)?;
         let resolved_statics =
             analysis::resolve_statics(&extern_items.static_ids, krate, &collection)?;
         let resolved_constants =
@@ -323,18 +333,14 @@ fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
             eprintln!("Resolved {} constant(s) to IR", resolved_constants.len());
         }
 
-        let mut type_defs = analysis::collect_type_definitions(
-            &resolved_fns,
-            &resolved_statics,
-            krate,
-            &collection,
-        )?;
+        let mut type_defs =
+            analysis::collect_type_definitions(&resolved_fns, &resolved_statics, &collection)?;
 
         // First, establish a baseline source order (type_defs come from a
         // HashMap and have no inherent order). Then apply topological sort
         // to reorder compounds so by-value dependencies are defined first.
-        analysis::sort_by_key(&mut type_defs, config::SortKey::SourceOrder, krate);
-        topological_sort::topological_sort(&mut type_defs, krate);
+        analysis::sort_by_key(&mut type_defs, config::SortKey::SourceOrder, &collection);
+        topological_sort::topological_sort(&mut type_defs, &collection);
 
         let mut header = String::new();
         codegen::generate_c_header(
@@ -343,7 +349,7 @@ fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
             &resolved_constants,
             &resolved_fns,
             &resolved_statics,
-            &krate.core.krate.index,
+            &collection,
             &mut header,
         );
 

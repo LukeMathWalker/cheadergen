@@ -1,7 +1,7 @@
 use rustdoc_ir::{ScalarPrimitive, Type};
-use rustdoc_processor::CrateCollection;
 use rustdoc_processor::indexing::CrateIndexer;
 use rustdoc_processor::queries::Crate;
+use rustdoc_processor::{CrateCollection, GlobalItemId};
 use rustdoc_resolver::resolve_type;
 use rustdoc_types::{Item, ItemEnum};
 
@@ -11,8 +11,8 @@ pub struct ConstantItem {
     pub name: String,
     /// The evaluated value from rustdoc (emitted verbatim after `#define`).
     pub value: String,
-    /// The rustdoc item ID, used for doc comment lookup at codegen time.
-    pub rustdoc_id: rustdoc_types::Id,
+    /// The global rustdoc item ID, used for doc comment lookup at codegen time.
+    pub rustdoc_id: GlobalItemId,
 }
 
 /// Try to resolve a constant item into a [`ConstantItem`].
@@ -29,10 +29,7 @@ pub fn resolve_constant<I: CrateIndexer>(
         unreachable!("Expected a constant item");
     };
 
-    let name = item
-        .name
-        .clone()
-        .unwrap_or_else(|| "<unnamed>".to_string());
+    let name = item.name.clone().unwrap_or_else(|| "<unnamed>".to_string());
 
     let resolved = match resolve_type(
         type_,
@@ -49,31 +46,25 @@ pub fn resolve_constant<I: CrateIndexer>(
 
     // Only emit constants whose type is a supported scalar primitive.
     let Type::ScalarPrimitive(prim) = &resolved else {
-        eprintln!(
-            "warning: constant `{name}` has non-primitive type; skipping"
-        );
+        eprintln!("warning: constant `{name}` has non-primitive type; skipping");
         return None;
     };
 
     // Skip char and str — not supported yet.
     if matches!(prim, ScalarPrimitive::Char | ScalarPrimitive::Str) {
-        eprintln!(
-            "warning: constant `{name}` has unsupported primitive type `{prim}`; skipping"
-        );
+        eprintln!("warning: constant `{name}` has unsupported primitive type `{prim}`; skipping");
         return None;
     }
 
     let Some(ref value) = const_.value else {
-        eprintln!(
-            "warning: constant `{name}` has no evaluated value; skipping"
-        );
+        eprintln!("warning: constant `{name}` has no evaluated value; skipping");
         return None;
     };
 
     Some(ConstantItem {
         name,
         value: sanitize_rust_literal(value, prim),
-        rustdoc_id: item.id,
+        rustdoc_id: GlobalItemId::new(item.id, krate.core.package_id.clone()),
     })
 }
 

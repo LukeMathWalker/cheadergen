@@ -199,7 +199,10 @@ fn cmd_translate_configs() {
                     .to_string_lossy()
                     .into_owned();
                 for field in extract_skipped_fields(&output) {
-                    unsupported.entry(field).or_default().push(test_name.clone());
+                    unsupported
+                        .entry(field)
+                        .or_default()
+                        .push(test_name.clone());
                 }
             }
             Ok(out) => {
@@ -227,7 +230,10 @@ fn cmd_translate_configs() {
         fs::write(&summary_path, lines.join("\n") + "\n").unwrap_or_else(|e| {
             eprintln!("Warning: failed to write unsupported keys summary: {e}");
         });
-        println!("Wrote unsupported keys summary to {}", summary_path.display());
+        println!(
+            "Wrote unsupported keys summary to {}",
+            summary_path.display()
+        );
     }
 
     println!();
