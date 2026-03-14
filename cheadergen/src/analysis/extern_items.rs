@@ -7,7 +7,8 @@ use rustdoc_processor::queries::Crate;
 use rustdoc_resolver::{TypeAliasResolution, resolve_free_function};
 use rustdoc_types::{Abi, Attribute, ItemEnum};
 
-use crate::constant_item::{ConstantItem, resolve_constant};
+use crate::analysis::CTypeDefinition;
+use crate::constant_item::{ConstantItem, resolve_assoc_constant, resolve_constant};
 use crate::static_item::{StaticItem, resolve_static};
 
 /// Extern "C" function IDs, exported static IDs, and constant IDs found in a crate.
@@ -134,6 +135,73 @@ fn exported_symbol_name(item: &rustdoc_types::Item) -> Option<&str> {
         }
     }
     item.name.as_deref()
+}
+
+/// Find associated constants on each type definition.
+///
+/// For each `CTypeDefinition` with a `rustdoc_id`, this looks up the struct/enum/union
+/// in the crate index, walks its inherent `impl` blocks, and resolves public
+/// `AssocConst` items. Returns a vec of `(type_name, Vec<ConstantItem>)` pairs,
+/// preserving the order of `type_defs`.
+pub fn find_assoc_constants(
+    type_defs: &[CTypeDefinition],
+    krate: &Crate,
+    collection: &CrateCollection<NoAnnotations>,
+) -> Vec<(String, Vec<ConstantItem>)> {
+    let mut result = Vec::new();
+
+    for def in type_defs {
+        let Some(ref global_id) = def.rustdoc_id else {
+            continue;
+        };
+        let Some(item) = krate.core.krate.index.get(&global_id.rustdoc_item_id) else {
+            continue;
+        };
+
+        // Extract impl IDs from the struct/enum/union.
+        let impl_ids: &[rustdoc_types::Id] = match &item.inner {
+            ItemEnum::Struct(s) => &s.impls,
+            ItemEnum::Enum(e) => &e.impls,
+            ItemEnum::Union(u) => &u.impls,
+            _ => continue,
+        };
+
+        let mut constants = Vec::new();
+        for impl_id in impl_ids {
+            let Some(impl_item) = krate.core.krate.index.get(impl_id) else {
+                continue;
+            };
+            let ItemEnum::Impl(ref impl_def) = impl_item.inner else {
+                continue;
+            };
+            // Skip trait impls — we only want inherent impls.
+            if impl_def.trait_.is_some() {
+                continue;
+            }
+
+            for assoc_id in &impl_def.items {
+                let Some(assoc_item) = krate.core.krate.index.get(assoc_id) else {
+                    continue;
+                };
+                // Only public associated constants.
+                if !matches!(assoc_item.visibility, rustdoc_types::Visibility::Public) {
+                    continue;
+                }
+                if !matches!(assoc_item.inner, ItemEnum::AssocConst { .. }) {
+                    continue;
+                }
+                if let Some(c) = resolve_assoc_constant(&assoc_item, &def.name, krate, collection) {
+                    constants.push(c);
+                }
+            }
+        }
+
+        if !constants.is_empty() {
+            result.push((def.name.clone(), constants));
+        }
+    }
+
+    result
 }
 
 /// Returns `true` if the item has `#[no_mangle]` or `#[export_name = "..."]`.

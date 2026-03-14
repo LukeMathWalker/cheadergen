@@ -1,0 +1,39 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 171
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct {
+
+} Foo;
+#define Foo_U8 1
+#define Foo_U16 2
+#define Foo_U32 3
+#define Foo_U64 4
+#define Foo_USIZE 5
+#define Foo_I8 -1
+#define Foo_I16 -2
+#define Foo_I32 -3
+#define Foo_I64 -4
+#define Foo_ISIZE -5
+#define Foo_F32 3.14
+#define Foo_F64 2.718
+#define Foo_YES true
+#define Foo_NO false
+#define Foo_CH 'A'
+#define Foo_GREETING "hello world"
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+void root(Foo x);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

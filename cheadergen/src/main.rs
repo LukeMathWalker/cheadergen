@@ -342,11 +342,15 @@ fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
         analysis::sort_by_key(&mut type_defs, config::SortKey::SourceOrder, &collection);
         topological_sort::topological_sort(&mut type_defs, &collection);
 
+        let assoc_constants =
+            analysis::find_assoc_constants(&type_defs, krate, &collection);
+
         let mut header = String::new();
         codegen::generate_c_header(
             c_config,
             &type_defs,
             &resolved_constants,
+            &assoc_constants,
             &resolved_fns,
             &resolved_statics,
             &collection,

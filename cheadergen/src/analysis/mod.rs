@@ -3,7 +3,8 @@ mod type_collection;
 mod type_resolution;
 
 pub use extern_items::{
-    collect_symbols, find_extern_items, resolve_constants, resolve_functions, resolve_statics,
+    collect_symbols, find_assoc_constants, find_extern_items, resolve_constants, resolve_functions,
+    resolve_statics,
 };
 pub use type_collection::{
     CEnumRepr, CEnumVariant, CFieldlessEnumDef, CIdentifier, CStructDef, CTaggedUnionDef,

@@ -53,10 +53,12 @@ fn build_type_tag_map(type_defs: &[CTypeDefinition]) -> HashMap<String, CTypeTag
 /// header, include guard/pragma once, autogen warning, includes,
 /// after_includes, cpp_compat open, declarations, cpp_compat close,
 /// include guard close, trailer.
+#[allow(clippy::too_many_arguments)]
 pub fn generate_c_header<I: CrateIndexer>(
     config: &CConfig,
     type_defs: &[CTypeDefinition],
     constants: &[ConstantItem],
+    assoc_constants: &[(String, Vec<ConstantItem>)],
     functions: &[FreeFunction],
     statics: &[StaticItem],
     collection: &CrateCollection<I>,
@@ -117,6 +119,7 @@ pub fn generate_c_header<I: CrateIndexer>(
         out.push('\n');
         write_c_type_definitions(
             type_defs,
+            assoc_constants,
             &config.style,
             config.cpp_compat,
             &type_tags,
@@ -413,8 +416,10 @@ fn write_c_type(ty: &Type, style: &Style, type_tags: &HashMap<String, CTypeTag>,
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn write_c_type_definitions<I: CrateIndexer>(
     type_defs: &[CTypeDefinition],
+    assoc_constants: &[(String, Vec<ConstantItem>)],
     style: &Style,
     cpp_compat: bool,
     type_tags: &HashMap<String, CTypeTag>,
@@ -444,6 +449,12 @@ fn write_c_type_definitions<I: CrateIndexer>(
         })
         .collect();
 
+    // Build a lookup from type name → associated constants.
+    let assoc_map: HashMap<&str, &Vec<ConstantItem>> = assoc_constants
+        .iter()
+        .map(|(name, consts)| (name.as_str(), consts))
+        .collect();
+
     // Fieldless enums first.
     for (i, def) in fieldless_enum_defs.iter().enumerate() {
         let CTypeKind::FieldlessEnum(ref enum_def) = def.kind else {
@@ -452,6 +463,7 @@ fn write_c_type_definitions<I: CrateIndexer>(
         let docs = lookup_docs(def.rustdoc_id.as_ref(), collection);
         write_doc_comment(docs.as_deref(), config, out);
         write_c_fieldless_enum(&def.name, enum_def, style, cpp_compat, out);
+        write_assoc_constants_for_type(&def.name, &assoc_map, collection, config, out);
         if i + 1 < fieldless_enum_defs.len() {
             out.push('\n');
         }
@@ -476,6 +488,7 @@ fn write_c_type_definitions<I: CrateIndexer>(
             Style::Tag => writeln!(out, "{tag} {name};").unwrap(),
             Style::Type | Style::Both => writeln!(out, "typedef {tag} {name} {name};").unwrap(),
         }
+        write_assoc_constants_for_type(name, &assoc_map, collection, config, out);
         if i + 1 < opaque_defs.len() {
             out.push('\n');
         }
@@ -553,8 +566,26 @@ fn write_c_type_definitions<I: CrateIndexer>(
             }
             _ => unreachable!(),
         }
+        write_assoc_constants_for_type(&def.name, &assoc_map, collection, config, out);
         if i + 1 < compound_defs.len() {
             out.push('\n');
+        }
+    }
+}
+
+/// Emit associated constants for a type, if any exist.
+fn write_assoc_constants_for_type<I: CrateIndexer>(
+    type_name: &str,
+    assoc_map: &HashMap<&str, &Vec<ConstantItem>>,
+    collection: &CrateCollection<I>,
+    config: &CommonConfig,
+    out: &mut String,
+) {
+    if let Some(constants) = assoc_map.get(type_name) {
+        for c in *constants {
+            let docs = lookup_docs(Some(&c.rustdoc_id), collection);
+            write_doc_comment(docs.as_deref(), config, out);
+            writeln!(out, "#define {} {}", c.name, c.value).unwrap();
         }
     }
 }

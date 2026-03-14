@@ -98,6 +98,74 @@ pub fn resolve_constant<I: CrateIndexer>(
     })
 }
 
+/// Try to resolve an associated constant into a [`ConstantItem`].
+///
+/// Unlike free-standing constants, `AssocConst` has no `expr` or `is_literal` fields —
+/// only `value: Option<String>`. Rustdoc uses `"_"` as a placeholder when it cannot
+/// evaluate the expression (e.g. const fn results), so those are skipped.
+///
+/// The emitted name is `{type_name}_{const_name}` (e.g. `Foo_GA`).
+pub fn resolve_assoc_constant<I: CrateIndexer>(
+    item: &Item,
+    type_name: &str,
+    krate: &Crate,
+    collection: &CrateCollection<I>,
+) -> Option<ConstantItem> {
+    let ItemEnum::AssocConst { type_, value } = &item.inner else {
+        unreachable!("Expected an AssocConst item");
+    };
+
+    let const_name = item.name.clone().unwrap_or_else(|| "<unnamed>".to_string());
+
+    let resolved = match resolve_type(
+        type_,
+        &krate.core.package_id,
+        collection,
+        &Default::default(),
+        TypeAliasResolution::ResolveThrough,
+    ) {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("warning: assoc constant `{type_name}_{const_name}`: failed to resolve type: {e}");
+            return None;
+        }
+    };
+
+    let raw_value = match value {
+        Some(v) if !v.is_empty() && v != "_" => v,
+        _ => {
+            eprintln!("warning: assoc constant `{type_name}_{const_name}` has no evaluated value; skipping");
+            return None;
+        }
+    };
+
+    let value = match &resolved {
+        Type::ScalarPrimitive(ScalarPrimitive::Bool) => raw_value.clone(),
+        Type::ScalarPrimitive(ScalarPrimitive::Char) => sanitize_char_literal(raw_value),
+        Type::ScalarPrimitive(prim)
+            if !matches!(
+                prim,
+                ScalarPrimitive::Str | ScalarPrimitive::U128 | ScalarPrimitive::I128
+            ) =>
+        {
+            sanitize_rust_number(raw_value, prim)
+        }
+        Type::Reference(r) if matches!(&*r.inner, Type::ScalarPrimitive(ScalarPrimitive::Str)) => {
+            raw_value.clone()
+        }
+        _ => {
+            eprintln!("warning: assoc constant `{type_name}_{const_name}` has unsupported type; skipping");
+            return None;
+        }
+    };
+
+    Some(ConstantItem {
+        name: format!("{type_name}_{const_name}"),
+        value,
+        rustdoc_id: GlobalItemId::new(item.id, krate.core.package_id.clone()),
+    })
+}
+
 /// Convert a Rust char literal (from rustdoc's `expr`) to a C-compatible form.
 ///
 /// ASCII chars and standard escape sequences pass through unchanged.

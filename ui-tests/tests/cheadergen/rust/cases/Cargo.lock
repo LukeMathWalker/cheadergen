@@ -3,6 +3,10 @@
 version = 4
 
 [[package]]
+name = "associated_constants"
+version = "0.1.0"
+
+[[package]]
 name = "char_str_constant"
 version = "0.1.0"
 
