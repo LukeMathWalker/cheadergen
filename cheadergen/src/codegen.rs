@@ -572,43 +572,59 @@ fn write_c_struct_definition(
         Style::Type if has_fwd_decl => {
             // typedef already emitted as a forward declaration.
             writeln!(out, "struct {name} {{").unwrap();
-            for field in &def.fields {
-                out.push_str("  ");
-                write_c_decl(&field.type_, field.name.as_str(), style, type_tags, out);
-                writeln!(out, ";").unwrap();
+            if def.fields.is_empty() {
+                writeln!(out).unwrap();
+            } else {
+                for field in &def.fields {
+                    out.push_str("  ");
+                    write_c_decl(&field.type_, field.name.as_str(), style, type_tags, out);
+                    writeln!(out, ";").unwrap();
+                }
             }
             writeln!(out, "}};").unwrap();
         }
         Style::Type => {
             writeln!(out, "typedef struct {{").unwrap();
-            for field in &def.fields {
-                out.push_str("  ");
-                write_c_decl(&field.type_, field.name.as_str(), style, type_tags, out);
-                writeln!(out, ";").unwrap();
+            if def.fields.is_empty() {
+                writeln!(out).unwrap();
+            } else {
+                for field in &def.fields {
+                    out.push_str("  ");
+                    write_c_decl(&field.type_, field.name.as_str(), style, type_tags, out);
+                    writeln!(out, ";").unwrap();
+                }
             }
             writeln!(out, "}} {name};").unwrap();
         }
         Style::Tag => {
             writeln!(out, "struct {name} {{").unwrap();
-            for field in &def.fields {
-                out.push_str("  ");
-                write_c_decl(
-                    &field.type_,
-                    field.name.as_str(),
-                    &Style::Tag,
-                    type_tags,
-                    out,
-                );
-                writeln!(out, ";").unwrap();
+            if def.fields.is_empty() {
+                writeln!(out).unwrap();
+            } else {
+                for field in &def.fields {
+                    out.push_str("  ");
+                    write_c_decl(
+                        &field.type_,
+                        field.name.as_str(),
+                        &Style::Tag,
+                        type_tags,
+                        out,
+                    );
+                    writeln!(out, ";").unwrap();
+                }
             }
             writeln!(out, "}};").unwrap();
         }
         Style::Both => {
             writeln!(out, "typedef struct {name} {{").unwrap();
-            for field in &def.fields {
-                out.push_str("  ");
-                write_c_decl(&field.type_, field.name.as_str(), style, type_tags, out);
-                writeln!(out, ";").unwrap();
+            if def.fields.is_empty() {
+                writeln!(out).unwrap();
+            } else {
+                for field in &def.fields {
+                    out.push_str("  ");
+                    write_c_decl(&field.type_, field.name.as_str(), style, type_tags, out);
+                    writeln!(out, ";").unwrap();
+                }
             }
             writeln!(out, "}} {name};").unwrap();
         }
@@ -627,37 +643,53 @@ fn write_c_union_definition(
     match style {
         Style::Type if has_fwd_decl => {
             writeln!(out, "union {name} {{").unwrap();
-            for field in &def.fields {
-                out.push_str("  ");
-                write_c_decl(&field.type_, field.name.as_str(), style, type_tags, out);
-                writeln!(out, ";").unwrap();
+            if def.fields.is_empty() {
+                writeln!(out).unwrap();
+            } else {
+                for field in &def.fields {
+                    out.push_str("  ");
+                    write_c_decl(&field.type_, field.name.as_str(), style, type_tags, out);
+                    writeln!(out, ";").unwrap();
+                }
             }
             writeln!(out, "}};").unwrap();
         }
         Style::Type => {
             writeln!(out, "typedef union {{").unwrap();
-            for field in &def.fields {
-                out.push_str("  ");
-                write_c_decl(&field.type_, field.name.as_str(), style, type_tags, out);
-                writeln!(out, ";").unwrap();
+            if def.fields.is_empty() {
+                writeln!(out).unwrap();
+            } else {
+                for field in &def.fields {
+                    out.push_str("  ");
+                    write_c_decl(&field.type_, field.name.as_str(), style, type_tags, out);
+                    writeln!(out, ";").unwrap();
+                }
             }
             writeln!(out, "}} {name};").unwrap();
         }
         Style::Tag => {
             writeln!(out, "union {name} {{").unwrap();
-            for field in &def.fields {
-                out.push_str("  ");
-                write_c_decl(&field.type_, field.name.as_str(), &Style::Tag, type_tags, out);
-                writeln!(out, ";").unwrap();
+            if def.fields.is_empty() {
+                writeln!(out).unwrap();
+            } else {
+                for field in &def.fields {
+                    out.push_str("  ");
+                    write_c_decl(&field.type_, field.name.as_str(), &Style::Tag, type_tags, out);
+                    writeln!(out, ";").unwrap();
+                }
             }
             writeln!(out, "}};").unwrap();
         }
         Style::Both => {
             writeln!(out, "typedef union {name} {{").unwrap();
-            for field in &def.fields {
-                out.push_str("  ");
-                write_c_decl(&field.type_, field.name.as_str(), style, type_tags, out);
-                writeln!(out, ";").unwrap();
+            if def.fields.is_empty() {
+                writeln!(out).unwrap();
+            } else {
+                for field in &def.fields {
+                    out.push_str("  ");
+                    write_c_decl(&field.type_, field.name.as_str(), style, type_tags, out);
+                    writeln!(out, ";").unwrap();
+                }
             }
             writeln!(out, "}} {name};").unwrap();
         }

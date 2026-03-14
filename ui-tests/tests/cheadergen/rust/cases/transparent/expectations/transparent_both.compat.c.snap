@@ -28,6 +28,7 @@ typedef uint32_t TransparentWithPhantomPinned;
 typedef uint32_t TransparentWithUnit;
 
 typedef struct TransparentEmpty {
+
 } TransparentEmpty;
 
 typedef const uint32_t *TransparentPointer;
