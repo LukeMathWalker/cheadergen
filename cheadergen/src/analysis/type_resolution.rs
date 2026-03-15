@@ -12,7 +12,7 @@ use super::type_collection::{
     CTaggedUnionDef, CTaggedVariant, CTaggedVariantBody, CTypeKind, CTypedefDef, CUnionDef,
     ReprIntType, is_zst_type,
 };
-use super::type_transform;
+use super::type_transform::{self, NpoEligibilityChecker};
 
 /// Attempt to resolve a directly-used type into a full definition.
 ///
@@ -23,6 +23,7 @@ pub(super) fn resolve_type_kind<I: CrateIndexer>(
     path_type: &PathType,
     collection: &CrateCollection<I>,
     enum_prefix_with_name: bool,
+    npo: &NpoEligibilityChecker<'_>,
 ) -> anyhow::Result<CTypeKind> {
     let Some(id) = &path_type.rustdoc_id else {
         eprintln!("warning: type `{name}` has no rustdoc ID; emitting forward declaration");
@@ -39,9 +40,14 @@ pub(super) fn resolve_type_kind<I: CrateIndexer>(
         ItemEnum::Union(union_def) => {
             resolve_union_kind(name, union_def, &item.attrs, path_type, collection)
         }
-        ItemEnum::Enum(enum_def) => {
-            resolve_enum_kind(name, enum_def, &item.attrs, path_type, collection, enum_prefix_with_name)
-        }
+        ItemEnum::Enum(enum_def) => resolve_enum_kind(
+            name,
+            enum_def,
+            &item.attrs,
+            path_type,
+            collection,
+            enum_prefix_with_name,
+        ),
         ItemEnum::TypeAlias(type_alias) => {
             resolve_type_alias_kind(name, type_alias, path_type, collection)
         }
@@ -52,14 +58,14 @@ pub(super) fn resolve_type_kind<I: CrateIndexer>(
             Ok(CTypeKind::OpaqueStruct)
         }
     }?;
-    type_transform::simplify_kind(&mut kind);
+    type_transform::simplify_kind(&mut kind, npo);
     Ok(kind)
 }
 
 /// Build generic bindings for a type with type parameters, returning
 /// `Err(())` (with a warning) if the type cannot be monomorphized.
 /// Callers map the error to the appropriate opaque variant.
-fn setup_generic_bindings(
+pub(crate) fn setup_generic_bindings(
     name: &str,
     generics: &rustdoc_types::Generics,
     path_type: &PathType,
@@ -125,68 +131,58 @@ fn resolve_struct_kind<I: CrateIndexer>(
         Err(()) => return Ok(CTypeKind::OpaqueStruct),
     };
 
+    let fields = resolve_struct_fields(struct_def, &generic_bindings, path_type, collection)?;
     if is_repr_transparent {
-        return resolve_transparent_struct(
-            name,
-            struct_def,
-            &generic_bindings,
-            path_type,
-            collection,
-        );
-    }
-
-    match &struct_def.kind {
-        StructKind::Plain { fields, .. } => {
-            let c_fields =
-                resolve_plain_fields(fields, &generic_bindings, &path_type.package_id, collection)?;
-            Ok(CTypeKind::Struct(CStructDef { fields: c_fields }))
+        match fields.len() {
+            0 => Ok(CTypeKind::Struct(CStructDef { fields })),
+            1 => Ok(CTypeKind::Typedef(CTypedefDef {
+                inner: fields.into_iter().next().unwrap().type_,
+            })),
+            n => {
+                eprintln!(
+                    "warning: repr(transparent) type `{name}` has {n} non-ZST fields; \
+                     emitting opaque forward declaration"
+                );
+                Ok(CTypeKind::OpaqueStruct)
+            }
         }
-        StructKind::Tuple(fields) => {
-            let c_fields = resolve_tuple_fields(
-                fields,
-                &generic_bindings,
-                &path_type.package_id,
-                collection,
-            )?;
-            Ok(CTypeKind::Struct(CStructDef { fields: c_fields }))
-        }
-        StructKind::Unit => Ok(CTypeKind::Struct(CStructDef { fields: Vec::new() })),
+    } else {
+        Ok(CTypeKind::Struct(CStructDef { fields }))
     }
 }
 
-/// Resolve a `#[repr(transparent)]` struct into a `CTypeKind`.
-///
-/// If exactly one non-ZST field exists, emits a typedef. If zero non-ZST
-/// fields exist, falls back to an empty struct.
-fn resolve_transparent_struct<I: CrateIndexer>(
-    name: &str,
+/// Resolve the non-ZST fields of a struct.
+fn resolve_struct_fields<I: CrateIndexer>(
     struct_def: &rustdoc_types::Struct,
     generic_bindings: &rustdoc_resolver::GenericBindings,
     path_type: &PathType,
     collection: &CrateCollection<I>,
-) -> anyhow::Result<CTypeKind> {
-    let c_fields = match &struct_def.kind {
+) -> anyhow::Result<Vec<CStructField>> {
+    match &struct_def.kind {
         StructKind::Plain { fields, .. } => {
-            resolve_plain_fields(fields, generic_bindings, &path_type.package_id, collection)?
+            resolve_plain_fields(fields, generic_bindings, &path_type.package_id, collection)
         }
         StructKind::Tuple(fields) => {
-            resolve_tuple_fields(fields, generic_bindings, &path_type.package_id, collection)?
+            resolve_tuple_fields(fields, generic_bindings, &path_type.package_id, collection)
         }
-        StructKind::Unit => Vec::new(),
-    };
+        StructKind::Unit => Ok(Vec::new()),
+    }
+}
 
-    match c_fields.len() {
-        0 => Ok(CTypeKind::Struct(CStructDef { fields: Vec::new() })),
-        1 => Ok(CTypeKind::Typedef(CTypedefDef {
-            inner: c_fields.into_iter().next().unwrap().type_,
-        })),
-        n => {
-            eprintln!(
-                "warning: repr(transparent) type `{name}` has {n} non-ZST fields; \
-                 emitting opaque forward declaration"
-            );
-            Ok(CTypeKind::OpaqueStruct)
-        }
+/// Resolve the single non-ZST field type of a `#[repr(transparent)]` struct,
+/// if it has exactly one such field. Returns `None` for zero or multiple non-ZST fields.
+pub(crate) fn resolve_transparent_inner_type<I: CrateIndexer>(
+    struct_def: &rustdoc_types::Struct,
+    generic_bindings: &rustdoc_resolver::GenericBindings,
+    path_type: &PathType,
+    collection: &CrateCollection<I>,
+) -> Option<Type> {
+    let c_fields =
+        resolve_struct_fields(struct_def, generic_bindings, path_type, collection).ok()?;
+    if c_fields.len() == 1 {
+        Some(c_fields.into_iter().next().unwrap().type_)
+    } else {
+        None
     }
 }
 
@@ -210,9 +206,7 @@ fn resolve_type_alias_kind<I: CrateIndexer>(
         &generic_bindings,
         TypeAliasResolution::ResolveThrough,
     )
-    .map_err(|e| {
-        anyhow::anyhow!("Failed to resolve type alias `{name}`: {}", Arc::new(e))
-    })?;
+    .map_err(|e| anyhow::anyhow!("Failed to resolve type alias `{name}`: {}", Arc::new(e)))?;
 
     Ok(CTypeKind::Typedef(CTypedefDef { inner: resolved }))
 }
@@ -244,7 +238,12 @@ fn resolve_union_kind<I: CrateIndexer>(
         Err(()) => return Ok(CTypeKind::OpaqueUnion),
     };
 
-    let c_fields = resolve_plain_fields(&union_def.fields, &generic_bindings, &path_type.package_id, collection)?;
+    let c_fields = resolve_plain_fields(
+        &union_def.fields,
+        &generic_bindings,
+        &path_type.package_id,
+        collection,
+    )?;
     Ok(CTypeKind::Union(CUnionDef { fields: c_fields }))
 }
 
@@ -464,6 +463,8 @@ fn resolve_tagged_union<I: CrateIndexer>(
 }
 
 /// Resolve named struct fields into C struct fields.
+///
+/// It skips fields with zero-sized types.
 fn resolve_plain_fields<I: CrateIndexer>(
     field_ids: &[rustdoc_types::Id],
     generic_bindings: &GenericBindings,
@@ -482,10 +483,14 @@ fn resolve_plain_fields<I: CrateIndexer>(
             .name
             .clone()
             .unwrap_or_else(|| "<unnamed>".to_string());
-        let resolved =
-            resolve_type(raw_type, package_id, collection, generic_bindings, TypeAliasResolution::Preserve).map_err(|e| {
-                anyhow::anyhow!("Failed to resolve field `{field_name}`: {}", Arc::new(e))
-            })?;
+        let resolved = resolve_type(
+            raw_type,
+            package_id,
+            collection,
+            generic_bindings,
+            TypeAliasResolution::Preserve,
+        )
+        .map_err(|e| anyhow::anyhow!("Failed to resolve field `{field_name}`: {}", Arc::new(e)))?;
 
         // Skip ZST fields (PhantomData, PhantomPinned, ()).
         if is_zst_type(&resolved) {
@@ -501,6 +506,8 @@ fn resolve_plain_fields<I: CrateIndexer>(
 }
 
 /// Resolve tuple struct fields into C struct fields named `m0`, `m1`, etc.
+///
+/// It skips fields with zero-sized types.
 fn resolve_tuple_fields<I: CrateIndexer>(
     fields: &[Option<rustdoc_types::Id>],
     generic_bindings: &GenericBindings,
@@ -520,10 +527,14 @@ fn resolve_tuple_fields<I: CrateIndexer>(
             anyhow::bail!("Expected StructField for tuple field id {:?}", field_id);
         };
 
-        let resolved =
-            resolve_type(raw_type, package_id, collection, generic_bindings, TypeAliasResolution::Preserve).map_err(|e| {
-                anyhow::anyhow!("Failed to resolve tuple field m{index}: {}", Arc::new(e))
-            })?;
+        let resolved = resolve_type(
+            raw_type,
+            package_id,
+            collection,
+            generic_bindings,
+            TypeAliasResolution::Preserve,
+        )
+        .map_err(|e| anyhow::anyhow!("Failed to resolve tuple field m{index}: {}", Arc::new(e)))?;
 
         // Skip ZST fields.
         if is_zst_type(&resolved) {

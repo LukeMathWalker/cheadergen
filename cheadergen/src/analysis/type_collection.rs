@@ -7,6 +7,7 @@ use rustdoc_processor::{CORE_PACKAGE_ID_REPR, CrateCollection, GlobalItemId, STD
 use rustdoc_types::ItemEnum;
 
 use super::type_resolution::resolve_type_kind;
+use super::type_transform::NpoEligibilityChecker;
 use crate::static_item::StaticItem;
 
 /// C and C++ reserved keywords that cannot be used as identifiers.
@@ -332,6 +333,7 @@ pub fn collect_type_definitions<I: CrateIndexer>(
     statics: &[StaticItem],
     collection: &CrateCollection<I>,
     enum_prefix_with_name: bool,
+    npo: &NpoEligibilityChecker<'_>,
 ) -> anyhow::Result<Vec<CTypeDefinition>> {
     let mut seen: HashMap<PathType, TypeUsage> = HashMap::new();
     for func in functions {
@@ -348,7 +350,7 @@ pub fn collect_type_definitions<I: CrateIndexer>(
 
     // Resolve struct fields for directly-used types. This may discover new
     // transitive types that also need definitions.
-    resolve_all_type_definitions(&mut seen, collection, enum_prefix_with_name)
+    resolve_all_type_definitions(&mut seen, collection, enum_prefix_with_name, npo)
 }
 
 /// Compute the cbindgen-style monomorphized C name for a type.
@@ -397,6 +399,18 @@ pub fn c_type_name(ty: &Type) -> String {
     }
 }
 
+/// Canonicalize a `PathType` for use as a map key.
+///
+/// Normalizes lifetime arguments so that e.g. `MyRef<'_>` and `MyRef<'a>`
+/// produce the same key. Type parameters are preserved.
+fn canonical_path_key(p: &PathType) -> PathType {
+    let canonical = Type::Path(p.clone()).canonicalize();
+    match canonical.into_inner() {
+        Type::Path(p) => p,
+        _ => unreachable!(),
+    }
+}
+
 pub(super) fn collect_paths_from_type(
     ty: &Type,
     usage: TypeUsage,
@@ -404,7 +418,9 @@ pub(super) fn collect_paths_from_type(
 ) {
     match ty {
         Type::Path(p) | Type::TypeAlias(p) => {
-            let entry = seen.entry(p.clone()).or_insert(TypeUsage::BehindPointer);
+            let entry = seen
+                .entry(canonical_path_key(p))
+                .or_insert(TypeUsage::BehindPointer);
             if usage == TypeUsage::ByValue {
                 *entry = TypeUsage::ByValue;
             }
@@ -464,6 +480,7 @@ fn resolve_all_type_definitions<I: CrateIndexer>(
     seen: &mut HashMap<PathType, TypeUsage>,
     collection: &CrateCollection<I>,
     enum_prefix_with_name: bool,
+    npo: &NpoEligibilityChecker<'_>,
 ) -> anyhow::Result<Vec<CTypeDefinition>> {
     // Phase 1: fixed-point loop over directly-used types.
     // By resolving all direct uses first, we ensure that a type initially seen
@@ -483,7 +500,7 @@ fn resolve_all_type_definitions<I: CrateIndexer>(
 
         for path_type in direct {
             let name = c_type_name(&Type::Path(path_type.clone()));
-            let kind = resolve_type_kind(&name, &path_type, collection, enum_prefix_with_name)?;
+            let kind = resolve_type_kind(&name, &path_type, collection, enum_prefix_with_name, npo)?;
 
             // Discover transitive field types from full definitions.
             match &kind {

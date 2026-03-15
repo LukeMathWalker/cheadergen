@@ -1,0 +1,33 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 171
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef const int32_t *MyRef;
+
+typedef MyRef ChainedRef;
+
+typedef int32_t (*MyCb)(int32_t);
+
+typedef MyCb ChainedCb;
+
+void take_option_myref(MyRef x);
+
+void take_option_chained_ref(ChainedRef x);
+
+void take_option_mycb(MyCb x);
+
+void take_option_chained_cb(ChainedCb x);
+
+void take_bare_myref(MyRef x);
+
+void take_bare_chained_ref(ChainedRef x);
+
+void take_bare_mycb(MyCb x);
+
+void take_bare_chained_cb(ChainedCb x);

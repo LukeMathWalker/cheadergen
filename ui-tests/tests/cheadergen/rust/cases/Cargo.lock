@@ -115,6 +115,10 @@ name = "transparent"
 version = "0.1.0"
 
 [[package]]
+name = "transparent_npo"
+version = "0.1.0"
+
+[[package]]
 name = "type_alias"
 version = "0.1.0"
 
