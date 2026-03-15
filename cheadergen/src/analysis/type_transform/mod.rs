@@ -1,12 +1,13 @@
 use rustdoc_ir::{GenericArgument, PathType, RawPointer, Type};
-use rustdoc_processor::indexing::CrateIndexer;
-use rustdoc_processor::{ALLOC_PACKAGE_ID_REPR, CORE_PACKAGE_ID_REPR, CrateCollection, STD_PACKAGE_ID_REPR};
+use rustdoc_processor::{ALLOC_PACKAGE_ID_REPR, CORE_PACKAGE_ID_REPR, STD_PACKAGE_ID_REPR};
+
+use crate::Collection;
 
 use super::type_collection::CTypeKind;
 use super::type_resolution;
 
 /// Apply type simplifications to all types within a resolved type kind.
-pub fn simplify_kind<I: CrateIndexer>(kind: &mut CTypeKind, collection: &CrateCollection<I>) {
+pub fn simplify_kind(kind: &mut CTypeKind, collection: &Collection) {
     match kind {
         CTypeKind::Struct(def) => {
             for field in &mut def.fields {
@@ -46,7 +47,7 @@ pub fn simplify_kind<I: CrateIndexer>(kind: &mut CTypeKind, collection: &CrateCo
 /// - `Option<NonNull<T>>` → `*mut T` (null pointer optimization)
 /// - `Option<W>` → `W` when `W` is a `#[repr(transparent)]` wrapper around an
 ///   NPO-eligible type (null pointer optimization for transparent wrappers)
-pub fn simplify_type<I: CrateIndexer>(ty: &mut Type, collection: &CrateCollection<I>) {
+pub fn simplify_type(ty: &mut Type, collection: &Collection) {
     while try_simplify(ty, collection) {}
 
     match ty {
@@ -77,7 +78,7 @@ pub fn simplify_type<I: CrateIndexer>(ty: &mut Type, collection: &CrateCollectio
 /// Transforms `ty` if any of the known rules apply.
 ///
 /// Returns `true` if `ty` was modified.
-fn try_simplify<I: CrateIndexer>(ty: &mut Type, collection: &CrateCollection<I>) -> bool {
+fn try_simplify(ty: &mut Type, collection: &Collection) -> bool {
     try_simplify_box(ty) || try_simplify_nonnull(ty) || try_simplify_option(ty, collection)
 }
 
@@ -131,7 +132,7 @@ fn try_simplify_nonnull(ty: &mut Type) -> bool {
 /// `Option<Box<T>>` → `*mut T`
 /// `Option<NonNull<T>>` → `*mut T`
 /// `Option<W>` → `W` when `W` is NPO-eligible (transparent wrapper)
-fn try_simplify_option<I: CrateIndexer>(ty: &mut Type, collection: &CrateCollection<I>) -> bool {
+fn try_simplify_option(ty: &mut Type, collection: &Collection) -> bool {
     let path = match ty {
         Type::Path(p) | Type::TypeAlias(p) => p,
         _ => return false,
@@ -235,7 +236,7 @@ fn try_simplify_option<I: CrateIndexer>(ty: &mut Type, collection: &CrateCollect
 /// non-ZST field is itself NPO-eligible (either a standard NPO type like `Box`,
 /// `NonNull`, reference, or fn pointer, or another `#[repr(transparent)]` wrapper
 /// that is recursively NPO-eligible).
-fn is_user_npo_eligible<I: CrateIndexer>(path: &PathType, collection: &CrateCollection<I>) -> bool {
+fn is_user_npo_eligible(path: &PathType, collection: &Collection) -> bool {
     let Some(inner_ty) = type_resolution::transparent_inner_type_for_path(path, collection) else {
         return false;
     };

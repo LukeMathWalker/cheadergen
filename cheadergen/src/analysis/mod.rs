@@ -12,10 +12,10 @@ pub use type_collection::{
     CTypeKind, CTypeDefinition, CTypedefDef, CUnionDef, c_type_name,
     collect_type_definitions,
 };
-use rustdoc_processor::indexing::CrateIndexer;
 use rustdoc_processor::queries::Crate;
-use rustdoc_processor::{CrateCollection, GlobalItemId};
+use rustdoc_processor::GlobalItemId;
 
+use crate::Collection;
 use crate::config::SortKey;
 
 /// Trait for items that carry a [`GlobalItemId`] for sorting purposes.
@@ -48,11 +48,11 @@ pub fn sort_local_ids_by_key(ids: &mut [rustdoc_types::Id], sort_by: SortKey, kr
     }
 }
 
-/// Sort items that carry a [`GlobalItemId`] using the [`CrateCollection`] for lookups.
-pub fn sort_by_key<T: HasGlobalId, I: CrateIndexer>(
+/// Sort items that carry a [`GlobalItemId`] using the [`Collection`] for lookups.
+pub fn sort_by_key<T: HasGlobalId>(
     items: &mut [T],
     sort_by: SortKey,
-    collection: &CrateCollection<I>,
+    collection: &Collection,
 ) {
     match sort_by {
         SortKey::SourceOrder => items.sort_by_cached_key(|item| {
@@ -92,9 +92,9 @@ fn name_sort_key_local(id: &rustdoc_types::Id, krate: &Crate) -> String {
 }
 
 /// Sort key: (line, column) from the item's span, using the collection for cross-crate lookup.
-pub(crate) fn span_sort_key_global<I: CrateIndexer>(
+pub(crate) fn span_sort_key_global(
     gid: &GlobalItemId,
-    collection: &CrateCollection<I>,
+    collection: &Collection,
 ) -> (usize, usize) {
     let item = collection.get_item_by_global_type_id(gid);
     match item.span.as_ref() {
@@ -104,9 +104,9 @@ pub(crate) fn span_sort_key_global<I: CrateIndexer>(
 }
 
 /// Sort key: item name, using the collection for cross-crate lookup.
-fn name_sort_key_global<I: CrateIndexer>(
+fn name_sort_key_global(
     gid: &GlobalItemId,
-    collection: &CrateCollection<I>,
+    collection: &Collection,
 ) -> String {
     let item = collection.get_item_by_global_type_id(gid);
     item.name.clone().unwrap_or_default()

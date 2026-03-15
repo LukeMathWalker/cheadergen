@@ -1,9 +1,9 @@
 use std::collections::BTreeSet;
 
 use rustdoc_ir::FreeFunction;
-use rustdoc_processor::CrateCollection;
-use rustdoc_processor::indexing::NoAnnotations;
 use rustdoc_processor::queries::Crate;
+
+use crate::Collection;
 use rustdoc_resolver::{TypeAliasResolution, resolve_free_function};
 use rustdoc_types::{Abi, Attribute, ItemEnum};
 
@@ -56,7 +56,7 @@ pub fn find_extern_items(krate: &Crate) -> ExternItems {
 pub fn resolve_functions(
     fn_ids: &[rustdoc_types::Id],
     krate: &Crate,
-    collection: &CrateCollection<NoAnnotations>,
+    collection: &Collection,
 ) -> anyhow::Result<Vec<FreeFunction>> {
     let mut resolved_fns = Vec::new();
     for id in fn_ids {
@@ -85,7 +85,7 @@ pub fn resolve_functions(
 pub fn resolve_statics(
     static_ids: &[rustdoc_types::Id],
     krate: &Crate,
-    collection: &CrateCollection<NoAnnotations>,
+    collection: &Collection,
 ) -> anyhow::Result<Vec<StaticItem>> {
     let mut resolved = Vec::new();
     for id in static_ids {
@@ -107,7 +107,7 @@ pub fn resolve_statics(
 pub fn resolve_constants(
     constant_ids: &[rustdoc_types::Id],
     krate: &Crate,
-    collection: &CrateCollection<NoAnnotations>,
+    collection: &Collection,
 ) -> Vec<ConstantItem> {
     let mut resolved = Vec::new();
     for id in constant_ids {
@@ -156,7 +156,7 @@ fn exported_symbol_name(item: &rustdoc_types::Item) -> Option<&str> {
 pub fn find_assoc_constants(
     type_defs: &[CTypeDefinition],
     krate: &Crate,
-    collection: &CrateCollection<NoAnnotations>,
+    collection: &Collection,
 ) -> Vec<(String, Vec<ConstantItem>)> {
     let mut result = Vec::new();
 

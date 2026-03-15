@@ -2,8 +2,9 @@ use std::collections::HashMap;
 use std::fmt;
 
 use rustdoc_ir::{FreeFunction, GenericArgument, PathType, ScalarPrimitive, Type};
-use rustdoc_processor::indexing::CrateIndexer;
-use rustdoc_processor::{CORE_PACKAGE_ID_REPR, CrateCollection, GlobalItemId, STD_PACKAGE_ID_REPR};
+use rustdoc_processor::{CORE_PACKAGE_ID_REPR, GlobalItemId, STD_PACKAGE_ID_REPR};
+
+use crate::Collection;
 use rustdoc_types::ItemEnum;
 
 use super::type_resolution::resolve_type_kind;
@@ -327,10 +328,10 @@ pub(super) enum TypeUsage {
 ///
 /// Types used directly (not only behind pointers) and marked `#[repr(C)]` get
 /// full struct definitions. All others get forward declarations.
-pub fn collect_type_definitions<I: CrateIndexer>(
+pub fn collect_type_definitions(
     functions: &[FreeFunction],
     statics: &[StaticItem],
-    collection: &CrateCollection<I>,
+    collection: &Collection,
     enum_prefix_with_name: bool,
 ) -> anyhow::Result<Vec<CTypeDefinition>> {
     let mut seen: HashMap<PathType, TypeUsage> = HashMap::new();
@@ -474,9 +475,9 @@ pub(super) fn is_zst_type(ty: &Type) -> bool {
 
 /// Resolve all collected types into `CTypeDefinition`s, iterating to a fixed
 /// point to discover transitive field types.
-fn resolve_all_type_definitions<I: CrateIndexer>(
+fn resolve_all_type_definitions(
     seen: &mut HashMap<PathType, TypeUsage>,
-    collection: &CrateCollection<I>,
+    collection: &Collection,
     enum_prefix_with_name: bool,
 ) -> anyhow::Result<Vec<CTypeDefinition>> {
     // Phase 1: fixed-point loop over directly-used types.

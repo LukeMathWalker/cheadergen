@@ -1,7 +1,8 @@
 use rustdoc_ir::{ScalarPrimitive, Type};
-use rustdoc_processor::indexing::CrateIndexer;
 use rustdoc_processor::queries::Crate;
-use rustdoc_processor::{CrateCollection, GlobalItemId};
+use rustdoc_processor::GlobalItemId;
+
+use crate::Collection;
 use rustdoc_resolver::{TypeAliasResolution, resolve_type};
 use rustdoc_types::{Item, ItemEnum};
 
@@ -20,10 +21,10 @@ pub struct ConstantItem {
 /// Returns `None` (with a warning on stderr) if:
 /// - The type does not resolve to a [`ScalarPrimitive`] (non-primitive constants are unsupported).
 /// - The constant has no evaluated `value` from rustdoc.
-pub fn resolve_constant<I: CrateIndexer>(
+pub fn resolve_constant(
     item: &Item,
     krate: &Crate,
-    collection: &CrateCollection<I>,
+    collection: &Collection,
 ) -> Option<ConstantItem> {
     let ItemEnum::Constant { type_, const_ } = &item.inner else {
         unreachable!("Expected a constant item");
@@ -105,11 +106,11 @@ pub fn resolve_constant<I: CrateIndexer>(
 /// evaluate the expression (e.g. const fn results), so those are skipped.
 ///
 /// The emitted name is `{type_name}_{const_name}` (e.g. `Foo_GA`).
-pub fn resolve_assoc_constant<I: CrateIndexer>(
+pub fn resolve_assoc_constant(
     item: &Item,
     type_name: &str,
     krate: &Crate,
-    collection: &CrateCollection<I>,
+    collection: &Collection,
 ) -> Option<ConstantItem> {
     let ItemEnum::AssocConst { type_, value } = &item.inner else {
         unreachable!("Expected an AssocConst item");

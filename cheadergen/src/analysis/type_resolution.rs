@@ -2,8 +2,9 @@ use std::sync::Arc;
 
 use guppy::PackageId;
 use rustdoc_ir::{GenericArgument, PathType, Type};
-use rustdoc_processor::indexing::CrateIndexer;
-use rustdoc_processor::{CrateCollection, GlobalItemId};
+use rustdoc_processor::GlobalItemId;
+
+use crate::Collection;
 use rustdoc_resolver::{GenericBindings, TypeAliasResolution, resolve_type};
 use rustdoc_types::{Attribute, AttributeRepr, ItemEnum, ReprKind, StructKind, VariantKind};
 
@@ -18,10 +19,10 @@ use super::type_transform;
 ///
 /// Returns an opaque variant (with a warning on stderr) if the type cannot
 /// be fully defined — e.g. missing `rustdoc_id`, not `#[repr(C)]`, etc.
-pub(super) fn resolve_type_kind<I: CrateIndexer>(
+pub(super) fn resolve_type_kind(
     name: &str,
     path_type: &PathType,
-    collection: &CrateCollection<I>,
+    collection: &Collection,
     enum_prefix_with_name: bool,
 ) -> anyhow::Result<CTypeKind> {
     let Some(id) = &path_type.rustdoc_id else {
@@ -93,12 +94,12 @@ fn setup_generic_bindings(
 }
 
 /// Resolve a struct into a `CTypeKind`.
-fn resolve_struct_kind<I: CrateIndexer>(
+fn resolve_struct_kind(
     name: &str,
     struct_def: &rustdoc_types::Struct,
     attrs: &[Attribute],
     path_type: &PathType,
-    collection: &CrateCollection<I>,
+    collection: &Collection,
 ) -> anyhow::Result<CTypeKind> {
     // Check for #[repr(C)] or #[repr(transparent)].
     let is_repr_c = attrs.iter().any(|attr| {
@@ -151,11 +152,11 @@ fn resolve_struct_kind<I: CrateIndexer>(
 }
 
 /// Resolve the non-ZST fields of a struct.
-fn resolve_struct_fields<I: CrateIndexer>(
+fn resolve_struct_fields(
     struct_def: &rustdoc_types::Struct,
     generic_bindings: &rustdoc_resolver::GenericBindings,
     path_type: &PathType,
-    collection: &CrateCollection<I>,
+    collection: &Collection,
 ) -> anyhow::Result<Vec<CStructField>> {
     match &struct_def.kind {
         StructKind::Plain { fields, .. } => {
@@ -170,9 +171,9 @@ fn resolve_struct_fields<I: CrateIndexer>(
 
 /// If `path` refers to a `#[repr(transparent)]` struct with exactly one non-ZST
 /// field, returns that field's type. Returns `None` otherwise.
-pub(crate) fn transparent_inner_type_for_path<I: CrateIndexer>(
+pub(crate) fn transparent_inner_type_for_path(
     path: &PathType,
-    collection: &CrateCollection<I>,
+    collection: &Collection,
 ) -> Option<Type> {
     let id = path.rustdoc_id.as_ref()?;
     let global_id = GlobalItemId::new(*id, path.package_id.clone());
@@ -206,11 +207,11 @@ pub(crate) fn transparent_inner_type_for_path<I: CrateIndexer>(
 
 /// Resolve the single non-ZST field type of a `#[repr(transparent)]` struct,
 /// if it has exactly one such field. Returns `None` for zero or multiple non-ZST fields.
-fn resolve_transparent_inner_type<I: CrateIndexer>(
+fn resolve_transparent_inner_type(
     struct_def: &rustdoc_types::Struct,
     generic_bindings: &rustdoc_resolver::GenericBindings,
     path_type: &PathType,
-    collection: &CrateCollection<I>,
+    collection: &Collection,
 ) -> Option<Type> {
     let c_fields =
         resolve_struct_fields(struct_def, generic_bindings, path_type, collection).ok()?;
@@ -222,11 +223,11 @@ fn resolve_transparent_inner_type<I: CrateIndexer>(
 }
 
 /// Resolve a Rust `type` alias into a `CTypeKind::Typedef`.
-fn resolve_type_alias_kind<I: CrateIndexer>(
+fn resolve_type_alias_kind(
     name: &str,
     type_alias: &rustdoc_types::TypeAlias,
     path_type: &PathType,
-    collection: &CrateCollection<I>,
+    collection: &Collection,
 ) -> anyhow::Result<CTypeKind> {
     let generic_bindings = match setup_generic_bindings(name, &type_alias.generics, path_type) {
         Ok(bindings) => bindings,
@@ -247,12 +248,12 @@ fn resolve_type_alias_kind<I: CrateIndexer>(
 }
 
 /// Resolve a union into a `CTypeKind`.
-fn resolve_union_kind<I: CrateIndexer>(
+fn resolve_union_kind(
     name: &str,
     union_def: &rustdoc_types::Union,
     attrs: &[Attribute],
     path_type: &PathType,
-    collection: &CrateCollection<I>,
+    collection: &Collection,
 ) -> anyhow::Result<CTypeKind> {
     let is_repr_c = attrs.iter().any(|attr| {
         matches!(
@@ -359,12 +360,12 @@ fn extract_enum_repr(attrs: &[Attribute]) -> anyhow::Result<Option<CEnumRepr>> {
 }
 
 /// Resolve an enum into a `CTypeKind`.
-fn resolve_enum_kind<I: CrateIndexer>(
+fn resolve_enum_kind(
     name: &str,
     enum_def: &rustdoc_types::Enum,
     attrs: &[Attribute],
     path_type: &PathType,
-    collection: &CrateCollection<I>,
+    collection: &Collection,
     enum_prefix_with_name: bool,
 ) -> anyhow::Result<CTypeKind> {
     let Some(repr) = extract_enum_repr(attrs)? else {
@@ -414,12 +415,12 @@ fn resolve_enum_kind<I: CrateIndexer>(
 }
 
 /// Resolve a fieldless enum.
-fn resolve_fieldless_enum<I: CrateIndexer>(
+fn resolve_fieldless_enum(
     name: &str,
     enum_def: &rustdoc_types::Enum,
     repr: CEnumRepr,
     package_id: &PackageId,
-    collection: &CrateCollection<I>,
+    collection: &Collection,
 ) -> anyhow::Result<CTypeKind> {
     let mut variants = Vec::new();
     for variant_id in &enum_def.variants {
@@ -442,13 +443,13 @@ fn resolve_fieldless_enum<I: CrateIndexer>(
 }
 
 /// Resolve a tagged union (enum with data variants).
-fn resolve_tagged_union<I: CrateIndexer>(
+fn resolve_tagged_union(
     name: &str,
     enum_def: &rustdoc_types::Enum,
     repr: CEnumRepr,
     generic_bindings: &GenericBindings,
     package_id: &PackageId,
-    collection: &CrateCollection<I>,
+    collection: &Collection,
     enum_prefix_with_name: bool,
 ) -> anyhow::Result<CTypeKind> {
     let prefix_with_name = enum_prefix_with_name;
@@ -500,11 +501,11 @@ fn resolve_tagged_union<I: CrateIndexer>(
 /// Resolve named struct fields into C struct fields.
 ///
 /// It skips fields with zero-sized types.
-fn resolve_plain_fields<I: CrateIndexer>(
+fn resolve_plain_fields(
     field_ids: &[rustdoc_types::Id],
     generic_bindings: &GenericBindings,
     package_id: &PackageId,
-    collection: &CrateCollection<I>,
+    collection: &Collection,
 ) -> anyhow::Result<Vec<CStructField>> {
     let mut c_fields = Vec::new();
     for field_id in field_ids {
@@ -543,11 +544,11 @@ fn resolve_plain_fields<I: CrateIndexer>(
 /// Resolve tuple struct fields into C struct fields named `m0`, `m1`, etc.
 ///
 /// It skips fields with zero-sized types.
-fn resolve_tuple_fields<I: CrateIndexer>(
+fn resolve_tuple_fields(
     fields: &[Option<rustdoc_types::Id>],
     generic_bindings: &GenericBindings,
     package_id: &PackageId,
-    collection: &CrateCollection<I>,
+    collection: &Collection,
 ) -> anyhow::Result<Vec<CStructField>> {
     let mut c_fields = Vec::new();
     let mut index = 0;

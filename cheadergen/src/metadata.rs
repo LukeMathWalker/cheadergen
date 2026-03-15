@@ -31,7 +31,7 @@ pub fn load_package_graph(
 /// Resolve the toolchain and create a `CrateCollection`.
 pub fn create_collection(
     package_graph: PackageGraph,
-) -> anyhow::Result<CrateCollection<NoAnnotations>> {
+) -> anyhow::Result<crate::Collection> {
     let toolchain =
         std::env::var("CHEADERGEN_DOCS_TOOLCHAIN").unwrap_or_else(|_| DOCS_TOOLCHAIN.to_string());
 

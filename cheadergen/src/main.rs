@@ -10,8 +10,12 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::{ArgAction, Parser};
+use rustdoc_processor::CrateCollection;
+use rustdoc_processor::indexing::NoAnnotations;
 
 use config::{Language, Style};
+
+type Collection = CrateCollection<NoAnnotations>;
 
 /// Generate C/C++ headers from a Rust crate using rustdoc-json.
 #[derive(Debug, Parser)]

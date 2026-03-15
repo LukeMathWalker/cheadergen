@@ -1,9 +1,8 @@
 use std::collections::{BTreeMap, HashMap};
 
 use rustdoc_ir::Type;
-use rustdoc_processor::CrateCollection;
-use rustdoc_processor::indexing::CrateIndexer;
 
+use crate::Collection;
 use crate::analysis::{CTypeDefinition, CTypeKind, c_type_name, span_sort_key_global};
 
 /// Sort type definitions in dependency order: types used **by value** in
@@ -15,9 +14,9 @@ use crate::analysis::{CTypeDefinition, CTypeKind, c_type_name, span_sort_key_glo
 /// If a cycle exists in by-value dependencies (impossible in valid
 /// `#[repr(C)]` Rust), the remaining types are appended in source order
 /// with a warning.
-pub fn topological_sort<I: CrateIndexer>(
+pub fn topological_sort(
     type_defs: &mut Vec<CTypeDefinition>,
-    collection: &CrateCollection<I>,
+    collection: &Collection,
 ) {
     // Only compound types (structs, tagged unions) participate in ordering.
     // Fieldless enums and opaques have no by-value dependencies on other compounds.
@@ -151,9 +150,9 @@ pub fn topological_sort<I: CrateIndexer>(
     }
 }
 
-fn span_sort_key_for_def<I: CrateIndexer>(
+fn span_sort_key_for_def(
     def: &CTypeDefinition,
-    collection: &CrateCollection<I>,
+    collection: &Collection,
 ) -> (usize, usize) {
     let Some(gid) = &def.rustdoc_id else {
         return (usize::MAX, usize::MAX);

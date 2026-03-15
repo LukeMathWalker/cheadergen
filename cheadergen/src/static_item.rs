@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
 use rustdoc_ir::Type;
-use rustdoc_processor::indexing::CrateIndexer;
 use rustdoc_processor::queries::Crate;
-use rustdoc_processor::{CrateCollection, GlobalItemId};
+use rustdoc_processor::GlobalItemId;
+
+use crate::Collection;
 use rustdoc_resolver::{TypeAliasResolution, resolve_type};
 use rustdoc_types::{Attribute, Item, ItemEnum};
 
@@ -22,10 +23,10 @@ pub struct StaticItem {
 }
 
 /// Convert a static item from `rustdoc_types` into a [`StaticItem`].
-pub fn resolve_static<I: CrateIndexer>(
+pub fn resolve_static(
     item: &Item,
     krate: &Crate,
-    collection: &CrateCollection<I>,
+    collection: &Collection,
 ) -> Result<StaticItem, StaticResolutionError> {
     let ItemEnum::Static(inner) = &item.inner else {
         unreachable!("Expected a static item");

@@ -10,8 +10,9 @@ use crate::config::{CConfig, CommonConfig, DocumentationLength, DocumentationSty
 use crate::constant_item::ConstantItem;
 use crate::static_item::StaticItem;
 use rustdoc_ir::{FreeFunction, FunctionPointer, ScalarPrimitive, Type};
-use rustdoc_processor::indexing::CrateIndexer;
-use rustdoc_processor::{CrateCollection, GlobalItemId};
+use rustdoc_processor::GlobalItemId;
+
+use crate::Collection;
 
 /// What C type tag to use when referring to a user-defined type by name.
 enum CTypeTag {
@@ -54,14 +55,14 @@ fn build_type_tag_map(type_defs: &[CTypeDefinition]) -> HashMap<String, CTypeTag
 /// after_includes, cpp_compat open, declarations, cpp_compat close,
 /// include guard close, trailer.
 #[allow(clippy::too_many_arguments)]
-pub fn generate_c_header<I: CrateIndexer>(
+pub fn generate_c_header(
     config: &CConfig,
     type_defs: &[CTypeDefinition],
     constants: &[ConstantItem],
     assoc_constants: &[(String, Vec<ConstantItem>)],
     functions: &[FreeFunction],
     statics: &[StaticItem],
-    collection: &CrateCollection<I>,
+    collection: &Collection,
     out: &mut String,
 ) {
     let common = &config.common;
@@ -185,9 +186,9 @@ pub fn generate_c_header<I: CrateIndexer>(
     }
 }
 
-fn lookup_docs<I: CrateIndexer>(
+fn lookup_docs(
     id: Option<&GlobalItemId>,
-    collection: &CrateCollection<I>,
+    collection: &Collection,
 ) -> Option<String> {
     let id = id?;
     let item = collection.get_item_by_global_type_id(id);
@@ -484,14 +485,14 @@ fn write_fn_ptr_decl(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn write_c_type_definitions<I: CrateIndexer>(
+fn write_c_type_definitions(
     type_defs: &[CTypeDefinition],
     assoc_constants: &[(String, Vec<ConstantItem>)],
     style: &Style,
     cpp_compat: bool,
     type_tags: &HashMap<String, CTypeTag>,
     config: &CommonConfig,
-    collection: &CrateCollection<I>,
+    collection: &Collection,
     out: &mut String,
 ) {
     // Partition into categories for ordering: fieldless enums, opaques, then structs + tagged unions.
@@ -641,10 +642,10 @@ fn write_c_type_definitions<I: CrateIndexer>(
 }
 
 /// Emit associated constants for a type, if any exist.
-fn write_assoc_constants_for_type<I: CrateIndexer>(
+fn write_assoc_constants_for_type(
     type_name: &str,
     assoc_map: &HashMap<&str, &Vec<ConstantItem>>,
-    collection: &CrateCollection<I>,
+    collection: &Collection,
     config: &CommonConfig,
     out: &mut String,
 ) {
