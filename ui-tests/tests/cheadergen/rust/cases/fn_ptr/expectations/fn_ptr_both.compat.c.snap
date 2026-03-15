@@ -9,6 +9,21 @@ expression: output
 #include <stdlib.h>
 
 /**
+ * A repr(C) struct for fn-ptr testing.
+ */
+typedef struct Pair Pair;
+
+/**
+ * A repr(C) fieldless enum for fn-ptr testing.
+ */
+typedef struct Status Status;
+
+/**
+ * A repr(C) union for fn-ptr testing.
+ */
+typedef union IntOrFloat IntOrFloat;
+
+/**
  * A callback that takes two integers and returns a boolean.
  */
 typedef bool (*Predicate)(int32_t, int32_t);
@@ -22,6 +37,35 @@ typedef struct Dispatcher {
   void (*on_event)(uint32_t);
   void (*on_error)(int32_t);
 } Dispatcher;
+
+/**
+ * Fn ptr taking and returning a struct by value.
+ */
+typedef struct Pair (*StructTransform)(struct Pair);
+
+/**
+ * Fn ptr taking a struct by pointer.
+ */
+typedef bool (*StructInspector)(const struct Pair *);
+
+/**
+ * Fn ptr taking an enum parameter.
+ */
+typedef int32_t (*StatusHandler)(struct Status);
+
+/**
+ * Nullable fn ptr taking a union by pointer.
+ */
+typedef void (*NullableUnionCallback)(union IntOrFloat *);
+
+/**
+ * Struct with fn-ptr fields that reference complex types.
+ */
+typedef struct ComplexDispatcher {
+  struct Status (*on_pair)(struct Pair);
+  struct Pair *(*on_status)(struct Status);
+  bool (*on_union)(const union IntOrFloat *);
+} ComplexDispatcher;
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,6 +85,23 @@ void invoke(Predicate pred, NullableCallback fallback);
  * Uses a struct with function pointer fields.
  */
 void dispatch(struct Dispatcher d);
+
+/**
+ * Bare fn ptr parameter: struct in, enum out.
+ */
+void apply_to_pair(struct Status (*f)(struct Pair));
+
+/**
+ * Bare fn ptr parameter: union by value in and out.
+ */
+void transform_union(union IntOrFloat (*f)(union IntOrFloat));
+
+/**
+ * Uses all four typedef'd fn ptrs together.
+ */
+void invoke_complex(StructTransform transform, StructInspector inspect, StatusHandler handle, NullableUnionCallback on_union);
+
+void dispatch_complex(struct ComplexDispatcher d);
 
 #ifdef __cplusplus
 }  // extern "C"
