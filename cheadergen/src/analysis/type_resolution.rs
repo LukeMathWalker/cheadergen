@@ -65,7 +65,7 @@ pub(super) fn resolve_type_kind<I: CrateIndexer>(
 /// Build generic bindings for a type with type parameters, returning
 /// `Err(())` (with a warning) if the type cannot be monomorphized.
 /// Callers map the error to the appropriate opaque variant.
-pub(crate) fn setup_generic_bindings(
+fn setup_generic_bindings(
     name: &str,
     generics: &rustdoc_types::Generics,
     path_type: &PathType,
@@ -169,9 +169,45 @@ fn resolve_struct_fields<I: CrateIndexer>(
     }
 }
 
+/// If `path` refers to a `#[repr(transparent)]` struct with exactly one non-ZST
+/// field, returns that field's type. Returns `None` otherwise.
+pub(crate) fn transparent_inner_type_for_path<I: CrateIndexer>(
+    path: &PathType,
+    collection: &CrateCollection<I>,
+) -> Option<Type> {
+    let id = path.rustdoc_id.as_ref()?;
+    let global_id = GlobalItemId::new(*id, path.package_id.clone());
+    let item = collection.get_item_by_global_type_id(&global_id);
+    let ItemEnum::Struct(struct_def) = &item.inner else {
+        return None;
+    };
+
+    let is_transparent = item.attrs.iter().any(|attr| {
+        matches!(
+            attr,
+            Attribute::Repr(AttributeRepr {
+                kind: ReprKind::Transparent,
+                ..
+            })
+        )
+    });
+    if !is_transparent {
+        return None;
+    }
+
+    let generic_bindings = setup_generic_bindings(
+        path.base_type.last().map(String::as_str).unwrap_or("?"),
+        &struct_def.generics,
+        path,
+    )
+    .ok()?;
+
+    resolve_transparent_inner_type(struct_def, &generic_bindings, path, collection)
+}
+
 /// Resolve the single non-ZST field type of a `#[repr(transparent)]` struct,
 /// if it has exactly one such field. Returns `None` for zero or multiple non-ZST fields.
-pub(crate) fn resolve_transparent_inner_type<I: CrateIndexer>(
+fn resolve_transparent_inner_type<I: CrateIndexer>(
     struct_def: &rustdoc_types::Struct,
     generic_bindings: &rustdoc_resolver::GenericBindings,
     path_type: &PathType,
