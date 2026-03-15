@@ -60,7 +60,7 @@ and compares the output against expected headers in `tests/expectations/`.
 Use `just test-generate` when iterating on header generation logic — it skips compilation
 and runs significantly faster. Use `just test-cbindgen` to scope down to the cbindgen suite
 without running cheadergen tests. All three commands accept extra nextest args,
-e.g. `just test "-E 'test(~alias)'"`.
+e.g. `just test -E 'test(~alias)'`.
 
 #### Structured test output
 

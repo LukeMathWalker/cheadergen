@@ -8,6 +8,16 @@ expression: output
 #include <stdint.h>
 #include <stdlib.h>
 
+struct Point;
+
+struct Color;
+
+union Value;
+
+struct Container {
+  struct Point *point;
+};
+
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
@@ -23,6 +33,18 @@ void take_option_box_i32(int32_t *x);
 int32_t *return_option_box_i32(void);
 
 void take_option_box_u8(uint8_t *x);
+
+void take_box_point(struct Point *x);
+
+struct Point *return_box_point(void);
+
+void take_box_color(struct Color *x);
+
+void take_box_value(union Value *x);
+
+void take_option_box_point(struct Point *x);
+
+struct Container make_container(void);
 
 #ifdef __cplusplus
 }  // extern "C"
