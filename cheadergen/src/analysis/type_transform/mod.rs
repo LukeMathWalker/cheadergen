@@ -79,7 +79,10 @@ pub fn simplify_type(ty: &mut Type, collection: &Collection) {
 ///
 /// Returns `true` if `ty` was modified.
 fn try_simplify(ty: &mut Type, collection: &Collection) -> bool {
-    try_simplify_box(ty) || try_simplify_nonnull(ty) || try_simplify_option(ty, collection)
+    try_simplify_box(ty)
+        || try_simplify_nonnull(ty)
+        || try_simplify_manually_drop(ty)
+        || try_simplify_option(ty, collection)
 }
 
 /// `Box<T>` → `*mut T`
@@ -101,6 +104,25 @@ fn try_simplify_box(ty: &mut Type) -> bool {
         is_mutable: true,
         inner: Box::new(inner_ty),
     });
+    true
+}
+
+/// `ManuallyDrop<T>` → `T`
+fn try_simplify_manually_drop(ty: &mut Type) -> bool {
+    let path = match ty {
+        Type::Path(p) | Type::TypeAlias(p) => p,
+        _ => return false,
+    };
+    if !is_manually_drop(path) {
+        return false;
+    }
+
+    let arg = path.generic_arguments.pop().unwrap();
+    let GenericArgument::TypeParameter(inner_ty) = arg else {
+        unreachable!();
+    };
+
+    *ty = inner_ty;
     true
 }
 
@@ -285,6 +307,14 @@ fn is_nonnull(p: &PathType) -> bool {
     let pkg = p.package_id.repr();
     (pkg == CORE_PACKAGE_ID_REPR || pkg == STD_PACKAGE_ID_REPR)
         && p.base_type.last().map(String::as_str) == Some("NonNull")
+        && p.generic_arguments.len() == 1
+        && matches!(&p.generic_arguments[0], GenericArgument::TypeParameter(_))
+}
+
+fn is_manually_drop(p: &PathType) -> bool {
+    let pkg = p.package_id.repr();
+    (pkg == CORE_PACKAGE_ID_REPR || pkg == STD_PACKAGE_ID_REPR)
+        && p.base_type.last().map(String::as_str) == Some("ManuallyDrop")
         && p.generic_arguments.len() == 1
         && matches!(&p.generic_arguments[0], GenericArgument::TypeParameter(_))
 }

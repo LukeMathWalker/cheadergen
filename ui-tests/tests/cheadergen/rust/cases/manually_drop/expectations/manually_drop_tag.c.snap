@@ -1,0 +1,26 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 171
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+struct Point {
+  int32_t x;
+  int32_t y;
+};
+
+struct Wrapper {
+  struct Point point;
+};
+
+void take_manually_drop(struct Point x);
+
+struct Point return_manually_drop(void);
+
+void ref_manually_drop(const struct Point *x);
+
+void take_wrapper(struct Wrapper w);

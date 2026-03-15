@@ -67,6 +67,10 @@ name = "lifetime_struct"
 version = "0.1.0"
 
 [[package]]
+name = "manually_drop"
+version = "0.1.0"
+
+[[package]]
 name = "nonnull_pointers"
 version = "0.1.0"
 
