@@ -75,6 +75,10 @@ name = "opaque_upgrade"
 version = "0.1.0"
 
 [[package]]
+name = "optional_references"
+version = "0.1.0"
+
+[[package]]
 name = "plain_union"
 version = "0.1.0"
 

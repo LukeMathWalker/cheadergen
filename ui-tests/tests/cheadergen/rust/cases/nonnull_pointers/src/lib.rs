@@ -1,6 +1,11 @@
 //! NonNull pointer types (`NonNull<T>`, `Option<NonNull<T>>`).
 //!
-//! Tests that cheadergen maps Rust NonNull pointer types to the appropriate C pointer types.
+//! `NonNull<T>` is among the types that benefit from
+//! [null pointer optimization](https://doc.rust-lang.org/std/option/#representation):
+//! `Option<NonNull<T>>` has the same size and ABI as a raw pointer,
+//! using null to represent `None`.
+//!
+//! cbindgen maps `NonNull<T>` to `T *` and `Option<NonNull<T>>` to `T *` (nullable).
 
 use std::ptr::NonNull;
 

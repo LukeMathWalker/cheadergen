@@ -1,6 +1,11 @@
 //! Box pointer types (`Box<T>`, `Option<Box<T>>`).
 //!
-//! Tests that cheadergen maps Rust box pointer types to the appropriate C pointer types.
+//! `Box<T>` is among the types that benefit from
+//! [null pointer optimization](https://doc.rust-lang.org/std/option/#representation):
+//! `Option<Box<T>>` has the same size and ABI as a raw pointer,
+//! using null to represent `None`.
+//!
+//! cbindgen maps `Box<T>` to `T *` and `Option<Box<T>>` to `T *` (nullable).
 
 // --- Box<T> ---
 
