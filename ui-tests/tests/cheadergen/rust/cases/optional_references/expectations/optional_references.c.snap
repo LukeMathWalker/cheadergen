@@ -9,64 +9,24 @@ expression: output
 #include <stdlib.h>
 
 /**
- * The `Option` type. See [the module level documentation](self) for more.
+ * A simple `#[repr(C)]` struct to test optional references to user-defined types.
  */
-typedef struct Option_Point Option_Point;
+typedef struct Point Point;
 
-/**
- * The `Option` type. See [the module level documentation](self) for more.
- */
-typedef struct Option_Point Option_Point;
+void take_option_ref_i32(const int32_t *x);
 
-/**
- * The `Option` type. See [the module level documentation](self) for more.
- */
-typedef struct Option_Point Option_Point;
+const int32_t *return_option_ref_i32(void);
 
-/**
- * The `Option` type. See [the module level documentation](self) for more.
- */
-typedef struct Option_Point Option_Point;
+void take_option_ref_f32(const float *x);
 
-/**
- * The `Option` type. See [the module level documentation](self) for more.
- */
-typedef struct Option_f32 Option_f32;
+void take_option_ref_point(const Point *x);
 
-/**
- * The `Option` type. See [the module level documentation](self) for more.
- */
-typedef struct Option_i32 Option_i32;
+const Point *return_option_ref_point(void);
 
-/**
- * The `Option` type. See [the module level documentation](self) for more.
- */
-typedef struct Option_i32 Option_i32;
+void take_option_mut_ref_i32(int32_t *x);
 
-/**
- * The `Option` type. See [the module level documentation](self) for more.
- */
-typedef struct Option_i32 Option_i32;
+int32_t *return_option_mut_ref_i32(void);
 
-/**
- * The `Option` type. See [the module level documentation](self) for more.
- */
-typedef struct Option_i32 Option_i32;
+void take_option_mut_ref_point(Point *x);
 
-void take_option_ref_i32(Option_i32 x);
-
-Option_i32 return_option_ref_i32(void);
-
-void take_option_ref_f32(Option_f32 x);
-
-void take_option_ref_point(Option_Point x);
-
-Option_Point return_option_ref_point(void);
-
-void take_option_mut_ref_i32(Option_i32 x);
-
-Option_i32 return_option_mut_ref_i32(void);
-
-void take_option_mut_ref_point(Option_Point x);
-
-Option_Point return_option_mut_ref_point(void);
+Point *return_option_mut_ref_point(void);

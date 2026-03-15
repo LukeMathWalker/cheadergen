@@ -7,6 +7,8 @@ use rustdoc_processor::queries::Crate;
 use rustdoc_resolver::{TypeAliasResolution, resolve_free_function};
 use rustdoc_types::{Abi, Attribute, ItemEnum};
 
+use super::type_transform;
+
 use crate::analysis::CTypeDefinition;
 use crate::constant_item::{ConstantItem, resolve_assoc_constant, resolve_constant};
 use crate::static_item::{StaticItem, resolve_static};
@@ -64,8 +66,15 @@ pub fn resolve_functions(
             .index
             .get(id)
             .ok_or_else(|| anyhow::anyhow!("Missing item for id {:?}", id))?;
-        let free_fn = resolve_free_function(&item, krate, collection, TypeAliasResolution::Preserve)
+        let mut free_fn = resolve_free_function(&item, krate, collection, TypeAliasResolution::Preserve)
             .map_err(|e| anyhow::anyhow!("Failed to resolve function: {e}"))?;
+
+        for input in &mut free_fn.header.inputs {
+            type_transform::simplify_type(&mut input.type_);
+        }
+        if let Some(output) = &mut free_fn.header.output {
+            type_transform::simplify_type(output);
+        }
 
         resolved_fns.push(free_fn);
     }
@@ -86,8 +95,9 @@ pub fn resolve_statics(
             .index
             .get(id)
             .ok_or_else(|| anyhow::anyhow!("Missing item for id {:?}", id))?;
-        let static_item = resolve_static(&item, krate, collection)
+        let mut static_item = resolve_static(&item, krate, collection)
             .map_err(|e| anyhow::anyhow!("Failed to resolve static: {e}"))?;
+        type_transform::simplify_type(&mut static_item.type_);
         resolved.push(static_item);
     }
     Ok(resolved)

@@ -12,7 +12,6 @@ pub use type_collection::{
     CTypeKind, CTypeDefinition, CTypedefDef, CUnionDef, c_type_name,
     collect_type_definitions,
 };
-pub use type_transform::simplify_option_fn_ptrs;
 
 use rustdoc_processor::indexing::CrateIndexer;
 use rustdoc_processor::queries::Crate;

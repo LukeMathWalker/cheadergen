@@ -12,6 +12,7 @@ use super::type_collection::{
     CTaggedUnionDef, CTaggedVariant, CTaggedVariantBody, CTypeKind, CTypedefDef, CUnionDef,
     ReprIntType, is_zst_type,
 };
+use super::type_transform;
 
 /// Attempt to resolve a directly-used type into a full definition.
 ///
@@ -31,7 +32,7 @@ pub(super) fn resolve_type_kind<I: CrateIndexer>(
     let global_id = GlobalItemId::new(*id, path_type.package_id.clone());
     let item = collection.get_item_by_global_type_id(&global_id);
 
-    match &item.inner {
+    let mut kind = match &item.inner {
         ItemEnum::Struct(struct_def) => {
             resolve_struct_kind(name, struct_def, &item.attrs, path_type, collection)
         }
@@ -50,7 +51,9 @@ pub(super) fn resolve_type_kind<I: CrateIndexer>(
             );
             Ok(CTypeKind::OpaqueStruct)
         }
-    }
+    }?;
+    type_transform::simplify_kind(&mut kind);
+    Ok(kind)
 }
 
 /// Build generic bindings for a type with type parameters, returning

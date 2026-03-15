@@ -9,71 +9,31 @@ expression: output
 #include <stdlib.h>
 
 /**
- * The `Option` type. See [the module level documentation](self) for more.
+ * A simple `#[repr(C)]` struct to test optional references to user-defined types.
  */
-typedef struct Option_Point Option_Point;
-
-/**
- * The `Option` type. See [the module level documentation](self) for more.
- */
-typedef struct Option_Point Option_Point;
-
-/**
- * The `Option` type. See [the module level documentation](self) for more.
- */
-typedef struct Option_Point Option_Point;
-
-/**
- * The `Option` type. See [the module level documentation](self) for more.
- */
-typedef struct Option_Point Option_Point;
-
-/**
- * The `Option` type. See [the module level documentation](self) for more.
- */
-typedef struct Option_f32 Option_f32;
-
-/**
- * The `Option` type. See [the module level documentation](self) for more.
- */
-typedef struct Option_i32 Option_i32;
-
-/**
- * The `Option` type. See [the module level documentation](self) for more.
- */
-typedef struct Option_i32 Option_i32;
-
-/**
- * The `Option` type. See [the module level documentation](self) for more.
- */
-typedef struct Option_i32 Option_i32;
-
-/**
- * The `Option` type. See [the module level documentation](self) for more.
- */
-typedef struct Option_i32 Option_i32;
+typedef struct Point Point;
 
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
 
-void take_option_ref_i32(Option_i32 x);
+void take_option_ref_i32(const int32_t *x);
 
-Option_i32 return_option_ref_i32(void);
+const int32_t *return_option_ref_i32(void);
 
-void take_option_ref_f32(Option_f32 x);
+void take_option_ref_f32(const float *x);
 
-void take_option_ref_point(Option_Point x);
+void take_option_ref_point(const Point *x);
 
-Option_Point return_option_ref_point(void);
+const Point *return_option_ref_point(void);
 
-void take_option_mut_ref_i32(Option_i32 x);
+void take_option_mut_ref_i32(int32_t *x);
 
-Option_i32 return_option_mut_ref_i32(void);
+int32_t *return_option_mut_ref_i32(void);
 
-void take_option_mut_ref_point(Option_Point x);
+void take_option_mut_ref_point(Point *x);
 
-Option_Point return_option_mut_ref_point(void);
+Point *return_option_mut_ref_point(void);
 
 #ifdef __cplusplus
 }  // extern "C"
