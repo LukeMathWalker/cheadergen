@@ -12,20 +12,18 @@ pub struct ChangedItem {
 }
 
 /// The result of comparing two headers.
-pub struct HeaderDiff {
-    /// Items present in the left header but not in the right.
-    pub left_only: Vec<String>,
-    /// Items present in the right header but not in the left.
-    pub right_only: Vec<String>,
-    /// Items present in both headers (matched by name) but with different content.
-    pub changed: Vec<ChangedItem>,
-}
-
-impl HeaderDiff {
-    /// Returns true if both headers are equivalent (no differences).
-    pub fn is_equivalent(&self) -> bool {
-        self.left_only.is_empty() && self.right_only.is_empty() && self.changed.is_empty()
-    }
+pub enum HeaderDiff {
+    /// Both headers are semantically equivalent.
+    Equivalent,
+    /// The headers differ.
+    Different {
+        /// Items present in the left header but not in the right.
+        left_only: Vec<String>,
+        /// Items present in the right header but not in the left.
+        right_only: Vec<String>,
+        /// Items present in both headers (matched by name) but with different content.
+        changed: Vec<ChangedItem>,
+    },
 }
 
 impl fmt::Display for ChangedItem {
@@ -38,37 +36,42 @@ impl fmt::Display for ChangedItem {
 
 impl fmt::Display for HeaderDiff {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.is_equivalent() {
+        let HeaderDiff::Different {
+            left_only,
+            right_only,
+            changed,
+        } = self
+        else {
             return write!(f, "Equivalent");
-        }
+        };
 
         let mut need_blank = false;
 
-        if !self.left_only.is_empty() {
+        if !left_only.is_empty() {
             writeln!(f, "Left only:")?;
-            for item in &self.left_only {
+            for item in left_only {
                 writeln!(f, "  {item}")?;
             }
             need_blank = true;
         }
 
-        if !self.right_only.is_empty() {
+        if !right_only.is_empty() {
             if need_blank {
                 writeln!(f)?;
             }
             writeln!(f, "Right only:")?;
-            for item in &self.right_only {
+            for item in right_only {
                 writeln!(f, "  {item}")?;
             }
             need_blank = true;
         }
 
-        if !self.changed.is_empty() {
+        if !changed.is_empty() {
             if need_blank {
                 writeln!(f)?;
             }
             writeln!(f, "Changed:")?;
-            for (i, item) in self.changed.iter().enumerate() {
+            for (i, item) in changed.iter().enumerate() {
                 if i > 0 {
                     writeln!(f)?;
                 }
@@ -121,15 +124,24 @@ pub fn diff_headers(left: &str, right: &str) -> anyhow::Result<HeaderDiff> {
                 let l_counts = count_items(l);
                 let r_counts = count_items(r);
 
-                let all_texts: BTreeMap<&str, ()> = l_counts
+                let all_canonical: BTreeMap<&str, ()> = l_counts
                     .keys()
                     .chain(r_counts.keys())
                     .map(|k| (k.as_str(), ()))
                     .collect();
 
-                for text in all_texts.keys() {
-                    let lc = l_counts.get(*text).copied().unwrap_or(0);
-                    let rc = r_counts.get(*text).copied().unwrap_or(0);
+                for canonical in all_canonical.keys() {
+                    let (lc, l_text) = l_counts
+                        .get(*canonical)
+                        .map(|(c, t)| (*c, t.as_str()))
+                        .unwrap_or((0, ""));
+                    let (rc, r_text) = r_counts
+                        .get(*canonical)
+                        .map(|(c, t)| (*c, t.as_str()))
+                        .unwrap_or((0, ""));
+                    // Use whichever side's text is available (they're
+                    // canonically equivalent, so pick the left if present).
+                    let text = if !l_text.is_empty() { l_text } else { r_text };
                     if lc > rc {
                         for _ in 0..(lc - rc) {
                             left_only.push(text.to_string());
@@ -145,42 +157,44 @@ pub fn diff_headers(left: &str, right: &str) -> anyhow::Result<HeaderDiff> {
                 // pair them as changed items.
                 let matched_left: Vec<_> = l
                     .iter()
-                    .filter(|t| left_only.contains(t))
+                    .filter(|(_, t)| left_only.contains(t))
                     .cloned()
                     .collect();
                 let matched_right: Vec<_> = r
                     .iter()
-                    .filter(|t| right_only.contains(t))
+                    .filter(|(_, t)| right_only.contains(t))
                     .cloned()
                     .collect();
 
                 let pair_count = matched_left.len().min(matched_right.len());
                 for i in 0..pair_count {
+                    let (_, ref l_text) = matched_left[i];
+                    let (_, ref r_text) = matched_right[i];
                     // Remove from left_only and right_only, add to changed.
-                    if let Some(pos) = left_only.iter().position(|x| *x == matched_left[i]) {
+                    if let Some(pos) = left_only.iter().position(|x| x == l_text) {
                         left_only.remove(pos);
                     }
-                    if let Some(pos) = right_only.iter().position(|x| *x == matched_right[i]) {
+                    if let Some(pos) = right_only.iter().position(|x| x == r_text) {
                         right_only.remove(pos);
                     }
                     changed.push(ChangedItem {
                         name: name.to_string(),
-                        left: matched_left[i].clone(),
-                        right: matched_right[i].clone(),
+                        left: l_text.clone(),
+                        right: r_text.clone(),
                     });
                 }
             }
             (Some(l), None) => {
-                left_only.extend(l.iter().cloned());
+                left_only.extend(l.iter().map(|(_, t)| t.clone()));
             }
             (None, Some(r)) => {
-                right_only.extend(r.iter().cloned());
+                right_only.extend(r.iter().map(|(_, t)| t.clone()));
             }
             (None, None) => unreachable!(),
         }
     }
 
-    // Diff anonymous items by text counting (original approach).
+    // Diff anonymous items by canonical form counting.
     let left_anon_counts = count_items(&left_anon);
     let right_anon_counts = count_items(&right_anon);
 
@@ -190,25 +204,36 @@ pub fn diff_headers(left: &str, right: &str) -> anyhow::Result<HeaderDiff> {
         .map(|k| (k.as_str(), ()))
         .collect();
 
-    for key in all_anon.keys() {
-        let l = left_anon_counts.get(*key).copied().unwrap_or(0);
-        let r = right_anon_counts.get(*key).copied().unwrap_or(0);
-        if l > r {
-            for _ in 0..(l - r) {
-                left_only.push(key.to_string());
+    for canonical in all_anon.keys() {
+        let (lc, l_text) = left_anon_counts
+            .get(*canonical)
+            .map(|(c, t)| (*c, t.as_str()))
+            .unwrap_or((0, ""));
+        let (rc, r_text) = right_anon_counts
+            .get(*canonical)
+            .map(|(c, t)| (*c, t.as_str()))
+            .unwrap_or((0, ""));
+        let text = if !l_text.is_empty() { l_text } else { r_text };
+        if lc > rc {
+            for _ in 0..(lc - rc) {
+                left_only.push(text.to_string());
             }
-        } else if r > l {
-            for _ in 0..(r - l) {
-                right_only.push(key.to_string());
+        } else if rc > lc {
+            for _ in 0..(rc - lc) {
+                right_only.push(text.to_string());
             }
         }
+    }
+
+    if left_only.is_empty() && right_only.is_empty() && changed.is_empty() {
+        return Ok(HeaderDiff::Equivalent);
     }
 
     left_only.sort();
     right_only.sort();
     changed.sort_by(|a, b| a.name.cmp(&b.name));
 
-    Ok(HeaderDiff {
+    Ok(HeaderDiff::Different {
         left_only,
         right_only,
         changed,
@@ -258,6 +283,8 @@ fn extract_name_from_declarator(node: tree_sitter::Node, source: &[u8]) -> Optio
 struct NamedItem {
     name: Option<String>,
     text: String,
+    /// Whitespace-normalized form used for comparison.
+    canonical: String,
 }
 
 fn extract_top_level_items(source: &str) -> anyhow::Result<Vec<NamedItem>> {
@@ -285,9 +312,11 @@ fn extract_top_level_items(source: &str) -> anyhow::Result<Vec<NamedItem>> {
         let trimmed = text.trim();
         if !trimmed.is_empty() {
             let name = extract_item_name(child, source.as_bytes());
+            let canonical = trimmed.split_whitespace().collect::<Vec<_>>().join(" ");
             items.push(NamedItem {
                 name,
                 text: trimmed.to_string(),
+                canonical,
             });
         }
     }
@@ -295,28 +324,35 @@ fn extract_top_level_items(source: &str) -> anyhow::Result<Vec<NamedItem>> {
     Ok(items)
 }
 
+/// A pair of `(canonical, text)` where `canonical` is used for comparison
+/// and `text` is the original source for display.
+type ItemPair = (String, String);
+
 /// Partition items into named (grouped by name) and anonymous.
-fn partition_by_name(items: &[NamedItem]) -> (BTreeMap<String, Vec<String>>, Vec<String>) {
-    let mut named: BTreeMap<String, Vec<String>> = BTreeMap::new();
+fn partition_by_name(items: &[NamedItem]) -> (BTreeMap<String, Vec<ItemPair>>, Vec<ItemPair>) {
+    let mut named: BTreeMap<String, Vec<ItemPair>> = BTreeMap::new();
     let mut anon = Vec::new();
 
     for item in items {
+        let pair = (item.canonical.clone(), item.text.clone());
         match &item.name {
-            Some(name) => named
-                .entry(name.clone())
-                .or_default()
-                .push(item.text.clone()),
-            None => anon.push(item.text.clone()),
+            Some(name) => named.entry(name.clone()).or_default().push(pair),
+            None => anon.push(pair),
         }
     }
 
     (named, anon)
 }
 
-fn count_items(items: &[String]) -> BTreeMap<String, usize> {
-    let mut counts = BTreeMap::new();
-    for item in items {
-        *counts.entry(item.clone()).or_insert(0) += 1;
+/// Count items by their canonical form. Returns a map from canonical form to
+/// `(count, text)` where `text` is the original source of the first occurrence.
+fn count_items(items: &[ItemPair]) -> BTreeMap<String, (usize, String)> {
+    let mut counts: BTreeMap<String, (usize, String)> = BTreeMap::new();
+    for (canonical, text) in items {
+        counts
+            .entry(canonical.clone())
+            .and_modify(|(c, _)| *c += 1)
+            .or_insert((1, text.clone()));
     }
     counts
 }
@@ -479,19 +515,7 @@ mod tests {
         let left = "struct S {\n    int x;\n    int y;\n};\n";
         let right = "struct S {\n    int x;\n\n    int y;\n};\n";
         let diff = diff_headers(left, right).unwrap();
-        assert_snapshot!(diff, @r"
-        Changed:
-          [S]
-            left:  struct S {
-              int x;
-              int y;
-          }
-            right: struct S {
-              int x;
-
-              int y;
-          }
-        ");
+        assert_snapshot!(diff, @"Equivalent");
     }
 
     #[test]
