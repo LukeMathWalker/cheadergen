@@ -1031,7 +1031,7 @@ checksum = "357703d41365b4b27c590e3ed91eabb1b663f07c4c084095e60cbed4362dff0d"
 [[package]]
 name = "rustdoc_ext"
 version = "0.2.10"
-source = "git+https://github.com/LukeMathWalker/pavex#f7ce9e67411cab070b73288bf1d717f16efbe50c"
+source = "git+https://github.com/LukeMathWalker/pavex#373ee50f7cdc608d975b7edf547c69b836f8f8ea"
 dependencies = [
  "guppy",
  "rustdoc_types",
@@ -1040,7 +1040,7 @@ dependencies = [
 [[package]]
 name = "rustdoc_ir"
 version = "0.2.10"
-source = "git+https://github.com/LukeMathWalker/pavex#f7ce9e67411cab070b73288bf1d717f16efbe50c"
+source = "git+https://github.com/LukeMathWalker/pavex#373ee50f7cdc608d975b7edf547c69b836f8f8ea"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1058,7 +1058,7 @@ dependencies = [
 [[package]]
 name = "rustdoc_processor"
 version = "0.2.10"
-source = "git+https://github.com/LukeMathWalker/pavex#f7ce9e67411cab070b73288bf1d717f16efbe50c"
+source = "git+https://github.com/LukeMathWalker/pavex#373ee50f7cdc608d975b7edf547c69b836f8f8ea"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1094,7 +1094,7 @@ dependencies = [
 [[package]]
 name = "rustdoc_resolver"
 version = "0.2.10"
-source = "git+https://github.com/LukeMathWalker/pavex#f7ce9e67411cab070b73288bf1d717f16efbe50c"
+source = "git+https://github.com/LukeMathWalker/pavex#373ee50f7cdc608d975b7edf547c69b836f8f8ea"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1111,7 +1111,7 @@ dependencies = [
 [[package]]
 name = "rustdoc_types"
 version = "0.2.10"
-source = "git+https://github.com/LukeMathWalker/pavex#f7ce9e67411cab070b73288bf1d717f16efbe50c"
+source = "git+https://github.com/LukeMathWalker/pavex#373ee50f7cdc608d975b7edf547c69b836f8f8ea"
 dependencies = [
  "bincode",
  "rkyv",
