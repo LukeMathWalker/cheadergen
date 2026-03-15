@@ -1,9 +1,22 @@
-use std::collections::BTreeMap;
-use std::path::Path;
+use std::collections::{BTreeMap, HashSet};
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{env, process};
 
 use fs_err as fs;
+
+const VARIANTS: &[&str] = &[
+    "c/plain",
+    "c/tag",
+    "c/both",
+    "c/compat",
+    "c/tag_compat",
+    "c/both_compat",
+    "cpp/plain",
+    "cython/plain",
+    "cython/tag",
+    "symbol",
+];
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -23,13 +36,231 @@ fn main() {
             }
             cmd_translate_configs();
         }
+        Some("cbindgen-report") => {
+            let variant = args
+                .iter()
+                .skip(2)
+                .find(|a| !a.starts_with('-'))
+                .cloned();
+            let variant = variant.as_deref().unwrap_or_else(|| {
+                eprintln!("Usage: ui-tests cbindgen-report <variant>");
+                eprintln!();
+                eprintln!("Variants:");
+                for v in VARIANTS {
+                    eprintln!("  {v}");
+                }
+                process::exit(1);
+            });
+            if !VARIANTS.contains(&variant) {
+                eprintln!("Unknown variant: {variant}");
+                eprintln!();
+                eprintln!("Valid variants:");
+                for v in VARIANTS {
+                    eprintln!("  {v}");
+                }
+                process::exit(1);
+            }
+            cmd_cbindgen_report(variant);
+        }
         _ => {
             eprintln!("Usage:");
             eprintln!("  ui-tests new <name>            Create a new cheadergen test case");
             eprintln!(
                 "  ui-tests translate-configs     Translate all cbindgen.toml files to cheadergen.toml"
             );
+            eprintln!(
+                "  ui-tests cbindgen-report <variant>  Print cbindgen compatibility report for a variant"
+            );
             process::exit(1);
+        }
+    }
+}
+
+fn parse_test_toml(path: &Path) -> BTreeMap<String, String> {
+    let content = match fs::read_to_string(path) {
+        Ok(c) => c,
+        Err(_) => return BTreeMap::new(),
+    };
+    let mut map = BTreeMap::new();
+    for line in content.lines() {
+        let line = line.trim();
+        // Each line is "key" = "value"
+        if let Some(rest) = line.strip_prefix('"')
+            && let Some(eq) = rest.find("\" = \"")
+        {
+            let key = &rest[..eq];
+            let value_start = eq + "\" = \"".len();
+            if let Some(value) = rest[value_start..].strip_suffix('"') {
+                map.insert(key.to_owned(), value.to_owned());
+            }
+        }
+    }
+    map
+}
+
+fn detect_cbindgen_annotations(case_dir: &Path) -> bool {
+    let src_dir = case_dir.join("src");
+    let entries = match fs::read_dir(&src_dir) {
+        Ok(e) => e,
+        Err(_) => return false,
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().is_some_and(|e| e == "rs")
+            && path.is_file()
+            && let Ok(content) = fs::read_to_string(&path)
+        {
+            for line in content.lines() {
+                let trimmed = line.trim_start();
+                if trimmed.starts_with("/// cbindgen:") || trimmed.starts_with("// cbindgen:") {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+fn collect_cbindgen_cases(cbindgen_rust_dir: &Path) -> Vec<PathBuf> {
+    let mut cases = Vec::new();
+
+    let cases_dir = cbindgen_rust_dir.join("cases");
+    if let Ok(entries) = fs::read_dir(&cases_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() && path.join("test.toml").exists() {
+                cases.push(path);
+            }
+        }
+    }
+
+    for extra in &["workspace", "external_workspace_child"] {
+        let path = cbindgen_rust_dir.join(extra);
+        if path.join("test.toml").exists() {
+            cases.push(path);
+        }
+    }
+
+    cases.sort();
+    cases
+}
+
+fn cmd_cbindgen_report(variant: &str) {
+    let tests_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests");
+    let cbindgen_rust_dir = tests_dir.join("cbindgen/rust");
+    let cases = collect_cbindgen_cases(&cbindgen_rust_dir);
+
+    let mut xfail_with_annotations: Vec<String> = Vec::new();
+    let mut xfail_with_unsupported: Vec<String> = Vec::new();
+    let mut xfail_neither: Vec<String> = Vec::new();
+    let mut normal_cases: Vec<String> = Vec::new();
+    let mut skip_cases: Vec<String> = Vec::new();
+    let mut exclude_cases: Vec<String> = Vec::new();
+    let mut unsupported_keys: BTreeMap<String, Vec<String>> = BTreeMap::new();
+
+    for case_path in &cases {
+        let case_name = case_path
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
+        let test_toml = parse_test_toml(&case_path.join("test.toml"));
+
+        let status = test_toml
+            .get(variant)
+            .map(|s| s.as_str())
+            .unwrap_or("normal");
+
+        match status {
+            "xfail" => {
+                let has_annotations = detect_cbindgen_annotations(case_path);
+                let skipped_fields = extract_skipped_fields(&case_path.join("cheadergen.toml"));
+                let has_unsupported = !skipped_fields.is_empty();
+
+                for field in skipped_fields {
+                    unsupported_keys
+                        .entry(field)
+                        .or_default()
+                        .push(case_name.clone());
+                }
+
+                if has_annotations {
+                    xfail_with_annotations.push(case_name);
+                } else if has_unsupported {
+                    xfail_with_unsupported.push(case_name);
+                } else {
+                    xfail_neither.push(case_name);
+                }
+            }
+            "normal" => normal_cases.push(case_name),
+            "skip" => skip_cases.push(case_name),
+            "exclude" => exclude_cases.push(case_name),
+            _ => normal_cases.push(case_name),
+        }
+    }
+
+    let total_xfail =
+        xfail_with_annotations.len() + xfail_with_unsupported.len() + xfail_neither.len();
+
+    println!("cbindgen compatibility report: {variant}");
+    println!("{}", "=".repeat(31 + variant.len()));
+    println!("{} test cases", cases.len());
+    println!();
+    println!(
+        "  Xfail:   {total_xfail:>4}    Normal: {:>4}    Skip: {:>4}    Exclude: {:>4}",
+        normal_cases.len(),
+        skip_cases.len(),
+        exclude_cases.len()
+    );
+    println!();
+
+    println!("--- Xfail breakdown ({total_xfail} cases) ---");
+    println!();
+    println!(
+        "  Has cbindgen annotations:    {:>4}",
+        xfail_with_annotations.len()
+    );
+    for name in &xfail_with_annotations {
+        println!("    {name}");
+    }
+    println!(
+        "  Has unsupported config keys:  {:>3}",
+        xfail_with_unsupported.len()
+    );
+    for name in &xfail_with_unsupported {
+        println!("    {name}");
+    }
+    println!(
+        "  Neither (pure generation):   {:>4}",
+        xfail_neither.len()
+    );
+    for name in &xfail_neither {
+        println!("    {name}");
+    }
+
+    if !unsupported_keys.is_empty() {
+        let unsupported_case_set: HashSet<&str> = unsupported_keys
+            .values()
+            .flat_map(|v| v.iter().map(|s| s.as_str()))
+            .collect();
+
+        println!();
+        println!(
+            "--- Unsupported config keys ({} fields across {} cases) ---",
+            unsupported_keys.len(),
+            unsupported_case_set.len()
+        );
+        println!();
+
+        let max_key_len = unsupported_keys.keys().map(|k| k.len()).max().unwrap_or(0);
+        for (key, cases) in &unsupported_keys {
+            println!(
+                "  {:<width$}  Cases ({}): {}",
+                key,
+                cases.len(),
+                cases.join(", "),
+                width = max_key_len
+            );
         }
     }
 }

@@ -100,6 +100,10 @@ uncovered pattern="":
     }
     ' lcov.info
 
+# Print cbindgen compatibility report for a variant (e.g. c/plain)
+cbindgen-report +args:
+    cargo run -p ui-tests -- cbindgen-report "$@"
+
 # Run ui-tests commands (e.g. `just ui-tests new <name>`)
 ui-tests +args:
     cargo run -p ui-tests -- "$@"
