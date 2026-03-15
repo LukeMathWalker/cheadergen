@@ -1,36 +1,34 @@
-mod npo;
-
-pub use npo::NpoEligibilityChecker;
-
 use rustdoc_ir::{GenericArgument, PathType, RawPointer, Type};
-use rustdoc_processor::{ALLOC_PACKAGE_ID_REPR, CORE_PACKAGE_ID_REPR, STD_PACKAGE_ID_REPR};
+use rustdoc_processor::indexing::CrateIndexer;
+use rustdoc_processor::{ALLOC_PACKAGE_ID_REPR, CORE_PACKAGE_ID_REPR, CrateCollection, STD_PACKAGE_ID_REPR};
 
 use super::type_collection::CTypeKind;
+use super::type_resolution;
 
 /// Apply type simplifications to all types within a resolved type kind.
-pub fn simplify_kind(kind: &mut CTypeKind, npo: &NpoEligibilityChecker<'_>) {
+pub fn simplify_kind<I: CrateIndexer>(kind: &mut CTypeKind, collection: &CrateCollection<I>) {
     match kind {
         CTypeKind::Struct(def) => {
             for field in &mut def.fields {
-                simplify_type(&mut field.type_, npo);
+                simplify_type(&mut field.type_, collection);
             }
         }
         CTypeKind::Union(def) => {
             for field in &mut def.fields {
-                simplify_type(&mut field.type_, npo);
+                simplify_type(&mut field.type_, collection);
             }
         }
         CTypeKind::TaggedUnion(def) => {
             for variant in &mut def.variants {
                 if let Some(ref mut body) = variant.body {
                     for field in &mut body.fields {
-                        simplify_type(&mut field.type_, npo);
+                        simplify_type(&mut field.type_, collection);
                     }
                 }
             }
         }
         CTypeKind::Typedef(def) => {
-            simplify_type(&mut def.inner, npo);
+            simplify_type(&mut def.inner, collection);
         }
         CTypeKind::OpaqueStruct | CTypeKind::OpaqueUnion | CTypeKind::FieldlessEnum(_) => {}
     }
@@ -48,24 +46,24 @@ pub fn simplify_kind(kind: &mut CTypeKind, npo: &NpoEligibilityChecker<'_>) {
 /// - `Option<NonNull<T>>` → `*mut T` (null pointer optimization)
 /// - `Option<W>` → `W` when `W` is a `#[repr(transparent)]` wrapper around an
 ///   NPO-eligible type (null pointer optimization for transparent wrappers)
-pub fn simplify_type(ty: &mut Type, npo: &NpoEligibilityChecker<'_>) {
-    while try_simplify(ty, npo) {}
+pub fn simplify_type<I: CrateIndexer>(ty: &mut Type, collection: &CrateCollection<I>) {
+    while try_simplify(ty, collection) {}
 
     match ty {
-        Type::RawPointer(p) => simplify_type(&mut p.inner, npo),
-        Type::Reference(r) => simplify_type(&mut r.inner, npo),
-        Type::Array(a) => simplify_type(&mut a.element_type, npo),
+        Type::RawPointer(p) => simplify_type(&mut p.inner, collection),
+        Type::Reference(r) => simplify_type(&mut r.inner, collection),
+        Type::Array(a) => simplify_type(&mut a.element_type, collection),
         Type::FunctionPointer(fp) => {
             for input in &mut fp.inputs {
-                simplify_type(&mut input.type_, npo);
+                simplify_type(&mut input.type_, collection);
             }
             if let Some(output) = &mut fp.output {
-                simplify_type(output, npo);
+                simplify_type(output, collection);
             }
         }
         Type::Tuple(t) => {
             for elem in &mut t.elements {
-                simplify_type(elem, npo);
+                simplify_type(elem, collection);
             }
         }
         Type::Path(_)
@@ -79,8 +77,8 @@ pub fn simplify_type(ty: &mut Type, npo: &NpoEligibilityChecker<'_>) {
 /// Transforms `ty` if any of the known rules apply.
 ///
 /// Returns `true` if `ty` was modified.
-fn try_simplify(ty: &mut Type, npo: &NpoEligibilityChecker<'_>) -> bool {
-    try_simplify_box(ty) || try_simplify_nonnull(ty) || try_simplify_option(ty, npo)
+fn try_simplify<I: CrateIndexer>(ty: &mut Type, collection: &CrateCollection<I>) -> bool {
+    try_simplify_box(ty) || try_simplify_nonnull(ty) || try_simplify_option(ty, collection)
 }
 
 /// `Box<T>` → `*mut T`
@@ -133,7 +131,7 @@ fn try_simplify_nonnull(ty: &mut Type) -> bool {
 /// `Option<Box<T>>` → `*mut T`
 /// `Option<NonNull<T>>` → `*mut T`
 /// `Option<W>` → `W` when `W` is NPO-eligible (transparent wrapper)
-fn try_simplify_option(ty: &mut Type, npo: &NpoEligibilityChecker<'_>) -> bool {
+fn try_simplify_option<I: CrateIndexer>(ty: &mut Type, collection: &CrateCollection<I>) -> bool {
     let path = match ty {
         Type::Path(p) | Type::TypeAlias(p) => p,
         _ => return false,
@@ -217,7 +215,9 @@ fn try_simplify_option(ty: &mut Type, npo: &NpoEligibilityChecker<'_>) -> bool {
             true
         }
         // Option<W> → W, if W is NPO-eligible
-        Type::Path(inner_path) | Type::TypeAlias(inner_path) if npo.is_eligible(inner_path) => {
+        Type::Path(inner_path) | Type::TypeAlias(inner_path)
+            if is_user_npo_eligible(inner_path, collection) =>
+        {
             let arg = path.generic_arguments.pop().unwrap();
             let GenericArgument::TypeParameter(inner_ty) = arg else {
                 unreachable!();
@@ -225,6 +225,42 @@ fn try_simplify_option(ty: &mut Type, npo: &NpoEligibilityChecker<'_>) -> bool {
             *ty = inner_ty;
             true
         }
+        _ => false,
+    }
+}
+
+/// Check whether a user-defined type (identified by its `PathType`) is NPO-eligible.
+///
+/// A type is NPO-eligible if it is a `#[repr(transparent)]` struct whose single
+/// non-ZST field is itself NPO-eligible (either a standard NPO type like `Box`,
+/// `NonNull`, reference, or fn pointer, or another `#[repr(transparent)]` wrapper
+/// that is recursively NPO-eligible).
+fn is_user_npo_eligible<I: CrateIndexer>(path: &PathType, collection: &CrateCollection<I>) -> bool {
+    let Some(inner_ty) = type_resolution::transparent_inner_type_for_path(path, collection) else {
+        return false;
+    };
+
+    if is_std_npo_eligible(&inner_ty) {
+        return true;
+    }
+
+    match &inner_ty {
+        Type::Path(inner_path) | Type::TypeAlias(inner_path) => {
+            is_user_npo_eligible(inner_path, collection)
+        }
+        _ => false,
+    }
+}
+
+/// Returns `true` if the given type is one of the standard library types that
+/// are inherently NPO-eligible: references, function pointers, `Box`, or `NonNull`.
+///
+/// This does **not** check user-defined `#[repr(transparent)]` wrappers — use
+/// [`is_user_npo_eligible`] for that.
+fn is_std_npo_eligible(ty: &Type) -> bool {
+    match ty {
+        Type::Reference(_) | Type::FunctionPointer(_) => true,
+        Type::Path(p) | Type::TypeAlias(p) => is_box(p) || is_nonnull(p),
         _ => false,
     }
 }

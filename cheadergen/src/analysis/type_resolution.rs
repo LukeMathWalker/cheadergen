@@ -12,7 +12,7 @@ use super::type_collection::{
     CTaggedUnionDef, CTaggedVariant, CTaggedVariantBody, CTypeKind, CTypedefDef, CUnionDef,
     ReprIntType, is_zst_type,
 };
-use super::type_transform::{self, NpoEligibilityChecker};
+use super::type_transform;
 
 /// Attempt to resolve a directly-used type into a full definition.
 ///
@@ -23,7 +23,6 @@ pub(super) fn resolve_type_kind<I: CrateIndexer>(
     path_type: &PathType,
     collection: &CrateCollection<I>,
     enum_prefix_with_name: bool,
-    npo: &NpoEligibilityChecker<'_>,
 ) -> anyhow::Result<CTypeKind> {
     let Some(id) = &path_type.rustdoc_id else {
         eprintln!("warning: type `{name}` has no rustdoc ID; emitting forward declaration");
@@ -58,7 +57,7 @@ pub(super) fn resolve_type_kind<I: CrateIndexer>(
             Ok(CTypeKind::OpaqueStruct)
         }
     }?;
-    type_transform::simplify_kind(&mut kind, npo);
+    type_transform::simplify_kind(&mut kind, collection);
     Ok(kind)
 }
 

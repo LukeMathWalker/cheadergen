@@ -7,7 +7,6 @@ use rustdoc_processor::{CORE_PACKAGE_ID_REPR, CrateCollection, GlobalItemId, STD
 use rustdoc_types::ItemEnum;
 
 use super::type_resolution::resolve_type_kind;
-use super::type_transform::NpoEligibilityChecker;
 use crate::static_item::StaticItem;
 
 /// C and C++ reserved keywords that cannot be used as identifiers.
@@ -333,7 +332,6 @@ pub fn collect_type_definitions<I: CrateIndexer>(
     statics: &[StaticItem],
     collection: &CrateCollection<I>,
     enum_prefix_with_name: bool,
-    npo: &NpoEligibilityChecker<'_>,
 ) -> anyhow::Result<Vec<CTypeDefinition>> {
     let mut seen: HashMap<PathType, TypeUsage> = HashMap::new();
     for func in functions {
@@ -350,7 +348,7 @@ pub fn collect_type_definitions<I: CrateIndexer>(
 
     // Resolve struct fields for directly-used types. This may discover new
     // transitive types that also need definitions.
-    resolve_all_type_definitions(&mut seen, collection, enum_prefix_with_name, npo)
+    resolve_all_type_definitions(&mut seen, collection, enum_prefix_with_name)
 }
 
 /// Compute the cbindgen-style monomorphized C name for a type.
@@ -480,7 +478,6 @@ fn resolve_all_type_definitions<I: CrateIndexer>(
     seen: &mut HashMap<PathType, TypeUsage>,
     collection: &CrateCollection<I>,
     enum_prefix_with_name: bool,
-    npo: &NpoEligibilityChecker<'_>,
 ) -> anyhow::Result<Vec<CTypeDefinition>> {
     // Phase 1: fixed-point loop over directly-used types.
     // By resolving all direct uses first, we ensure that a type initially seen
@@ -500,7 +497,7 @@ fn resolve_all_type_definitions<I: CrateIndexer>(
 
         for path_type in direct {
             let name = c_type_name(&Type::Path(path_type.clone()));
-            let kind = resolve_type_kind(&name, &path_type, collection, enum_prefix_with_name, npo)?;
+            let kind = resolve_type_kind(&name, &path_type, collection, enum_prefix_with_name)?;
 
             // Discover transitive field types from full definitions.
             match &kind {

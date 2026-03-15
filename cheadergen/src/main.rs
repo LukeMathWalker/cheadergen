@@ -321,11 +321,10 @@ fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
             krate,
         );
 
-        let npo = analysis::NpoEligibilityChecker::new(&collection);
         let resolved_fns =
-            analysis::resolve_functions(&extern_items.fn_ids, krate, &collection, &npo)?;
+            analysis::resolve_functions(&extern_items.fn_ids, krate, &collection)?;
         let resolved_statics =
-            analysis::resolve_statics(&extern_items.static_ids, krate, &collection, &npo)?;
+            analysis::resolve_statics(&extern_items.static_ids, krate, &collection)?;
         let resolved_constants =
             analysis::resolve_constants(&extern_items.constant_ids, krate, &collection);
 
@@ -336,7 +335,7 @@ fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
         }
 
         let mut type_defs =
-            analysis::collect_type_definitions(&resolved_fns, &resolved_statics, &collection, c_config.enum_prefix_with_name, &npo)?;
+            analysis::collect_type_definitions(&resolved_fns, &resolved_statics, &collection, c_config.enum_prefix_with_name)?;
 
         // First, establish a baseline source order (type_defs come from a
         // HashMap and have no inherent order). Then apply topological sort
