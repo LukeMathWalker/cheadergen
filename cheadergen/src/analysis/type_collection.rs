@@ -420,7 +420,7 @@ pub(super) fn collect_paths_from_type(
         Type::Array(a) => collect_paths_from_type(&a.element_type, usage, seen),
         Type::FunctionPointer(fp) => {
             for input in &fp.inputs {
-                collect_paths_from_type(input, TypeUsage::BehindPointer, seen);
+                collect_paths_from_type(&input.type_, TypeUsage::BehindPointer, seen);
             }
             if let Some(output) = &fp.output {
                 collect_paths_from_type(output, TypeUsage::BehindPointer, seen);

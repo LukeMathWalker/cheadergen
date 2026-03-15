@@ -473,7 +473,11 @@ fn write_fn_ptr_decl(
             if i > 0 {
                 out.push_str(", ");
             }
-            write_c_type(input, style, type_tags, out);
+            if let Some(name) = &input.name {
+                write_c_param(&input.type_, name, style, type_tags, out);
+            } else {
+                write_c_type(&input.type_, style, type_tags, out);
+            }
         }
     }
     out.push(')');

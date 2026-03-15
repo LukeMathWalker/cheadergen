@@ -1031,7 +1031,7 @@ checksum = "357703d41365b4b27c590e3ed91eabb1b663f07c4c084095e60cbed4362dff0d"
 [[package]]
 name = "rustdoc_ext"
 version = "0.2.10"
-source = "git+https://github.com/LukeMathWalker/pavex#ba392905001534831e863b2dba46b019b5abd1a1"
+source = "git+https://github.com/LukeMathWalker/pavex#f7ce9e67411cab070b73288bf1d717f16efbe50c"
 dependencies = [
  "guppy",
  "rustdoc_types",
@@ -1040,7 +1040,7 @@ dependencies = [
 [[package]]
 name = "rustdoc_ir"
 version = "0.2.10"
-source = "git+https://github.com/LukeMathWalker/pavex#ba392905001534831e863b2dba46b019b5abd1a1"
+source = "git+https://github.com/LukeMathWalker/pavex#f7ce9e67411cab070b73288bf1d717f16efbe50c"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1058,7 +1058,7 @@ dependencies = [
 [[package]]
 name = "rustdoc_processor"
 version = "0.2.10"
-source = "git+https://github.com/LukeMathWalker/pavex#ba392905001534831e863b2dba46b019b5abd1a1"
+source = "git+https://github.com/LukeMathWalker/pavex#f7ce9e67411cab070b73288bf1d717f16efbe50c"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1094,7 +1094,7 @@ dependencies = [
 [[package]]
 name = "rustdoc_resolver"
 version = "0.2.10"
-source = "git+https://github.com/LukeMathWalker/pavex#ba392905001534831e863b2dba46b019b5abd1a1"
+source = "git+https://github.com/LukeMathWalker/pavex#f7ce9e67411cab070b73288bf1d717f16efbe50c"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1111,7 +1111,7 @@ dependencies = [
 [[package]]
 name = "rustdoc_types"
 version = "0.2.10"
-source = "git+https://github.com/LukeMathWalker/pavex#ba392905001534831e863b2dba46b019b5abd1a1"
+source = "git+https://github.com/LukeMathWalker/pavex#f7ce9e67411cab070b73288bf1d717f16efbe50c"
 dependencies = [
  "bincode",
  "rkyv",
@@ -1355,9 +1355,9 @@ dependencies = [
 
 [[package]]
 name = "tinyvec"
-version = "1.10.0"
+version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bfa5fdc3bce6191a1dbc8c02d5c8bffcf557bafa17c124c5264a458f1b0613fa"
+checksum = "3e61e67053d25a4e82c844e8424039d9745781b3fc4f32b8d55ed50f5f667ef3"
 dependencies = [
  "tinyvec_macros",
 ]

@@ -51,7 +51,7 @@ pub fn simplify_type(ty: &mut Type) {
         Type::Array(a) => simplify_type(&mut a.element_type),
         Type::FunctionPointer(fp) => {
             for input in &mut fp.inputs {
-                simplify_type(input);
+                simplify_type(&mut input.type_);
             }
             if let Some(output) = &mut fp.output {
                 simplify_type(output);
