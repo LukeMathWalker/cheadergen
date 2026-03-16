@@ -8,10 +8,14 @@ fn run_config_error(config_toml: &str, extra_args: &[&str]) -> String {
     tmp.write_all(config_toml.as_bytes())
         .expect("failed to write config");
 
+    let output_dir = tempfile::tempdir().expect("failed to create temp dir");
+
     let output = Command::new(&bin)
         .arg("generate")
         .arg("--config")
         .arg(tmp.path())
+        .arg("--output-dir")
+        .arg(output_dir.path())
         .args(extra_args)
         // Ensure consistent output for CLI errors
         .env("RUST_BACKTRACE", "0")
@@ -51,10 +55,14 @@ fn unknown_field_rejected() {
 fn cython_rejected() {
     let bin = std::env::var("CHEADERGEN_BIN").expect("CHEADERGEN_BIN must be set by setup script");
 
+    let output_dir = tempfile::tempdir().expect("failed to create temp dir");
+
     let output = Command::new(&bin)
         .arg("generate")
         .arg("--lang")
         .arg("cython")
+        .arg("--output-dir")
+        .arg(output_dir.path())
         // Ensure consistent output for CLI errors
         .env("RUST_BACKTRACE", "0")
         .env("RUST_LIB_BACKTRACE", "0")

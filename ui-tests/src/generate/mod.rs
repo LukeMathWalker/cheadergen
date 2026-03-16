@@ -7,11 +7,31 @@ pub(crate) mod cheadergen;
 use std::path::Path;
 use std::{fs, str};
 
-use crate::{Language, Style};
+use crate::{Language, Style, language_extension};
 use cheadergen::{
     CBINDGEN_CASES_METADATA, CBINDGEN_WORKSPACE_METADATA, CHEADERGEN_CASES_METADATA,
     run_cheadergen, run_cheadergen_symbols,
 };
+
+/// Finds the single file with the expected extension in `output_dir`.
+fn find_generated_file(output_dir: &Path, language: Language) -> Vec<u8> {
+    let ext = language_extension(language);
+    let mut found = Vec::new();
+    for entry in fs::read_dir(output_dir).expect("failed to read output dir") {
+        let entry = entry.expect("failed to read dir entry");
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) == Some(ext) {
+            found.push(path);
+        }
+    }
+    assert!(
+        found.len() == 1,
+        "expected exactly 1 .{ext} file in {output_dir:?}, found {found:?}"
+    );
+    fs::read(&found[0]).unwrap_or_else(|e| {
+        panic!("failed to read generated file {:?}: {e}", found[0]);
+    })
+}
 
 const SKIP_WARNING_AS_ERROR_SUFFIX: &str = ".skip_warning_as_error";
 
@@ -24,6 +44,7 @@ pub fn invoke_cheadergen(
     language: Language,
     style: Option<Style>,
     cpp_compat: bool,
+    output_dir: &Path,
 ) -> std::process::Output {
     let path_str = path.to_str().unwrap();
     let metadata = if path_str.contains("tests/cheadergen/") {
@@ -33,7 +54,7 @@ pub fn invoke_cheadergen(
     } else {
         &*CBINDGEN_WORKSPACE_METADATA
     };
-    run_cheadergen(path, language, cpp_compat, style, metadata)
+    run_cheadergen(path, language, cpp_compat, style, output_dir, metadata)
 }
 
 pub fn run_generate_test(
@@ -43,13 +64,16 @@ pub fn run_generate_test(
     style: Option<Style>,
     cpp_compat: bool,
 ) {
-    let output = invoke_cheadergen(name, path, language, style, cpp_compat);
+    let output_dir = tempfile::tempdir().expect("failed to create temp dir");
+    let output = invoke_cheadergen(name, path, language, style, cpp_compat, output_dir.path());
     assert!(
         output.status.success(),
         "cheadergen failed for {path:?} with error: {}",
         str::from_utf8(&output.stderr).unwrap_or_default()
     );
-    compare_snapshot(name, path, language, style, cpp_compat, &output.stdout);
+
+    let content = find_generated_file(output_dir.path(), language);
+    compare_snapshot(name, path, language, style, cpp_compat, &content);
 }
 
 pub fn run_symbol_test(name: &str, path: &Path) {
@@ -64,8 +88,9 @@ pub fn run_symbol_test(name: &str, path: &Path) {
 
     let symbol_file = tempfile::NamedTempFile::new().expect("failed to create temp file");
     let symbol_path = symbol_file.path().to_owned();
+    let output_dir = tempfile::tempdir().expect("failed to create temp dir");
 
-    let output = run_cheadergen_symbols(path, &symbol_path, metadata);
+    let output = run_cheadergen_symbols(path, &symbol_path, output_dir.path(), metadata);
     assert!(
         output.status.success(),
         "cheadergen --symbol-file failed for {path:?} with error: {}",
@@ -95,12 +120,16 @@ pub fn run_expected_failure_test(
     style: Option<Style>,
     cpp_compat: bool,
 ) {
-    let output = invoke_cheadergen(name, path, language, style, cpp_compat);
+    let output_dir = tempfile::tempdir().expect("failed to create temp dir");
+    let output = invoke_cheadergen(name, path, language, style, cpp_compat, output_dir.path());
     if !output.status.success() {
         return;
     }
+
+    let output_dir_path = output_dir.path().to_owned();
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        compare_snapshot(name, path, language, style, cpp_compat, &output.stdout);
+        let content = find_generated_file(&output_dir_path, language);
+        compare_snapshot(name, path, language, style, cpp_compat, &content);
     }));
     if result.is_ok() {
         panic!(
@@ -129,7 +158,7 @@ fn compare_snapshot(
     language: Language,
     style: Option<Style>,
     cpp_compat: bool,
-    stdout: &[u8],
+    content: &[u8],
 ) {
     let expectations_dir = path.join("expectations");
 
@@ -150,7 +179,7 @@ fn compare_snapshot(
     let source_file =
         format!("{name}{style_ext}{lang_ext}").replace(SKIP_WARNING_AS_ERROR_SUFFIX, "");
 
-    let output = str::from_utf8(stdout).expect("non-utf8 cheadergen output");
+    let output = str::from_utf8(content).expect("non-utf8 cheadergen output");
 
     // Linestyle tests: insta normalizes line endings, so fall back to direct comparison.
     if name.starts_with("linestyle_") {

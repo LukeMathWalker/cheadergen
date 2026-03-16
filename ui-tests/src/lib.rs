@@ -42,3 +42,11 @@ pub fn style_str(style: Style) -> &'static str {
         Style::Type => "type",
     }
 }
+
+pub fn language_extension(lang: Language) -> &'static str {
+    match lang {
+        Language::C => "h",
+        Language::Cxx => "hpp",
+        Language::Cython => "pyx",
+    }
+}

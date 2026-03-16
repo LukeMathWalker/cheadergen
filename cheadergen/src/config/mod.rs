@@ -22,6 +22,16 @@ pub enum Language {
     Cython,
 }
 
+impl Language {
+    pub fn extension(&self) -> &'static str {
+        match self {
+            Language::C => "h",
+            Language::Cxx => "hpp",
+            Language::Cython => "pyx",
+        }
+    }
+}
+
 /// Controls how items of a given kind are sorted in the generated header.
 #[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]

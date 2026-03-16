@@ -61,6 +61,7 @@ pub(crate) static CBINDGEN_WORKSPACE_METADATA: LazyLock<PathBuf> = LazyLock::new
 pub(crate) fn run_cheadergen_symbols(
     path: &Path,
     symbol_file: &Path,
+    output_dir: &Path,
     metadata: &Path,
 ) -> std::process::Output {
     let cheadergen = env::var("CARGO_BIN_EXE_cheadergen")
@@ -73,6 +74,7 @@ pub(crate) fn run_cheadergen_symbols(
     command.arg("--symbol-file").arg(symbol_file);
     command.arg("--lang").arg("c");
     command.arg("--style").arg("type");
+    command.arg("--output-dir").arg(output_dir);
 
     let config = path.join("cheadergen.toml");
     if config.exists() {
@@ -92,6 +94,7 @@ pub(crate) fn run_cheadergen(
     language: Language,
     cpp_compat: bool,
     style: Option<Style>,
+    output_dir: &Path,
     metadata: &Path,
 ) -> std::process::Output {
     let cheadergen = env::var("CARGO_BIN_EXE_cheadergen")
@@ -114,6 +117,8 @@ pub(crate) fn run_cheadergen(
     if let Some(style) = style {
         command.arg("--style").arg(style_str(style));
     }
+
+    command.arg("--output-dir").arg(output_dir);
 
     let config = path.join("cheadergen.toml");
     if config.exists() {

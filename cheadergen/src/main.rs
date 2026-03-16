@@ -6,7 +6,7 @@ mod metadata;
 mod static_item;
 mod topological_sort;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use clap::{ArgAction, Parser};
@@ -59,7 +59,7 @@ struct TranslateArgs {
 
 #[derive(Debug, Parser)]
 struct GenerateArgs {
-    /// Path to the Rust crate directory (defaults to current directory).
+    /// Path to the Rust crate directory or its Cargo.toml (defaults to current directory).
     input: Option<PathBuf>,
 
     /// Increase verbosity (can be repeated: -v, -vv, -vvv).
@@ -69,10 +69,6 @@ struct GenerateArgs {
     /// Suppress all output.
     #[arg(short, long)]
     quiet: bool,
-
-    /// Verify that the generated bindings match the existing output file.
-    #[arg(long)]
-    verify: bool,
 
     /// Path to a TOML configuration file.
     #[arg(short, long)]
@@ -90,9 +86,9 @@ struct GenerateArgs {
     #[arg(short, long)]
     style: Option<Style>,
 
-    /// Output file path (defaults to stdout).
-    #[arg(short, long)]
-    output: Option<PathBuf>,
+    /// Output directory path.
+    #[arg(short, long = "output-dir")]
+    output_dir: PathBuf,
 
     /// Path to a pre-generated `cargo metadata` JSON file.
     #[arg(long)]
@@ -109,7 +105,7 @@ struct GenerateArgs {
 
 #[derive(Debug, Parser)]
 struct WarmCacheArgs {
-    /// Path to the workspace directory (defaults to current directory).
+    /// Path to the Rust crate directory or its Cargo.toml (defaults to current directory).
     input: Option<PathBuf>,
 
     /// Path to a pre-generated `cargo metadata` JSON file.
@@ -160,7 +156,9 @@ fn main() -> ExitCode {
 }
 
 fn warm_cache(args: &WarmCacheArgs) -> anyhow::Result<()> {
-    let package_graph = metadata::load_package_graph(args.metadata.as_ref(), args.input.as_ref())?;
+    let resolved_input = args.input.as_ref().map(|p| resolve_input(p)).transpose()?;
+    let package_graph =
+        metadata::load_package_graph(args.metadata.as_ref(), resolved_input.as_ref())?;
 
     let workspace_member_ids: Vec<_> = package_graph
         .workspace()
@@ -187,7 +185,38 @@ fn warm_cache(args: &WarmCacheArgs) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn resolve_input(input: &Path) -> anyhow::Result<PathBuf> {
+    if input.file_name() == Some("Cargo.toml".as_ref()) {
+        anyhow::ensure!(
+            input.try_exists()?,
+            "Cargo.toml not found at {}",
+            input.display()
+        );
+        let parent = input.parent().unwrap();
+        if parent.as_os_str().is_empty() {
+            Ok(PathBuf::from("."))
+        } else {
+            Ok(parent.to_path_buf())
+        }
+    } else if input.is_dir() {
+        anyhow::ensure!(
+            input.join("Cargo.toml").exists(),
+            "no Cargo.toml found in {}",
+            input.display()
+        );
+        Ok(input.to_path_buf())
+    } else {
+        anyhow::bail!(
+            "input must be a directory containing a Cargo.toml or a path to a Cargo.toml file, \
+             got: {}",
+            input.display()
+        );
+    }
+}
+
 fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
+    let resolved_input = cli.input.as_ref().map(|p| resolve_input(p)).transpose()?;
+
     // Load config file (or use defaults).
     let raw_config = if let Some(ref config_path) = cli.config {
         config::RawConfig::from_toml_file(config_path)?
@@ -204,7 +233,8 @@ fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
     // Validate config against the selected language.
     let config = raw_config.into_config(&cli.lang, &overrides)?;
 
-    let package_graph = metadata::load_package_graph(cli.metadata.as_ref(), cli.input.as_ref())?;
+    let package_graph =
+        metadata::load_package_graph(cli.metadata.as_ref(), resolved_input.as_ref())?;
 
     // Resolve package info before moving `package_graph` into `CrateCollection`.
     let (package_id, package_name) = {
@@ -213,7 +243,7 @@ fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
         // Resolve the target package: if `cli.input` points to a directory inside the workspace,
         // find the workspace member whose directory matches. Otherwise, use the sole workspace
         // member (or error if ambiguous).
-        let package_id = if let Some(ref input) = cli.input {
+        let package_id = if let Some(ref input) = resolved_input {
             let input = input.canonicalize()?;
             let input = camino::Utf8PathBuf::try_from(input)?;
             let input = pathdiff::diff_utf8_paths(input, workspace.root()).expect("Failed to compute the relative path to target crate, with respect to the workspace root");
@@ -362,11 +392,13 @@ fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
             &mut header,
         );
 
-        if let Some(ref output_path) = cli.output {
-            fs_err::write(output_path, &header)?;
-        } else {
-            print!("{header}");
-        }
+        let filename = format!(
+            "{}.{}",
+            package_name.replace('-', "_"),
+            cli.lang.extension()
+        );
+        fs_err::create_dir_all(&cli.output_dir)?;
+        fs_err::write(cli.output_dir.join(filename), &header)?;
     }
 
     Ok(())
