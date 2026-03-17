@@ -70,7 +70,7 @@ fn setup_generic_bindings(
     generics: &rustdoc_types::Generics,
     path_type: &PathType,
 ) -> Result<GenericBindings, ()> {
-    let mut bindings = if has_type_params(generics) {
+    let mut bindings = if has_generic_params(generics) {
         match build_generic_bindings(generics, &path_type.generic_arguments) {
             Some(bindings) => bindings,
             None => {
@@ -283,16 +283,19 @@ fn resolve_union_kind(
     Ok(CTypeKind::Union(CUnionDef { fields: c_fields }))
 }
 
-/// Returns true if the generics contain unbound type parameters.
-fn has_type_params(generics: &rustdoc_types::Generics) -> bool {
-    generics
-        .params
-        .iter()
-        .any(|p| matches!(p.kind, rustdoc_types::GenericParamDefKind::Type { .. }))
+/// Returns true if the generics contain unbound type or const parameters.
+fn has_generic_params(generics: &rustdoc_types::Generics) -> bool {
+    generics.params.iter().any(|p| {
+        matches!(
+            p.kind,
+            rustdoc_types::GenericParamDefKind::Type { .. }
+                | rustdoc_types::GenericParamDefKind::Const { .. }
+        )
+    })
 }
 
-/// Build a [`GenericBindings`] map pairing each type parameter in `generics`
-/// with the corresponding concrete type from `generic_args`.
+/// Build a [`GenericBindings`] map pairing each type/const parameter in `generics`
+/// with the corresponding concrete argument from `generic_args`.
 ///
 /// Returns `None` if the struct has type parameters but no (or insufficient)
 /// concrete arguments were provided — the caller should treat the type as opaque.
@@ -309,24 +312,44 @@ fn build_generic_bindings(
         })
         .collect();
 
+    let const_param_names: Vec<&str> = generics
+        .params
+        .iter()
+        .filter_map(|p| match &p.kind {
+            rustdoc_types::GenericParamDefKind::Const { .. } => Some(p.name.as_str()),
+            _ => None,
+        })
+        .collect();
+
     let type_args: Vec<&Type> = generic_args
         .iter()
         .filter_map(|arg| match arg {
             GenericArgument::TypeParameter(t) => Some(t),
-            GenericArgument::Lifetime(_) => None,
+            _ => None,
         })
         .collect();
 
-    if type_param_names.is_empty() {
+    let const_args: Vec<&str> = generic_args
+        .iter()
+        .filter_map(|arg| match arg {
+            GenericArgument::Const(c) => Some(c.value.as_str()),
+            _ => None,
+        })
+        .collect();
+
+    if type_param_names.is_empty() && const_param_names.is_empty() {
         return Some(GenericBindings::default());
     }
-    if type_args.len() != type_param_names.len() {
+    if type_args.len() != type_param_names.len() || const_args.len() != const_param_names.len() {
         return None;
     }
 
     let mut bindings = GenericBindings::default();
     for (name, ty) in type_param_names.into_iter().zip(type_args) {
         bindings.types.insert(name.to_owned(), ty.clone());
+    }
+    for (name, value) in const_param_names.into_iter().zip(const_args) {
+        bindings.consts.insert(name.to_owned(), value.to_owned());
     }
     Some(bindings)
 }

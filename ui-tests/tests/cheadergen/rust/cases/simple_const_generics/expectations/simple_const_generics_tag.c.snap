@@ -1,0 +1,21 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 200
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+struct Size_4 {
+  uint8_t bytes[4];
+};
+
+struct Size_8 {
+  uint8_t bytes[8];
+};
+
+struct Size_4 use_size_4(struct Size_4 s);
+
+struct Size_8 use_size_8(struct Size_8 s);

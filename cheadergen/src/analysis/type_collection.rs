@@ -371,6 +371,7 @@ pub fn c_type_name(ty: &Type) -> String {
                 .filter_map(|arg| match arg {
                     GenericArgument::TypeParameter(t) => Some(c_type_name(t)),
                     GenericArgument::Lifetime(_) => None,
+                    GenericArgument::Const(c) => Some(c.value.clone()),
                 })
                 .collect();
             if type_args.is_empty() {
