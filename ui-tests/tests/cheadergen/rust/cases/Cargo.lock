@@ -15,6 +15,15 @@ name = "char_str_constant"
 version = "0.1.0"
 
 [[package]]
+name = "cheadergen_macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "computed_constant"
 version = "0.1.0"
 
@@ -47,6 +56,13 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "export_annotation"
+version = "0.1.0"
+dependencies = [
+ "cheadergen_macros",
 ]
 
 [[package]]

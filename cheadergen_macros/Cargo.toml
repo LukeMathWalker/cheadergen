@@ -1,0 +1,14 @@
+[package]
+name = "cheadergen_macros"
+version = "0.1.0"
+edition = "2024"
+description = "Proc-macro attributes for cheadergen."
+license = "Apache-2.0"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "2", features = ["full"] }
+quote = "1"
+proc-macro2 = "1"

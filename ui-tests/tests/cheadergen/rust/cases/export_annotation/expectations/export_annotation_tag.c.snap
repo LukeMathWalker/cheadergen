@@ -1,0 +1,41 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 200
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+/**
+ * A status enum exported via annotation, not referenced by any FFI function.
+ */
+enum Status {
+  Ok,
+  Error,
+  Pending,
+};
+
+/**
+ * A type without `#[repr(C)]` — should produce an opaque forward declaration.
+ */
+struct OpaqueHandle;
+
+/**
+ * A config struct exported via annotation, not referenced by any FFI function.
+ */
+struct Config {
+  uint32_t width;
+  uint32_t height;
+};
+
+/**
+ * A struct that is both annotated AND referenced by an FFI function.
+ */
+struct Point {
+  double x;
+  double y;
+};
+
+struct Point make_point(double x, double y);

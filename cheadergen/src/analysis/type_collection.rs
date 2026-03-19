@@ -328,9 +328,13 @@ pub(super) enum TypeUsage {
 ///
 /// Types used directly (not only behind pointers) and marked `#[repr(C)]` get
 /// full struct definitions. All others get forward declarations.
+///
+/// `extra_by_value_types` are seeded as by-value entries (e.g. from
+/// `#[cheadergen::export]` annotations) before the fixed-point resolution loop.
 pub fn collect_type_definitions(
     functions: &[FreeFunction],
     statics: &[StaticItem],
+    extra_by_value_types: &[PathType],
     collection: &Collection,
     enum_prefix_with_name: bool,
 ) -> anyhow::Result<Vec<CTypeDefinition>> {
@@ -345,6 +349,11 @@ pub fn collect_type_definitions(
     }
     for s in statics {
         collect_paths_from_type(&s.type_, TypeUsage::ByValue, &mut seen);
+    }
+    for pt in extra_by_value_types {
+        seen.entry(canonical_path_key(pt))
+            .and_modify(|u| *u = TypeUsage::ByValue)
+            .or_insert(TypeUsage::ByValue);
     }
 
     // Resolve struct fields for directly-used types. This may discover new

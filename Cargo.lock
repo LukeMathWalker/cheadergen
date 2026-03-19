@@ -234,6 +234,7 @@ name = "cheadergen"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode",
  "camino",
  "clap",
  "fs-err",
@@ -248,6 +249,15 @@ dependencies = [
  "tempfile",
  "toml 1.0.6+spec-1.1.0",
  "xdg-home",
+]
+
+[[package]]
+name = "cheadergen_macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

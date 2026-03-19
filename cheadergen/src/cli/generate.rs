@@ -234,9 +234,13 @@ fn generate_one_crate(
             eprintln!("Resolved {} constant(s) to IR", resolved_constants.len());
         }
 
+        let annotations = collection.get_annotated_items(package_id);
+        let extra_types = analysis::annotated_path_types(annotations, krate);
+
         let mut type_defs = analysis::collect_type_definitions(
             &resolved_fns,
             &resolved_statics,
+            &extra_types,
             collection,
             c_config.enum_prefix_with_name,
         )?;

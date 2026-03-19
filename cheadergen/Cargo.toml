@@ -10,6 +10,7 @@ repository = "https://github.com/LukeMathWalker/cheadergen"
 
 [dependencies]
 anyhow = "1"
+bincode = "2"
 camino = "1"
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }

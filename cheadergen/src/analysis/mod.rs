@@ -1,8 +1,10 @@
+mod annotation_types;
 mod extern_items;
 mod type_collection;
 mod type_resolution;
 mod type_transform;
 
+pub use annotation_types::annotated_path_types;
 pub use extern_items::{
     collect_symbols, find_assoc_constants, find_extern_items, resolve_constants, resolve_functions,
     resolve_statics,

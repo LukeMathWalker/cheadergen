@@ -3,8 +3,9 @@ use guppy::graph::PackageGraph;
 use rustdoc_processor::CrateCollection;
 use rustdoc_processor::cache::RustdocGlobalFsCache;
 use rustdoc_processor::compute::NoProgress;
-use rustdoc_processor::indexing::NoAnnotations;
 use std::path::PathBuf;
+
+use crate::indexing::CheadergenIndexer;
 
 /// The nightly toolchain used for `cargo rustdoc` JSON generation.
 /// Must match the FORMAT_VERSION expected by `rustdoc_types`.
@@ -49,7 +50,7 @@ pub fn create_collection(
     )?;
 
     let collection = CrateCollection::new(
-        NoAnnotations,
+        CheadergenIndexer,
         toolchain,
         package_graph,
         project_fingerprint,
