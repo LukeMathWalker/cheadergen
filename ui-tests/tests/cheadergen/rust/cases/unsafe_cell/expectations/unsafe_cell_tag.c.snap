@@ -1,0 +1,52 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 200
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+/**
+ * The `Option` type. See [the module level documentation](self) for more.
+ */
+struct Option_UnsafeCell_NonNull_Point;
+
+struct Point {
+  int32_t x;
+  int32_t y;
+};
+
+/**
+ * `UnsafeCell<T>` as parameter → `T`
+ */
+void take_unsafe_cell(struct Point x);
+
+/**
+ * `UnsafeCell<T>` as return type → `T`
+ */
+struct Point return_unsafe_cell(void);
+
+/**
+ * `&UnsafeCell<T>` as parameter → `const T *`
+ */
+void ref_unsafe_cell(const struct Point *x);
+
+/**
+ * `ManuallyDrop<UnsafeCell<T>>` → `T` (both transforms compose)
+ */
+void nested_manually_drop_unsafe_cell(struct Point x);
+
+/**
+ * `Option<UnsafeCell<NonNull<Point>>>` must NOT be simplified via NPO.
+ * `UnsafeCell` disables niche optimization even though `NonNull` is NPO-eligible.
+ */
+void option_unsafe_cell_nonnull(struct Option_UnsafeCell_NonNull_Point x);
+
+/**
+ * `Option<NonNull<UnsafeCell<Point>>>` SHOULD simplify to `*mut T`.
+ * NonNull provides its own niche (non-null pointer), so UnsafeCell nested inside
+ * does not prevent NPO.
+ */
+void option_nonnull_unsafe_cell(struct Point *x);
