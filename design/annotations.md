@@ -33,15 +33,15 @@ container attribute.
 
 Applied to structs, enums, unions, type aliases, functions, or statics.
 
-| Directive | Applies to | Semantics |
-|---|---|---|
-| `export` | struct, enum, union, type alias | Force inclusion in the header with a full definition, even if not reachable from any `extern "C"` item. |
-| `export(opaque)` | struct, enum, union, type alias | Force inclusion as an opaque forward declaration only. |
-| `skip` | struct, enum, union, type alias, function, static | Exclude the item from the header even if discovered via FFI traversal. |
-| `rename = "CName"` | struct, enum, union, type alias, function, static | Override the C name emitted in the header. |
-| `prefix_with_name` | enum | Prefix each variant name with the enum name (e.g. `Status_Ok`). |
-| `prefix_with_name = false` | enum | Explicitly disable variant prefixing for this enum. |
-| `field_names(a, b, …)` | struct (tuple only) | Assign C field names to positional fields. |
+| Directive                  | Applies to                                        | Semantics                                                                                               |
+| -------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `export`                   | struct, enum, union, type alias                   | Force inclusion in the header with a full definition, even if not reachable from any `extern "C"` item. |
+| `export(opaque)`           | struct, enum, union, type alias                   | Force inclusion as an opaque forward declaration only.                                                  |
+| `skip`                     | struct, enum, union, type alias, function, static | Exclude the item from the header even if discovered via FFI traversal.                                  |
+| `rename = "CName"`         | struct, enum, union, type alias, function, static | Override the C name emitted in the header.                                                              |
+| `prefix_with_name`         | enum                                              | Prefix each variant name with the enum name (e.g. `Status_Ok`).                                         |
+| `prefix_with_name = false` | enum                                              | Explicitly disable variant prefixing for this enum.                                                     |
+| `field_names(a, b, …)`     | struct (tuple only)                               | Assign C field names to positional fields.                                                              |
 
 `export` is only meaningful on types. Functions and statics with `extern "C"` +
 `#[no_mangle]` are auto-included; applying `export` to them is a compile error.
@@ -55,17 +55,17 @@ for types that are already discovered.
 
 Applied to struct fields via the same `#[cheadergen::header(...)]` syntax.
 
-| Directive | Semantics |
-|---|---|
-| `rename = "c_name"` | Override the C field name. |
-| `bitfield = N` | Emit the field as a C bitfield with width N. |
+| Directive           | Semantics                                    |
+| ------------------- | -------------------------------------------- |
+| `rename = "c_name"` | Override the C field name.                   |
+| `bitfield = N`      | Emit the field as a C bitfield with width N. |
 
 ### Variant-level
 
 Applied to enum variants via the same `#[cheadergen::header(...)]` syntax.
 
-| Directive | Semantics |
-|---|---|
+| Directive           | Semantics                    |
+| ------------------- | ---------------------------- |
 | `rename = "C_NAME"` | Override the C variant name. |
 
 ## Syntax examples
@@ -154,16 +154,16 @@ This is the same encoding trick used by [Pavex](https://github.com/LukeMathWalke
 
 ### Translation table
 
-| User writes | Proc macro emits |
-|---|---|
-| `export` | `#[diagnostic::cheadergen::export]` |
-| `export(opaque)` | `#[diagnostic::cheadergen::export(opaque)]` |
-| `skip` | `#[diagnostic::cheadergen::skip]` |
-| `rename = "Foo"` | `#[diagnostic::cheadergen::rename("Foo")]` |
-| `prefix_with_name` | `#[diagnostic::cheadergen::prefix_with_name]` |
+| User writes                | Proc macro emits                                     |
+| -------------------------- | ---------------------------------------------------- |
+| `export`                   | `#[diagnostic::cheadergen::export]`                  |
+| `export(opaque)`           | `#[diagnostic::cheadergen::export(opaque)]`          |
+| `skip`                     | `#[diagnostic::cheadergen::skip]`                    |
+| `rename = "Foo"`           | `#[diagnostic::cheadergen::rename("Foo")]`           |
+| `prefix_with_name`         | `#[diagnostic::cheadergen::prefix_with_name]`        |
 | `prefix_with_name = false` | `#[diagnostic::cheadergen::prefix_with_name(false)]` |
-| `field_names(x, y)` | `#[diagnostic::cheadergen::field_names(x, y)]` |
-| `bitfield = 8` | `#[diagnostic::cheadergen::bitfield(8)]` |
+| `field_names(x, y)`        | `#[diagnostic::cheadergen::field_names(x, y)]`       |
+| `bitfield = 8`             | `#[diagnostic::cheadergen::bitfield(8)]`             |
 
 ### Field and variant attributes
 
@@ -199,13 +199,13 @@ The proc macro rejects invalid usage at compile time:
 cbindgen uses doc-comment annotations (`/// cbindgen:rename-all=ScreamingSnakeCase`).
 cheadergen covers the C-relevant subset with proper proc-macro attributes:
 
-| cbindgen | cheadergen |
-|---|---|
-| `/// cbindgen:no-export` / `ignore` | `skip` |
-| `/// cbindgen:rename-all=...` | `rename = "..."` (per-item; global rename strategy is config) |
-| `/// cbindgen:field-names=[x, y]` | `field_names(x, y)` |
-| `/// cbindgen:prefix-with-name` | `prefix_with_name` |
-| `/// cbindgen:bitfield` | `bitfield = N` |
+| cbindgen                            | cheadergen                                                    |
+| ----------------------------------- | ------------------------------------------------------------- |
+| `/// cbindgen:no-export` / `ignore` | `skip`                                                        |
+| `/// cbindgen:rename-all=...`       | `rename = "..."` (per-item; global rename strategy is config) |
+| `/// cbindgen:field-names=[x, y]`   | `field_names(x, y)`                                           |
+| `/// cbindgen:prefix-with-name`     | `prefix_with_name`                                            |
+| `/// cbindgen:bitfield`             | `bitfield = N`                                                |
 
 C++-only cbindgen annotations (`derive-eq`, `derive-ostream`, `enum-class`,
 constructor/destructor attributes, etc.) are out of scope for the initial

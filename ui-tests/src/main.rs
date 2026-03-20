@@ -383,7 +383,7 @@ fn cmd_translate_configs() {
     println!("Found {} cbindgen.toml file(s)\n", configs.len());
 
     let build = Command::new("cargo")
-        .args(["build", "-p", "cheadergen", "--quiet"])
+        .args(["build", "-p", "cheadergen_cli", "--quiet"])
         .status();
     match build {
         Ok(s) if s.success() => {}

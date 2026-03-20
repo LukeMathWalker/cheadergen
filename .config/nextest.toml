@@ -7,7 +7,7 @@ dir = "target/nextest"
 command = ["ui-tests/tests/setup-metadata.sh"]
 
 [scripts.setup.build-cheadergen]
-command = ["cheadergen/tests/setup.sh"]
+command = ["cheadergen_cli/tests/setup.sh"]
 
 [[profile.default.scripts]]
 filter = 'test(~::generate::) | test(~::symbol::)'
