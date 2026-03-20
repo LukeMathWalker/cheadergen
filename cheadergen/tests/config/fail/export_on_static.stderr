@@ -1,0 +1,5 @@
+error: `export` cannot be applied to statics
+ --> tests/config/fail/export_on_static.rs:3:5
+  |
+3 | pub static GLOBAL: u32 = 42;
+  |     ^^^^^^

@@ -1,48 +1,49 @@
 //! Proc-macro attributes for cheadergen.
 //!
-//! Provides `#[cheadergen::export]` to force inclusion of a type in the
-//! generated C/C++ header, even when it is not referenced by any `extern "C"`
-//! function or static.
+//! Provides `#[cheadergen::config(...)]` to control how Rust items appear in
+//! the generated C/C++ header.
+
+mod directive;
+mod emit;
+mod validation;
 
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{Item, parse_macro_input};
 
-/// Force a type to be included in the generated C/C++ header.
+use directive::Directives;
+
+/// Control how a Rust item appears in the generated C/C++ header.
 ///
-/// Can be applied to structs, enums, unions, and type aliases. The type will
-/// appear in the header regardless of whether it is referenced by an
-/// `extern "C"` function or static.
-///
-/// # Example
-///
-/// ```ignore
-/// #[cheadergen::export]
-/// #[repr(C)]
-/// pub struct Config {
-///     pub width: u32,
-///     pub height: u32,
-/// }
-/// ```
+/// See `cheadergen::config` for the full directive reference.
 #[proc_macro_attribute]
-pub fn export(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    let item = parse_macro_input!(item as Item);
+pub fn config(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let directives = parse_macro_input!(attr as Directives);
+    let mut item = parse_macro_input!(item as Item);
 
-    match &item {
-        Item::Struct(_) | Item::Enum(_) | Item::Union(_) | Item::Type(_) => {}
-        _ => {
-            return syn::Error::new_spanned(
-                &item,
-                "#[cheadergen::export] can only be applied to structs, enums, unions, or type aliases",
-            )
-            .to_compile_error()
-            .into();
+    // Validate directive combinations against the item kind
+    let mut errors = validation::validate(&directives.items, &item);
+
+    // Rewrite field/variant `#[cheadergen(...)]` attrs to diagnostic form
+    errors.extend(emit::rewrite_field_attrs(&mut item));
+
+    // Emit diagnostic attributes for item-level directives
+    let diagnostic_attrs = emit::emit_diagnostic_attrs(&directives.items);
+
+    if errors.is_empty() {
+        quote! {
+            #(#diagnostic_attrs)*
+            #item
         }
+        .into()
+    } else {
+        // Emit errors alongside the original item for IDE recovery
+        let error_tokens: Vec<_> = errors.iter().map(|e| e.to_compile_error()).collect();
+        quote! {
+            #(#error_tokens)*
+            #(#diagnostic_attrs)*
+            #item
+        }
+        .into()
     }
-
-    quote! {
-        #[diagnostic::cheadergen::export]
-        #item
-    }
-    .into()
 }

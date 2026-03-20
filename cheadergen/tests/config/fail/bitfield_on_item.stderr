@@ -1,0 +1,5 @@
+error: unknown directive `bitfield`
+ --> tests/config/fail/bitfield_on_item.rs:1:22
+  |
+1 | #[cheadergen::config(bitfield = 8)]
+  |                      ^^^^^^^^

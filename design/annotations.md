@@ -4,23 +4,21 @@ cheadergen uses proc-macro attributes to let users control how Rust items appear
 the generated C/C++ header. This document specifies the annotation surface, its
 encoding, and the rules for each directive.
 
-## User-facing attribute
+## User-facing attributes
 
-All annotations go through a single attribute:
+There are two attributes, used at different levels:
 
-```rust
-#[cheadergen::header(...)]
-```
-
-The name "header" is deliberately neutral — it means "configure how this item
-appears in the generated header", covering both inclusion control (`export`,
-`skip`) and output customization (`rename`, `bitfield`, etc.).
+- **Item-level:** `#[cheadergen::config(...)]` — applied to structs, enums, unions,
+  type aliases, functions, or statics.
+- **Field/variant-level:** `#[cheadergen(...)]` — applied to struct fields or enum
+  variants. Requires an item-level `#[cheadergen::config(...)]` on the parent item
+  (without it the proc macro never fires).
 
 Using one attribute rather than many (`export`, `rename`, `skip`, …) keeps
 directives composable:
 
 ```rust
-#[cheadergen::header(export(opaque), rename = "Handle")]
+#[cheadergen::config(export(opaque), rename = "Handle")]
 pub struct InternalHandle { /* ... */ }
 ```
 
@@ -31,7 +29,8 @@ container attribute.
 
 ### Item-level
 
-Applied to structs, enums, unions, type aliases, functions, or statics.
+Applied via `#[cheadergen::config(...)]` to structs, enums, unions, type aliases,
+functions, or statics.
 
 | Directive                  | Applies to                                        | Semantics                                                                                               |
 | -------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
@@ -53,7 +52,7 @@ for types that are already discovered.
 
 ### Field-level
 
-Applied to struct fields via the same `#[cheadergen::header(...)]` syntax.
+Applied to struct fields via `#[cheadergen(...)]`.
 
 | Directive           | Semantics                                    |
 | ------------------- | -------------------------------------------- |
@@ -62,7 +61,7 @@ Applied to struct fields via the same `#[cheadergen::header(...)]` syntax.
 
 ### Variant-level
 
-Applied to enum variants via the same `#[cheadergen::header(...)]` syntax.
+Applied to enum variants via `#[cheadergen(...)]`.
 
 | Directive           | Semantics                    |
 | ------------------- | ---------------------------- |
@@ -71,10 +70,8 @@ Applied to enum variants via the same `#[cheadergen::header(...)]` syntax.
 ## Syntax examples
 
 ```rust
-use cheadergen_macros as cheadergen;
-
 // Force-include a type that isn't reachable from any extern "C" item
-#[cheadergen::header(export)]
+#[cheadergen::config(export)]
 #[repr(C)]
 pub struct Config {
     pub width: u32,
@@ -82,28 +79,28 @@ pub struct Config {
 }
 
 // Rename the C type and a field; mark a field as a bitfield
-#[cheadergen::header(export, rename = "CConfig")]
+#[cheadergen::config(export, rename = "CConfig")]
 #[repr(C)]
 pub struct Config2 {
-    #[cheadergen::header(rename = "raw_width")]
+    #[cheadergen(rename = "raw_width")]
     pub width: u32,
-    #[cheadergen::header(bitfield = 8)]
+    #[cheadergen(bitfield = 8)]
     pub flags: u8,
 }
 
 // Opaque forward declaration
-#[cheadergen::header(export(opaque))]
+#[cheadergen::config(export(opaque))]
 pub struct OpaqueHandle {
     _inner: u64,
 }
 
 // Exclude a function from the header
-#[cheadergen::header(skip)]
+#[cheadergen::config(skip)]
 #[unsafe(no_mangle)]
 pub extern "C" fn internal_helper() {}
 
 // Customize an already-discovered type (no export needed)
-#[cheadergen::header(rename = "CPoint")]
+#[cheadergen::config(rename = "CPoint")]
 #[repr(C)]
 pub struct Point {
     pub x: f64,
@@ -111,7 +108,7 @@ pub struct Point {
 }
 
 // Prefix enum variants with the enum name → Status_Ok, Status_Error
-#[cheadergen::header(prefix_with_name)]
+#[cheadergen::config(prefix_with_name)]
 #[repr(C)]
 pub enum Status {
     Ok,
@@ -120,7 +117,7 @@ pub enum Status {
 }
 
 // Disable prefix for a specific enum
-#[cheadergen::header(prefix_with_name = false)]
+#[cheadergen::config(prefix_with_name = false)]
 #[repr(C)]
 pub enum Flags {
     A,
@@ -129,15 +126,16 @@ pub enum Flags {
 }
 
 // Assign C field names to a tuple struct
-#[cheadergen::header(field_names(x, y))]
+#[cheadergen::config(field_names(x, y))]
 #[repr(C)]
 pub struct Point2D(f64, f64);
 
 // Rename a specific variant
+#[cheadergen::config(export)]
 #[repr(C)]
 pub enum Color {
     Red,
-    #[cheadergen::header(rename = "COLOR_GREEN")]
+    #[cheadergen(rename = "COLOR_GREEN")]
     Green,
     Blue,
 }
@@ -145,7 +143,7 @@ pub enum Color {
 
 ## Encoding via diagnostic attributes
 
-Users never write `#[diagnostic::...]` directly. The `#[cheadergen::header(...)]`
+Users never write `#[diagnostic::...]` directly. The `#[cheadergen::config(...)]`
 proc macro (in `cheadergen_macros`) translates each directive into a
 `#[diagnostic::cheadergen::...]` attribute that rustdoc preserves in its JSON
 output as `Attribute::Other(String)`.
@@ -168,9 +166,9 @@ This is the same encoding trick used by [Pavex](https://github.com/LukeMathWalke
 ### Field and variant attributes
 
 The parent item's proc macro invocation processes the full item token tree.
-When it encounters `#[cheadergen::header(...)]` on a field or variant, it
+When it encounters `#[cheadergen(...)]` on a field or variant, it
 rewrites it to the corresponding `#[diagnostic::cheadergen::...]` form and
-strips the original. The compiler never sees `#[cheadergen::header(...)]` on
+strips the original. The compiler never sees `#[cheadergen(...)]` on
 fields or variants — only the diagnostic encoding survives into rustdoc JSON.
 
 ### Reading annotations back

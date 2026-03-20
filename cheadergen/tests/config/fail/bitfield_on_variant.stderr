@@ -1,0 +1,5 @@
+error: `bitfield` cannot be applied to enum variants
+ --> tests/config/fail/bitfield_on_variant.rs:4:18
+  |
+4 |     #[cheadergen(bitfield = 8)]
+  |                  ^^^^^^^^

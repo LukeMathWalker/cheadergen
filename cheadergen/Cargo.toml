@@ -1,0 +1,12 @@
+[package]
+name = "cheadergen"
+version = "0.1.0"
+edition = "2024"
+description = "Annotations for controlling C/C++ header generation from Rust."
+license = "Apache-2.0"
+
+[dependencies]
+cheadergen_macros = { path = "../cheadergen_macros" }
+
+[dev-dependencies]
+trybuild = "1"

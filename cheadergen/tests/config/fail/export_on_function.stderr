@@ -1,0 +1,5 @@
+error: `export` cannot be applied to functions
+ --> tests/config/fail/export_on_function.rs:3:16
+  |
+3 | pub extern "C" fn my_func() {}
+  |                ^^

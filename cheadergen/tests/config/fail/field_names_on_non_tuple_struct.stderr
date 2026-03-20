@@ -1,0 +1,35 @@
+error: `field_names` can only be applied to tuple structs
+ --> tests/config/fail/field_names_on_non_tuple_struct.rs:3:5
+  |
+3 | pub struct Named {
+  |     ^^^^^^
+
+error: `field_names` can only be applied to tuple structs
+ --> tests/config/fail/field_names_on_non_tuple_struct.rs:9:5
+  |
+9 | pub struct Unit;
+  |     ^^^^^^
+
+error: `field_names` can only be applied to tuple structs
+  --> tests/config/fail/field_names_on_non_tuple_struct.rs:13:5
+   |
+13 | pub enum Status {
+   |     ^^^^
+
+error: `field_names` can only be applied to tuple structs
+  --> tests/config/fail/field_names_on_non_tuple_struct.rs:20:5
+   |
+20 | pub union MyUnion {
+   |     ^^^^^
+
+error: `field_names` can only be applied to tuple structs
+  --> tests/config/fail/field_names_on_non_tuple_struct.rs:27:16
+   |
+27 | pub extern "C" fn my_func() {}
+   |                ^^
+
+error: `field_names` can only be applied to tuple structs
+  --> tests/config/fail/field_names_on_non_tuple_struct.rs:31:5
+   |
+31 | pub static GLOBAL: u32 = 42;
+   |     ^^^^^^

@@ -1,0 +1,41 @@
+error: `prefix_with_name` can only be applied to enums
+ --> tests/config/fail/prefix_with_name_on_non_enum.rs:3:5
+  |
+3 | pub struct Named {
+  |     ^^^^^^
+
+error: `prefix_with_name` can only be applied to enums
+ --> tests/config/fail/prefix_with_name_on_non_enum.rs:9:5
+  |
+9 | pub struct Tuple(pub u32);
+  |     ^^^^^^
+
+error: `prefix_with_name` can only be applied to enums
+  --> tests/config/fail/prefix_with_name_on_non_enum.rs:12:5
+   |
+12 | pub struct Unit;
+   |     ^^^^^^
+
+error: `prefix_with_name` can only be applied to enums
+  --> tests/config/fail/prefix_with_name_on_non_enum.rs:16:5
+   |
+16 | pub union MyUnion {
+   |     ^^^^^
+
+error: `prefix_with_name` can only be applied to enums
+  --> tests/config/fail/prefix_with_name_on_non_enum.rs:23:16
+   |
+23 | pub extern "C" fn my_func() {}
+   |                ^^
+
+error: `prefix_with_name` can only be applied to enums
+  --> tests/config/fail/prefix_with_name_on_non_enum.rs:27:5
+   |
+27 | pub static GLOBAL: u32 = 42;
+   |     ^^^^^^
+
+error: `prefix_with_name` can only be applied to enums
+  --> tests/config/fail/prefix_with_name_on_non_enum.rs:30:5
+   |
+30 | pub type Alias = u32;
+   |     ^^^^

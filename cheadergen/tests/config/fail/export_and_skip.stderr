@@ -1,0 +1,5 @@
+error: `export` and `skip` cannot be used on the same item
+ --> tests/config/fail/export_and_skip.rs:1:30
+  |
+1 | #[cheadergen::config(export, skip)]
+  |                              ^^^^

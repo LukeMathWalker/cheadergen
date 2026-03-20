@@ -1,9 +1,7 @@
-//! Types annotated with `#[cheadergen::export]` for forced header inclusion.
-
-use cheadergen_macros as cheadergen;
+//! Types annotated with `#[cheadergen::config(export)]` for forced header inclusion.
 
 /// A config struct exported via annotation, not referenced by any FFI function.
-#[cheadergen::export]
+#[cheadergen::config(export)]
 #[repr(C)]
 pub struct Config {
     pub width: u32,
@@ -11,7 +9,7 @@ pub struct Config {
 }
 
 /// A status enum exported via annotation, not referenced by any FFI function.
-#[cheadergen::export]
+#[cheadergen::config(export)]
 #[repr(C)]
 pub enum Status {
     Ok,
@@ -20,7 +18,7 @@ pub enum Status {
 }
 
 /// A struct that is both annotated AND referenced by an FFI function.
-#[cheadergen::export]
+#[cheadergen::config(export)]
 #[repr(C)]
 pub struct Point {
     pub x: f64,
@@ -28,7 +26,7 @@ pub struct Point {
 }
 
 /// A type without `#[repr(C)]` — should produce an opaque forward declaration.
-#[cheadergen::export]
+#[cheadergen::config(export)]
 pub struct OpaqueHandle {
     _inner: u64,
 }

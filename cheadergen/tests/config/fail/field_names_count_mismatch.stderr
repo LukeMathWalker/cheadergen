@@ -1,0 +1,5 @@
+error: `field_names` has 3 names but the struct has 2 fields
+ --> tests/config/fail/field_names_count_mismatch.rs:1:22
+  |
+1 | #[cheadergen::config(field_names(x, y, z))]
+  |                      ^^^^^^^^^^^
