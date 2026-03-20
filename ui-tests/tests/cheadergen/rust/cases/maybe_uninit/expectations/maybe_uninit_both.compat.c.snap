@@ -1,0 +1,69 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 200
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+/**
+ * The `Option` type. See [the module level documentation](self) for more.
+ */
+typedef struct Option_MaybeUninit_NonNull_Point Option_MaybeUninit_NonNull_Point;
+
+typedef struct Point {
+  int32_t x;
+  int32_t y;
+} Point;
+
+typedef struct Wrapper {
+  struct Point point;
+} Wrapper;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+/**
+ * `MaybeUninit<T>` in a struct field → `T`
+ */
+void take_wrapper(struct Wrapper x);
+
+/**
+ * `MaybeUninit<T>` as parameter → `T`
+ */
+void take_maybe_uninit(struct Point x);
+
+/**
+ * `MaybeUninit<T>` as return type → `T`
+ */
+struct Point return_maybe_uninit(void);
+
+/**
+ * `&MaybeUninit<T>` as parameter → `const T *`
+ */
+void ref_maybe_uninit(const struct Point *x);
+
+/**
+ * `ManuallyDrop<MaybeUninit<T>>` → `T` (both transforms compose)
+ */
+void nested_manually_drop_maybe_uninit(struct Point x);
+
+/**
+ * `Option<MaybeUninit<NonNull<Point>>>` must NOT be simplified via NPO.
+ * `MaybeUninit` disables niche optimization even though `NonNull` is NPO-eligible.
+ */
+void option_maybe_uninit_nonnull(struct Option_MaybeUninit_NonNull_Point x);
+
+/**
+ * `Option<NonNull<MaybeUninit<Point>>>` SHOULD simplify to `*mut T`.
+ * NonNull provides its own niche (non-null pointer), so MaybeUninit nested inside
+ * does not prevent NPO.
+ */
+void option_nonnull_maybe_uninit(struct Point *x);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

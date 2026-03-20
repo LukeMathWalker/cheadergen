@@ -42,6 +42,7 @@ pub fn simplify_kind(kind: &mut CTypeKind, collection: &Collection) {
 /// - `NonNull<T>` → `*mut T`
 /// - `ManuallyDrop<T>` → `T`
 /// - `UnsafeCell<T>` → `T`
+/// - `MaybeUninit<T>` → `T`
 /// - `Option<fn(...)>` → `fn(...)` (function pointers are inherently nullable)
 /// - `Option<&T>` → `*const T` (nullable const pointer)
 /// - `Option<&mut T>` → `*mut T` (nullable mutable pointer)
@@ -85,6 +86,7 @@ fn try_simplify(ty: &mut Type, collection: &Collection) -> bool {
         || try_simplify_nonnull(ty)
         || try_simplify_manually_drop(ty)
         || try_simplify_unsafe_cell(ty)
+        || try_simplify_maybe_uninit(ty)
         || try_simplify_option(ty, collection)
 }
 
@@ -136,6 +138,25 @@ fn try_simplify_unsafe_cell(ty: &mut Type) -> bool {
         _ => return false,
     };
     if !is_unsafe_cell(path) {
+        return false;
+    }
+
+    let arg = path.generic_arguments.pop().unwrap();
+    let GenericArgument::TypeParameter(inner_ty) = arg else {
+        unreachable!();
+    };
+
+    *ty = inner_ty;
+    true
+}
+
+/// `MaybeUninit<T>` → `T`
+fn try_simplify_maybe_uninit(ty: &mut Type) -> bool {
+    let path = match ty {
+        Type::Path(p) | Type::TypeAlias(p) => p,
+        _ => return false,
+    };
+    if !is_maybe_uninit(path) {
         return false;
     }
 
@@ -286,6 +307,9 @@ fn is_user_npo_eligible(path: &PathType, collection: &Collection) -> bool {
     if is_unsafe_cell(path) {
         return false;
     }
+    if is_maybe_uninit(path) {
+        return false;
+    }
 
     let Some(inner_ty) = type_resolution::transparent_inner_type_for_path(path, collection) else {
         return false;
@@ -351,6 +375,14 @@ fn is_unsafe_cell(p: &PathType) -> bool {
     let pkg = p.package_id.repr();
     (pkg == CORE_PACKAGE_ID_REPR || pkg == STD_PACKAGE_ID_REPR)
         && p.base_type.last().map(String::as_str) == Some("UnsafeCell")
+        && p.generic_arguments.len() == 1
+        && matches!(&p.generic_arguments[0], GenericArgument::TypeParameter(_))
+}
+
+fn is_maybe_uninit(p: &PathType) -> bool {
+    let pkg = p.package_id.repr();
+    (pkg == CORE_PACKAGE_ID_REPR || pkg == STD_PACKAGE_ID_REPR)
+        && p.base_type.last().map(String::as_str) == Some("MaybeUninit")
         && p.generic_arguments.len() == 1
         && matches!(&p.generic_arguments[0], GenericArgument::TypeParameter(_))
 }
