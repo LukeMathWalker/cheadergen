@@ -2,6 +2,7 @@ use rustdoc_ir::PathType;
 use rustdoc_processor::queries::Crate;
 use rustdoc_types::ItemEnum;
 
+use crate::diagnostic::DiagnosticSink;
 use crate::indexing::CheadergenAnnotations;
 
 /// Build [`PathType`]s for items annotated with `#[cheadergen::export]`.
@@ -12,6 +13,7 @@ use crate::indexing::CheadergenAnnotations;
 pub fn annotated_path_types(
     annotations: Option<&CheadergenAnnotations>,
     krate: &Crate,
+    diagnostics: &mut DiagnosticSink,
 ) -> Vec<PathType> {
     let Some(annotations) = annotations else {
         return Vec::new();
@@ -20,9 +22,9 @@ pub fn annotated_path_types(
     let mut result = Vec::new();
     for id in &annotations.exported_ids {
         let Some(item) = krate.core.krate.index.get(id) else {
-            eprintln!(
-                "warning: annotated item {id:?} not found in crate index, skipping"
-            );
+            diagnostics
+                .warning(format!("annotated item {id:?} not found in crate index"))
+                .emit();
             continue;
         };
 
@@ -33,18 +35,24 @@ pub fn annotated_path_types(
             | ItemEnum::TypeAlias(_) => {}
             _ => {
                 let name = item.name.as_deref().unwrap_or("<unnamed>");
-                eprintln!(
-                    "warning: #[cheadergen::export] on `{name}` is not a struct, enum, union, or type alias — skipping"
-                );
+                diagnostics
+                    .warning(format!(
+                        "#[cheadergen::export] on `{name}` is not a struct, enum, union, or type alias"
+                    ))
+                    .with_span_if(item.span.as_ref())
+                    .emit();
                 continue;
             }
         }
 
         let Some(entry) = krate.import_index.items.get(id) else {
             let name = item.name.as_deref().unwrap_or("<unnamed>");
-            eprintln!(
-                "warning: annotated item `{name}` not found in import index, skipping"
-            );
+            diagnostics
+                .warning(format!(
+                    "annotated item `{name}` not found in import index"
+                ))
+                .with_span_if(item.span.as_ref())
+                .emit();
             continue;
         };
 

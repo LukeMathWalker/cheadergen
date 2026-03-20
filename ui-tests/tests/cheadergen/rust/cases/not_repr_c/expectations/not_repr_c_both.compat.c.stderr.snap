@@ -1,0 +1,16 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 204
+expression: stderr_str
+---
+warning: type `Opaque` is not #[repr(C)]
+ --> not_repr_c/src/lib.rs:6:2
+  |
+6 |   pub struct Opaque {
+  |  __-
+7 | |     pub x: f64,
+8 | |     pub y: f64,
+9 | | }
+  | |_- not #[repr(C)]
+  |
+  = help: emitting opaque forward declaration

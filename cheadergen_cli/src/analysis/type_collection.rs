@@ -5,6 +5,7 @@ use rustdoc_ir::{FreeFunction, GenericArgument, PathType, ScalarPrimitive, Type}
 use rustdoc_processor::{CORE_PACKAGE_ID_REPR, GlobalItemId, STD_PACKAGE_ID_REPR};
 
 use crate::Collection;
+use crate::diagnostic::DiagnosticSink;
 use rustdoc_types::ItemEnum;
 
 use super::type_resolution::resolve_type_kind;
@@ -337,6 +338,7 @@ pub fn collect_type_definitions(
     extra_by_value_types: &[PathType],
     collection: &Collection,
     enum_prefix_with_name: bool,
+    diagnostics: &mut DiagnosticSink,
 ) -> anyhow::Result<Vec<CTypeDefinition>> {
     let mut seen: HashMap<PathType, TypeUsage> = HashMap::new();
     for func in functions {
@@ -358,7 +360,7 @@ pub fn collect_type_definitions(
 
     // Resolve struct fields for directly-used types. This may discover new
     // transitive types that also need definitions.
-    resolve_all_type_definitions(&mut seen, collection, enum_prefix_with_name)
+    resolve_all_type_definitions(&mut seen, collection, enum_prefix_with_name, diagnostics)
 }
 
 /// Compute the cbindgen-style monomorphized C name for a type.
@@ -489,6 +491,7 @@ fn resolve_all_type_definitions(
     seen: &mut HashMap<PathType, TypeUsage>,
     collection: &Collection,
     enum_prefix_with_name: bool,
+    diagnostics: &mut DiagnosticSink,
 ) -> anyhow::Result<Vec<CTypeDefinition>> {
     // Phase 1: fixed-point loop over directly-used types.
     // By resolving all direct uses first, we ensure that a type initially seen
@@ -508,7 +511,7 @@ fn resolve_all_type_definitions(
 
         for path_type in direct {
             let name = c_type_name(&Type::Path(path_type.clone()));
-            let kind = resolve_type_kind(&name, &path_type, collection, enum_prefix_with_name)?;
+            let kind = resolve_type_kind(&name, &path_type, collection, enum_prefix_with_name, diagnostics)?;
 
             // Discover transitive field types from full definitions.
             match &kind {

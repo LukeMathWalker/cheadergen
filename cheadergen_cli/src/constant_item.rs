@@ -3,6 +3,7 @@ use rustdoc_processor::queries::Crate;
 use rustdoc_processor::GlobalItemId;
 
 use crate::Collection;
+use crate::diagnostic::DiagnosticSink;
 use rustdoc_resolver::{TypeAliasResolution, resolve_type};
 use rustdoc_types::{Item, ItemEnum};
 
@@ -18,13 +19,14 @@ pub struct ConstantItem {
 
 /// Try to resolve a constant item into a [`ConstantItem`].
 ///
-/// Returns `None` (with a warning on stderr) if:
+/// Returns `None` (with a warning diagnostic) if:
 /// - The type does not resolve to a [`ScalarPrimitive`] (non-primitive constants are unsupported).
 /// - The constant has no evaluated `value` from rustdoc.
 pub fn resolve_constant(
     item: &Item,
     krate: &Crate,
     collection: &Collection,
+    diagnostics: &mut DiagnosticSink,
 ) -> Option<ConstantItem> {
     let ItemEnum::Constant { type_, const_ } = &item.inner else {
         unreachable!("Expected a constant item");
@@ -41,7 +43,11 @@ pub fn resolve_constant(
     ) {
         Ok(t) => t,
         Err(e) => {
-            eprintln!("warning: constant `{name}`: failed to resolve type: {e}");
+            diagnostics
+                .warning(format!("constant `{name}`: failed to resolve type"))
+                .with_span_if(item.span.as_ref())
+                .with_note(e.to_string())
+                .emit();
             return None;
         }
     };
@@ -50,7 +56,10 @@ pub fn resolve_constant(
         // Bool: rustdoc emits "true"/"false", valid C as-is.
         Type::ScalarPrimitive(ScalarPrimitive::Bool) => {
             let Some(ref value) = const_.value else {
-                eprintln!("warning: constant `{name}` has no evaluated value; skipping");
+                diagnostics
+                    .warning(format!("constant `{name}` has no evaluated value"))
+                    .with_span_if(item.span.as_ref())
+                    .emit();
                 return None;
             };
             value.clone()
@@ -59,7 +68,11 @@ pub fn resolve_constant(
         // Only emit simple literals (not computed expressions).
         Type::ScalarPrimitive(ScalarPrimitive::Char) => {
             if !const_.is_literal {
-                eprintln!("warning: constant `{name}` is a computed char expression; skipping");
+                diagnostics
+                    .warning(format!("constant `{name}` is a computed char expression"))
+                    .with_span_if(item.span.as_ref())
+                    .with_help("only literal char constants are supported")
+                    .emit();
                 return None;
             }
             sanitize_char_literal(&const_.expr)
@@ -72,7 +85,10 @@ pub fn resolve_constant(
             ) =>
         {
             let Some(ref value) = const_.value else {
-                eprintln!("warning: constant `{name}` has no evaluated value; skipping");
+                diagnostics
+                    .warning(format!("constant `{name}` has no evaluated value"))
+                    .with_span_if(item.span.as_ref())
+                    .emit();
                 return None;
             };
             sanitize_rust_number(value, prim)
@@ -81,13 +97,20 @@ pub fn resolve_constant(
         // Only emit simple literals (not computed expressions).
         Type::Reference(r) if matches!(&*r.inner, Type::ScalarPrimitive(ScalarPrimitive::Str)) => {
             if !const_.is_literal {
-                eprintln!("warning: constant `{name}` is a computed string expression; skipping");
+                diagnostics
+                    .warning(format!("constant `{name}` is a computed string expression"))
+                    .with_span_if(item.span.as_ref())
+                    .with_help("only literal string constants are supported")
+                    .emit();
                 return None;
             }
             const_.expr.clone()
         }
         _ => {
-            eprintln!("warning: constant `{name}` has unsupported type; skipping");
+            diagnostics
+                .warning(format!("constant `{name}` has unsupported type"))
+                .with_span_if(item.span.as_ref())
+                .emit();
             return None;
         }
     };
@@ -111,6 +134,7 @@ pub fn resolve_assoc_constant(
     type_name: &str,
     krate: &Crate,
     collection: &Collection,
+    diagnostics: &mut DiagnosticSink,
 ) -> Option<ConstantItem> {
     let ItemEnum::AssocConst { type_, value } = &item.inner else {
         unreachable!("Expected an AssocConst item");
@@ -127,7 +151,13 @@ pub fn resolve_assoc_constant(
     ) {
         Ok(t) => t,
         Err(e) => {
-            eprintln!("warning: assoc constant `{type_name}_{const_name}`: failed to resolve type: {e}");
+            diagnostics
+                .warning(format!(
+                    "assoc constant `{type_name}_{const_name}`: failed to resolve type"
+                ))
+                .with_span_if(item.span.as_ref())
+                .with_note(e.to_string())
+                .emit();
             return None;
         }
     };
@@ -135,7 +165,12 @@ pub fn resolve_assoc_constant(
     let raw_value = match value {
         Some(v) if !v.is_empty() && v != "_" => v,
         _ => {
-            eprintln!("warning: assoc constant `{type_name}_{const_name}` has no evaluated value; skipping");
+            diagnostics
+                .warning(format!(
+                    "assoc constant `{type_name}_{const_name}` has no evaluated value"
+                ))
+                .with_span_if(item.span.as_ref())
+                .emit();
             return None;
         }
     };
@@ -155,7 +190,12 @@ pub fn resolve_assoc_constant(
             raw_value.clone()
         }
         _ => {
-            eprintln!("warning: assoc constant `{type_name}_{const_name}` has unsupported type; skipping");
+            diagnostics
+                .warning(format!(
+                    "assoc constant `{type_name}_{const_name}` has unsupported type"
+                ))
+                .with_span_if(item.span.as_ref())
+                .emit();
             return None;
         }
     };

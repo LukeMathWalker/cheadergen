@@ -1,0 +1,18 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 253
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct Opaque Opaque;
+
+typedef struct Visible {
+  uint32_t a;
+  uint32_t b;
+} Visible;
+
+struct Visible takes_opaque(struct Opaque v);

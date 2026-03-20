@@ -69,6 +69,8 @@ pub(crate) fn run_cheadergen_symbols(
     let mut command = Command::new(cheadergen);
 
     command.arg("generate");
+    command.arg("--quiet");
+    command.env("NO_COLOR", "1");
     command.arg("--metadata").arg(metadata);
     command.arg("--no-header");
     command.arg("--symbol-file").arg(symbol_file);
@@ -102,6 +104,8 @@ pub(crate) fn run_cheadergen(
     let mut command = Command::new(cheadergen);
 
     command.arg("generate");
+    command.arg("--quiet");
+    command.env("NO_COLOR", "1");
     command.arg("--metadata").arg(metadata);
 
     match language {

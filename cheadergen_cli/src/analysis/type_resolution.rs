@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use guppy::PackageId;
@@ -5,6 +6,7 @@ use rustdoc_ir::{GenericArgument, PathType, Type};
 use rustdoc_processor::GlobalItemId;
 
 use crate::Collection;
+use crate::diagnostic::DiagnosticSink;
 use rustdoc_resolver::{GenericBindings, TypeAliasResolution, resolve_type};
 use rustdoc_types::{Attribute, AttributeRepr, ItemEnum, ReprKind, StructKind, VariantKind};
 
@@ -24,9 +26,13 @@ pub(super) fn resolve_type_kind(
     path_type: &PathType,
     collection: &Collection,
     enum_prefix_with_name: bool,
+    diagnostics: &mut DiagnosticSink,
 ) -> anyhow::Result<CTypeKind> {
     let Some(id) = &path_type.rustdoc_id else {
-        eprintln!("warning: type `{name}` has no rustdoc ID; emitting forward declaration");
+        diagnostics
+            .warning(format!("type `{name}` has no rustdoc ID"))
+            .with_help("emitting forward declaration")
+            .emit();
         return Ok(CTypeKind::OpaqueStruct);
     };
 
@@ -35,10 +41,10 @@ pub(super) fn resolve_type_kind(
 
     let mut kind = match &item.inner {
         ItemEnum::Struct(struct_def) => {
-            resolve_struct_kind(name, struct_def, &item.attrs, path_type, collection)
+            resolve_struct_kind(name, struct_def, &item.attrs, path_type, collection, diagnostics)
         }
         ItemEnum::Union(union_def) => {
-            resolve_union_kind(name, union_def, &item.attrs, path_type, collection)
+            resolve_union_kind(name, union_def, &item.attrs, path_type, collection, diagnostics)
         }
         ItemEnum::Enum(enum_def) => resolve_enum_kind(
             name,
@@ -47,14 +53,19 @@ pub(super) fn resolve_type_kind(
             path_type,
             collection,
             enum_prefix_with_name,
+            diagnostics,
         ),
         ItemEnum::TypeAlias(type_alias) => {
             resolve_type_alias_kind(name, type_alias, path_type, collection)
         }
         _ => {
-            eprintln!(
-                "warning: type `{name}` is not a struct, union, enum, or type alias; emitting forward declaration"
-            );
+            diagnostics
+                .warning(format!(
+                    "type `{name}` is not a struct, union, enum, or type alias"
+                ))
+                .with_span_if(item.span.as_ref())
+                .with_help("emitting forward declaration")
+                .emit();
             Ok(CTypeKind::OpaqueStruct)
         }
     }?;
@@ -69,14 +80,18 @@ fn setup_generic_bindings(
     name: &str,
     generics: &rustdoc_types::Generics,
     path_type: &PathType,
+    diagnostics: &mut DiagnosticSink,
 ) -> Result<GenericBindings, ()> {
     let mut bindings = if has_generic_params(generics) {
         match build_generic_bindings(generics, &path_type.generic_arguments) {
             Some(bindings) => bindings,
             None => {
-                eprintln!(
-                    "warning: type `{name}` has generic type parameters; emitting forward declaration"
-                );
+                diagnostics
+                    .warning(format!(
+                        "type `{name}` has generic type parameters"
+                    ))
+                    .with_help("emitting forward declaration")
+                    .emit();
                 return Err(());
             }
         }
@@ -100,6 +115,7 @@ fn resolve_struct_kind(
     attrs: &[Attribute],
     path_type: &PathType,
     collection: &Collection,
+    diagnostics: &mut DiagnosticSink,
 ) -> anyhow::Result<CTypeKind> {
     // Check for #[repr(C)] or #[repr(transparent)].
     let is_repr_c = attrs.iter().any(|attr| {
@@ -122,11 +138,18 @@ fn resolve_struct_kind(
     });
 
     if !is_repr_c && !is_repr_transparent {
-        eprintln!("warning: type `{name}` is not #[repr(C)]; emitting opaque forward declaration");
+        let global_id = GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
+        let type_item = collection.get_item_by_global_type_id(&global_id);
+        diagnostics
+            .warning(format!("type `{name}` is not #[repr(C)]"))
+            .with_span_if(type_item.span.as_ref())
+            .with_label("not #[repr(C)]".to_string())
+            .with_help("emitting opaque forward declaration")
+            .emit();
         return Ok(CTypeKind::OpaqueStruct);
     }
 
-    let generic_bindings = match setup_generic_bindings(name, &struct_def.generics, path_type) {
+    let generic_bindings = match setup_generic_bindings(name, &struct_def.generics, path_type, diagnostics) {
         Ok(bindings) => bindings,
         Err(()) => return Ok(CTypeKind::OpaqueStruct),
     };
@@ -139,10 +162,15 @@ fn resolve_struct_kind(
                 inner: fields.into_iter().next().unwrap().type_,
             })),
             n => {
-                eprintln!(
-                    "warning: repr(transparent) type `{name}` has {n} non-ZST fields; \
-                     emitting opaque forward declaration"
-                );
+                let global_id = GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
+                let item = collection.get_item_by_global_type_id(&global_id);
+                diagnostics
+                    .warning(format!(
+                        "repr(transparent) type `{name}` has {n} non-ZST fields"
+                    ))
+                    .with_span_if(item.span.as_ref())
+                    .with_help("emitting opaque forward declaration")
+                    .emit();
                 Ok(CTypeKind::OpaqueStruct)
             }
         }
@@ -195,10 +223,14 @@ pub(crate) fn transparent_inner_type_for_path(
         return None;
     }
 
+    // Use a throwaway sink for this internal query — warnings here are
+    // not actionable by the user.
+    let mut throwaway = DiagnosticSink::new(PathBuf::new());
     let generic_bindings = setup_generic_bindings(
         path.base_type.last().map(String::as_str).unwrap_or("?"),
         &struct_def.generics,
         path,
+        &mut throwaway,
     )
     .ok()?;
 
@@ -229,7 +261,9 @@ fn resolve_type_alias_kind(
     path_type: &PathType,
     collection: &Collection,
 ) -> anyhow::Result<CTypeKind> {
-    let generic_bindings = match setup_generic_bindings(name, &type_alias.generics, path_type) {
+    // Type alias resolution doesn't emit warnings — it either works or errors.
+    let mut throwaway = DiagnosticSink::new(PathBuf::new());
+    let generic_bindings = match setup_generic_bindings(name, &type_alias.generics, path_type, &mut throwaway) {
         Ok(bindings) => bindings,
         Err(()) => return Ok(CTypeKind::OpaqueStruct),
     };
@@ -254,6 +288,7 @@ fn resolve_union_kind(
     attrs: &[Attribute],
     path_type: &PathType,
     collection: &Collection,
+    diagnostics: &mut DiagnosticSink,
 ) -> anyhow::Result<CTypeKind> {
     let is_repr_c = attrs.iter().any(|attr| {
         matches!(
@@ -265,11 +300,18 @@ fn resolve_union_kind(
         )
     });
     if !is_repr_c {
-        eprintln!("warning: union `{name}` is not #[repr(C)]; emitting opaque forward declaration");
+        let global_id = GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
+        let item = collection.get_item_by_global_type_id(&global_id);
+        diagnostics
+            .warning(format!("union `{name}` is not #[repr(C)]"))
+            .with_span_if(item.span.as_ref())
+            .with_label("not #[repr(C)]".to_string())
+            .with_help("emitting opaque forward declaration")
+            .emit();
         return Ok(CTypeKind::OpaqueUnion);
     }
 
-    let generic_bindings = match setup_generic_bindings(name, &union_def.generics, path_type) {
+    let generic_bindings = match setup_generic_bindings(name, &union_def.generics, path_type, diagnostics) {
         Ok(bindings) => bindings,
         Err(()) => return Ok(CTypeKind::OpaqueUnion),
     };
@@ -390,15 +432,22 @@ fn resolve_enum_kind(
     path_type: &PathType,
     collection: &Collection,
     enum_prefix_with_name: bool,
+    diagnostics: &mut DiagnosticSink,
 ) -> anyhow::Result<CTypeKind> {
     let Some(repr) = extract_enum_repr(attrs)? else {
-        eprintln!(
-            "warning: enum `{name}` has no C-compatible repr; emitting opaque forward declaration"
-        );
+        let global_id = GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
+        let item = collection.get_item_by_global_type_id(&global_id);
+        diagnostics
+            .warning(format!(
+                "enum `{name}` has no C-compatible repr"
+            ))
+            .with_span_if(item.span.as_ref())
+            .with_help("emitting opaque forward declaration")
+            .emit();
         return Ok(CTypeKind::OpaqueStruct);
     };
 
-    let generic_bindings = match setup_generic_bindings(name, &enum_def.generics, path_type) {
+    let generic_bindings = match setup_generic_bindings(name, &enum_def.generics, path_type, diagnostics) {
         Ok(bindings) => bindings,
         Err(()) => return Ok(CTypeKind::OpaqueStruct),
     };

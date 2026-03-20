@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use clap::{ArgAction, Parser};
 
 use crate::config::{Language, Style};
+use crate::diagnostic::{DiagnosticSink, render_diagnostics};
 use crate::{analysis, codegen, config, metadata, topological_sort};
 
 use crate::Collection;
@@ -100,18 +101,35 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
     let collection = metadata::create_collection(package_graph)?;
 
     let mut all_symbols = BTreeSet::new();
-    let mut errors: Vec<(String, anyhow::Error)> = Vec::new();
+    let ws_root: PathBuf = collection
+        .package_graph()
+        .workspace()
+        .root()
+        .to_path_buf()
+        .into();
+    let mut diagnostics = DiagnosticSink::new(ws_root);
 
     for (package_id, package_name) in &packages {
         if !cli.quiet {
             eprintln!("Generating header for `{package_name}`...");
         }
-        match generate_one_crate(package_id, package_name, &config, &collection, cli) {
+
+        match generate_one_crate(
+            package_id,
+            package_name,
+            &config,
+            &collection,
+            cli,
+            &mut diagnostics,
+        ) {
             Ok(symbols) => {
                 all_symbols.extend(symbols);
             }
             Err(e) => {
-                errors.push((package_name.clone(), e));
+                diagnostics
+                    .error(format!("failed to generate header for `{package_name}`"))
+                    .with_note(format!("{e:?}"))
+                    .emit();
             }
         }
     }
@@ -121,12 +139,16 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
         codegen::write_symbol_file(&all_symbols, symbol_file)?;
     }
 
-    // Report any errors.
-    if !errors.is_empty() {
-        for (name, e) in &errors {
-            eprintln!("Error generating header for `{name}`: {e:?}");
+    // Render and print diagnostics.
+    if !diagnostics.is_empty() {
+        let all = diagnostics.drain();
+        let use_color = std::env::var("NO_COLOR").is_err();
+        let rendered = render_diagnostics(&all, use_color);
+        eprint!("{rendered}");
+
+        if all.iter().any(|d| d.severity == crate::diagnostic::Severity::Error) {
+            anyhow::bail!("aborting due to previous error(s)");
         }
-        anyhow::bail!("Failed to generate headers for {} crate(s)", errors.len());
     }
 
     Ok(())
@@ -140,6 +162,7 @@ fn generate_one_crate(
     config: &config::Config,
     collection: &Collection,
     cli: &GenerateArgs,
+    diagnostics: &mut DiagnosticSink,
 ) -> anyhow::Result<BTreeSet<String>> {
     let krate = collection
         .get_or_compute(package_id)
@@ -221,12 +244,20 @@ fn generate_one_crate(
             krate,
         );
 
-        let resolved_fns =
-            analysis::resolve_functions(&extern_items.fn_ids, krate, collection)?;
-        let resolved_statics =
-            analysis::resolve_statics(&extern_items.static_ids, krate, collection)?;
+        let resolved_fns = analysis::resolve_functions(
+            &extern_items.fn_ids,
+            krate,
+            collection,
+            diagnostics,
+        );
+        let resolved_statics = analysis::resolve_statics(
+            &extern_items.static_ids,
+            krate,
+            collection,
+            diagnostics,
+        );
         let resolved_constants =
-            analysis::resolve_constants(&extern_items.constant_ids, krate, collection);
+            analysis::resolve_constants(&extern_items.constant_ids, krate, collection, diagnostics);
 
         if !cli.quiet {
             eprintln!("Resolved {} function(s) to IR", resolved_fns.len());
@@ -235,7 +266,7 @@ fn generate_one_crate(
         }
 
         let annotations = collection.get_annotated_items(package_id);
-        let extra_types = analysis::annotated_path_types(annotations, krate);
+        let extra_types = analysis::annotated_path_types(annotations, krate, diagnostics);
 
         let mut type_defs = analysis::collect_type_definitions(
             &resolved_fns,
@@ -243,15 +274,16 @@ fn generate_one_crate(
             &extra_types,
             collection,
             c_config.enum_prefix_with_name,
+            diagnostics,
         )?;
 
         // First, establish a baseline source order (type_defs come from a
         // HashMap and have no inherent order). Then apply topological sort
         // to reorder compounds so by-value dependencies are defined first.
         analysis::sort_by_key(&mut type_defs, config::SortKey::SourceOrder, collection);
-        topological_sort::topological_sort(&mut type_defs, collection);
+        topological_sort::topological_sort(&mut type_defs, collection, diagnostics);
 
-        let assoc_constants = analysis::find_assoc_constants(&type_defs, krate, collection);
+        let assoc_constants = analysis::find_assoc_constants(&type_defs, krate, collection, diagnostics);
 
         let mut header = String::new();
         codegen::generate_c_header(

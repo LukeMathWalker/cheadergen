@@ -4,6 +4,7 @@ use rustdoc_ir::FreeFunction;
 use rustdoc_processor::queries::Crate;
 
 use crate::Collection;
+use crate::diagnostic::DiagnosticSink;
 use rustdoc_resolver::{TypeAliasResolution, resolve_free_function};
 use rustdoc_types::{Abi, Attribute, ItemEnum};
 
@@ -53,21 +54,35 @@ pub fn find_extern_items(krate: &Crate) -> ExternItems {
 }
 
 /// Resolve each extern "C" function ID into the IR, validating types along the way.
+///
+/// On error, pushes a diagnostic and skips the function rather than aborting.
 pub fn resolve_functions(
     fn_ids: &[rustdoc_types::Id],
     krate: &Crate,
     collection: &Collection,
-) -> anyhow::Result<Vec<FreeFunction>> {
+    diagnostics: &mut DiagnosticSink,
+) -> Vec<FreeFunction> {
     let mut resolved_fns = Vec::new();
     for id in fn_ids {
-        let item = krate
-            .core
-            .krate
-            .index
-            .get(id)
-            .ok_or_else(|| anyhow::anyhow!("Missing item for id {:?}", id))?;
-        let mut free_fn = resolve_free_function(&item, krate, collection, TypeAliasResolution::Preserve)
-            .map_err(|e| anyhow::anyhow!("Failed to resolve function: {e}"))?;
+        let Some(item) = krate.core.krate.index.get(id) else {
+            diagnostics
+                .error(format!("missing item for function id {id:?}"))
+                .emit();
+            continue;
+        };
+        let name = item.name.as_deref().unwrap_or("<unnamed>");
+        let mut free_fn =
+            match resolve_free_function(&item, krate, collection, TypeAliasResolution::Preserve) {
+                Ok(f) => f,
+                Err(e) => {
+                    diagnostics
+                        .error(format!("failed to resolve function `{name}`"))
+                        .with_span_if(item.span.as_ref())
+                        .with_note(e.to_string())
+                        .emit();
+                    continue;
+                }
+            };
 
         for input in &mut free_fn.header.inputs {
             type_transform::simplify_type(&mut input.type_, collection);
@@ -78,29 +93,42 @@ pub fn resolve_functions(
 
         resolved_fns.push(free_fn);
     }
-    Ok(resolved_fns)
+    resolved_fns
 }
 
 /// Resolve each exported static ID into a [`StaticItem`].
+///
+/// On error, pushes a diagnostic and skips the static rather than aborting.
 pub fn resolve_statics(
     static_ids: &[rustdoc_types::Id],
     krate: &Crate,
     collection: &Collection,
-) -> anyhow::Result<Vec<StaticItem>> {
+    diagnostics: &mut DiagnosticSink,
+) -> Vec<StaticItem> {
     let mut resolved = Vec::new();
     for id in static_ids {
-        let item = krate
-            .core
-            .krate
-            .index
-            .get(id)
-            .ok_or_else(|| anyhow::anyhow!("Missing item for id {:?}", id))?;
-        let mut static_item = resolve_static(&item, krate, collection)
-            .map_err(|e| anyhow::anyhow!("Failed to resolve static: {e}"))?;
+        let Some(item) = krate.core.krate.index.get(id) else {
+            diagnostics
+                .error(format!("missing item for static id {id:?}"))
+                .emit();
+            continue;
+        };
+        let name = item.name.as_deref().unwrap_or("<unnamed>");
+        let mut static_item = match resolve_static(&item, krate, collection) {
+            Ok(s) => s,
+            Err(e) => {
+                diagnostics
+                    .error(format!("failed to resolve static `{name}`"))
+                    .with_span_if(item.span.as_ref())
+                    .with_note(e.to_string())
+                    .emit();
+                continue;
+            }
+        };
         type_transform::simplify_type(&mut static_item.type_, collection);
         resolved.push(static_item);
     }
-    Ok(resolved)
+    resolved
 }
 
 /// Resolve each constant ID into a [`ConstantItem`], skipping unsupported types.
@@ -108,13 +136,14 @@ pub fn resolve_constants(
     constant_ids: &[rustdoc_types::Id],
     krate: &Crate,
     collection: &Collection,
+    diagnostics: &mut DiagnosticSink,
 ) -> Vec<ConstantItem> {
     let mut resolved = Vec::new();
     for id in constant_ids {
         let Some(item) = krate.core.krate.index.get(id) else {
             continue;
         };
-        if let Some(constant) = resolve_constant(&item, krate, collection) {
+        if let Some(constant) = resolve_constant(&item, krate, collection, diagnostics) {
             resolved.push(constant);
         }
     }
@@ -157,6 +186,7 @@ pub fn find_assoc_constants(
     type_defs: &[CTypeDefinition],
     krate: &Crate,
     collection: &Collection,
+    diagnostics: &mut DiagnosticSink,
 ) -> Vec<(String, Vec<ConstantItem>)> {
     let mut result = Vec::new();
 
@@ -200,7 +230,9 @@ pub fn find_assoc_constants(
                 if !matches!(assoc_item.inner, ItemEnum::AssocConst { .. }) {
                     continue;
                 }
-                if let Some(c) = resolve_assoc_constant(&assoc_item, &def.name, krate, collection) {
+                if let Some(c) =
+                    resolve_assoc_constant(&assoc_item, &def.name, krate, collection, diagnostics)
+                {
                     constants.push(c);
                 }
             }

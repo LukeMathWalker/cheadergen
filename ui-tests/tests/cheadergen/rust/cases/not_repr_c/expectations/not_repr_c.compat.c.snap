@@ -1,0 +1,26 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 253
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct Opaque Opaque;
+
+typedef struct {
+  uint32_t a;
+  uint32_t b;
+} Visible;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+Visible takes_opaque(Opaque v);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

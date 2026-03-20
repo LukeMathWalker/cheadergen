@@ -13,6 +13,7 @@ name = "cheadergen"
 path = "src/main.rs"
 
 [dependencies]
+annotate-snippets = "0.11"
 anyhow = "1"
 bincode = "2"
 camino = "1"

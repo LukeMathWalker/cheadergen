@@ -74,6 +74,12 @@ pub fn run_generate_test(
 
     let content = find_generated_file(output_dir.path(), language);
     compare_snapshot(name, path, language, style, cpp_compat, &content);
+
+    // Snapshot stderr diagnostics when the test case opts in via a
+    // `snapshot_diagnostics` marker in its `test.toml`.
+    if has_snapshot_diagnostics_marker(path) && !output.stderr.is_empty() {
+        snapshot_stderr(name, path, language, style, cpp_compat, &output.stderr);
+    }
 }
 
 pub fn run_symbol_test(name: &str, path: &Path) {
@@ -123,6 +129,8 @@ pub fn run_expected_failure_test(
     let output_dir = tempfile::tempdir().expect("failed to create temp dir");
     let output = invoke_cheadergen(name, path, language, style, cpp_compat, output_dir.path());
     if !output.status.success() {
+        // Snapshot the stderr diagnostics for the failure case.
+        snapshot_stderr(name, path, language, style, cpp_compat, &output.stderr);
         return;
     }
 
@@ -150,6 +158,51 @@ pub fn run_expected_symbol_failure_test(name: &str, path: &Path) {
              remove the symbol xfail marker from the case's test.toml"
         );
     }
+}
+
+/// Returns true if the test case directory contains a `snapshot_diagnostics` marker file.
+fn has_snapshot_diagnostics_marker(path: &Path) -> bool {
+    path.join("snapshot_diagnostics").exists()
+}
+
+fn snapshot_stderr(
+    name: &str,
+    path: &Path,
+    language: Language,
+    style: Option<Style>,
+    cpp_compat: bool,
+    stderr: &[u8],
+) {
+    let stderr_str = str::from_utf8(stderr).unwrap_or_default();
+    if stderr_str.is_empty() {
+        return;
+    }
+
+    let expectations_dir = path.join("expectations");
+
+    let style_ext = style
+        .map(|style| match style {
+            Style::Both => "_both",
+            Style::Tag => "_tag",
+            Style::Type => "",
+        })
+        .unwrap_or_default();
+    let lang_ext = match language {
+        Language::Cxx => ".cpp",
+        Language::C if cpp_compat => ".compat.c",
+        Language::C => ".c",
+        Language::Cython => ".pyx",
+    };
+
+    let snap_name =
+        format!("{name}{style_ext}{lang_ext}.stderr").replace(SKIP_WARNING_AS_ERROR_SUFFIX, "");
+
+    let mut settings = insta::Settings::clone_current();
+    settings.set_snapshot_path(&expectations_dir);
+    settings.set_prepend_module_to_snapshot(false);
+    settings.bind(|| {
+        insta::assert_snapshot!(snap_name, stderr_str);
+    });
 }
 
 fn compare_snapshot(

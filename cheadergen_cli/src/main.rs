@@ -3,6 +3,7 @@ mod cli;
 mod codegen;
 mod config;
 mod constant_item;
+mod diagnostic;
 mod indexing;
 mod metadata;
 mod static_item;

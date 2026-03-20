@@ -4,6 +4,7 @@ use rustdoc_ir::Type;
 
 use crate::Collection;
 use crate::analysis::{CTypeDefinition, CTypeKind, c_type_name, span_sort_key_global};
+use crate::diagnostic::DiagnosticSink;
 
 /// Sort type definitions in dependency order: types used **by value** in
 /// another type's fields are emitted first.
@@ -17,6 +18,7 @@ use crate::analysis::{CTypeDefinition, CTypeKind, c_type_name, span_sort_key_glo
 pub fn topological_sort(
     type_defs: &mut Vec<CTypeDefinition>,
     collection: &Collection,
+    diagnostics: &mut DiagnosticSink,
 ) {
     // Only compound types (structs, tagged unions) participate in ordering.
     // Fieldless enums and opaques have no by-value dependencies on other compounds.
@@ -117,10 +119,10 @@ pub fn topological_sort(
 
     // Handle cycles.
     if sorted_indices.len() < n {
-        eprintln!(
-            "warning: cycle detected in by-value type dependencies; \
-             appending remaining types in source order"
-        );
+        diagnostics
+            .warning("cycle detected in by-value type dependencies")
+            .with_help("appending remaining types in source order")
+            .emit();
         let in_sorted: std::collections::HashSet<usize> = sorted_indices.iter().copied().collect();
         let mut remaining: Vec<usize> = (0..n).filter(|i| !in_sorted.contains(i)).collect();
         remaining.sort_by_key(|&i| {

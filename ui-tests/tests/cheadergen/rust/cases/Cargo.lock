@@ -129,6 +129,10 @@ name = "nonnull_pointers"
 version = "0.1.0"
 
 [[package]]
+name = "not_repr_c"
+version = "0.1.0"
+
+[[package]]
 name = "opaque_union"
 version = "0.1.0"
 
