@@ -21,7 +21,7 @@ pub fn render_diagnostics(diagnostics: &[Diagnostic], use_color: bool) -> String
     for diagnostic in diagnostics {
         let rendered = render_one(diagnostic, &renderer, &mut file_cache);
         if !output.is_empty() {
-            output.push('\n');
+            output.push_str("\n\n");
         }
         output.push_str(&rendered);
     }
