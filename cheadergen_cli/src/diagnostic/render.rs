@@ -64,6 +64,22 @@ fn render_one(
         message = message.footer(Level::Note.title(note));
     }
 
+    // Add error chain as note footers.
+    // Temporaries for formatted "caused by" strings must outlive `message`.
+    let caused_by: Vec<String> = diagnostic
+        .error_chain
+        .get(1..)
+        .unwrap_or_default()
+        .iter()
+        .map(|cause| format!("caused by: {cause}"))
+        .collect();
+    if let Some(first) = diagnostic.error_chain.first() {
+        message = message.footer(Level::Note.title(first));
+        for text in &caused_by {
+            message = message.footer(Level::Note.title(text));
+        }
+    }
+
     // Add help as footer.
     if let Some(ref help) = diagnostic.help {
         message = message.footer(Level::Help.title(help));

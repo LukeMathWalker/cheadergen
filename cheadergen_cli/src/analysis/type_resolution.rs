@@ -225,7 +225,7 @@ pub(crate) fn transparent_inner_type_for_path(
 
     // Use a throwaway sink for this internal query — warnings here are
     // not actionable by the user.
-    let mut throwaway = DiagnosticSink::new(PathBuf::new());
+    let mut throwaway = DiagnosticSink::new(PathBuf::new(), false);
     let generic_bindings = setup_generic_bindings(
         path.base_type.last().map(String::as_str).unwrap_or("?"),
         &struct_def.generics,
@@ -262,7 +262,7 @@ fn resolve_type_alias_kind(
     collection: &Collection,
 ) -> anyhow::Result<CTypeKind> {
     // Type alias resolution doesn't emit warnings — it either works or errors.
-    let mut throwaway = DiagnosticSink::new(PathBuf::new());
+    let mut throwaway = DiagnosticSink::new(PathBuf::new(), false);
     let generic_bindings = match setup_generic_bindings(name, &type_alias.generics, path_type, &mut throwaway) {
         Ok(bindings) => bindings,
         Err(()) => return Ok(CTypeKind::OpaqueStruct),

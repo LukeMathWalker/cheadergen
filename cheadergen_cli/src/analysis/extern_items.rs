@@ -78,7 +78,7 @@ pub fn resolve_functions(
                     diagnostics
                         .error(format!("failed to resolve function `{name}`"))
                         .with_span_if(item.span.as_ref())
-                        .with_note(e.to_string())
+                        .with_error_chain(&e)
                         .emit();
                     continue;
                 }
@@ -120,7 +120,7 @@ pub fn resolve_statics(
                 diagnostics
                     .error(format!("failed to resolve static `{name}`"))
                     .with_span_if(item.span.as_ref())
-                    .with_note(e.to_string())
+                    .with_error_chain(&e)
                     .emit();
                 continue;
             }

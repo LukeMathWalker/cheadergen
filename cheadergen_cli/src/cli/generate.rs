@@ -119,7 +119,8 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
         .root()
         .to_path_buf()
         .into();
-    let mut diagnostics = DiagnosticSink::new(ws_root);
+    let debug = std::env::var("CHEADERGEN_DEBUG").is_ok_and(|v| v == "true" || v == "1");
+    let mut diagnostics = DiagnosticSink::new(ws_root, debug);
 
     for (package_id, package_name) in &packages {
         if !cli.quiet {
@@ -140,7 +141,7 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
             Err(e) => {
                 diagnostics
                     .error(format!("failed to generate header for `{package_name}`"))
-                    .with_note(format!("{e:?}"))
+                    .with_error_chain(e.as_ref())
                     .emit();
             }
         }
@@ -153,10 +154,15 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
 
     // Render and print diagnostics.
     if !diagnostics.is_empty() {
+        let has_hidden_causes = diagnostics.has_hidden_causes();
         let all = diagnostics.drain();
         let use_color = std::env::var("NO_COLOR").is_err();
         let rendered = render_diagnostics(&all, use_color);
         eprint!("{rendered}");
+
+        if !debug && has_hidden_causes {
+            eprintln!("note: rerun with `CHEADERGEN_DEBUG=true` for more details");
+        }
 
         if all.iter().any(|d| d.severity == crate::diagnostic::Severity::Error) {
             anyhow::bail!("aborting due to previous error(s)");

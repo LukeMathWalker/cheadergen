@@ -32,20 +32,31 @@ pub struct Diagnostic {
     pub source_location: Option<SourceLocation>,
     pub help: Option<String>,
     pub notes: Vec<String>,
+    pub error_chain: Vec<String>,
+    /// True when the full error chain was truncated (debug mode off, chain > 1).
+    pub has_hidden_causes: bool,
 }
 
 /// Collects diagnostics emitted during analysis.
 pub struct DiagnosticSink {
     diagnostics: Vec<Diagnostic>,
     workspace_root: PathBuf,
+    debug: bool,
 }
 
 impl DiagnosticSink {
-    pub fn new(workspace_root: PathBuf) -> Self {
+    pub fn new(workspace_root: PathBuf, debug: bool) -> Self {
         Self {
             diagnostics: Vec::new(),
             workspace_root,
+            debug,
         }
+    }
+
+    /// Returns true if any diagnostic carries hidden causes (chain length > 1)
+    /// that would be revealed in debug mode.
+    pub fn has_hidden_causes(&self) -> bool {
+        self.diagnostics.iter().any(|d| d.has_hidden_causes)
     }
 
     pub fn warning(&mut self, msg: impl Into<String>) -> DiagnosticBuilder<'_> {
@@ -57,6 +68,8 @@ impl DiagnosticSink {
                 source_location: None,
                 help: None,
                 notes: Vec::new(),
+                error_chain: Vec::new(),
+                has_hidden_causes: false,
             },
         }
     }
@@ -70,6 +83,8 @@ impl DiagnosticSink {
                 source_location: None,
                 help: None,
                 notes: Vec::new(),
+                error_chain: Vec::new(),
+                has_hidden_causes: false,
             },
         }
     }
@@ -139,8 +154,25 @@ impl DiagnosticBuilder<'_> {
     }
 
     /// Add a note to the diagnostic.
+    #[allow(dead_code)]
     pub fn with_note(mut self, note: impl Into<String>) -> Self {
         self.diagnostic.notes.push(note.into());
+        self
+    }
+
+    /// Walk the error's source chain. In normal mode, stores only the
+    /// top-level message. In debug mode, stores the full chain.
+    pub fn with_error_chain(mut self, error: &dyn std::error::Error) -> Self {
+        self.diagnostic.error_chain.push(error.to_string());
+        let mut current = error.source();
+        if self.sink.debug {
+            while let Some(cause) = current {
+                self.diagnostic.error_chain.push(cause.to_string());
+                current = cause.source();
+            }
+        } else if current.is_some() {
+            self.diagnostic.has_hidden_causes = true;
+        }
         self
     }
 

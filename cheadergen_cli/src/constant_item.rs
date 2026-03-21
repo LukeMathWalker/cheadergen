@@ -46,7 +46,7 @@ pub fn resolve_constant(
             diagnostics
                 .warning(format!("constant `{name}`: failed to resolve type"))
                 .with_span_if(item.span.as_ref())
-                .with_note(e.to_string())
+                .with_error_chain(&e)
                 .emit();
             return None;
         }
@@ -156,7 +156,7 @@ pub fn resolve_assoc_constant(
                     "assoc constant `{type_name}_{const_name}`: failed to resolve type"
                 ))
                 .with_span_if(item.span.as_ref())
-                .with_note(e.to_string())
+                .with_error_chain(&e)
                 .emit();
             return None;
         }
