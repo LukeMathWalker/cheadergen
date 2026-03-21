@@ -429,6 +429,11 @@ pub(super) fn collect_paths_from_type(
 ) {
     match ty {
         Type::Path(p) | Type::TypeAlias(p) => {
+            // FFI primitive types (c_int, c_void, etc.) map directly to native
+            // C types — never collect them so no typedef or opaque is emitted.
+            if ffi_primitive_to_c(p).is_some() {
+                return;
+            }
             let entry = seen
                 .entry(canonical_path_key(p))
                 .or_insert(TypeUsage::BehindPointer);
@@ -485,6 +490,32 @@ pub(super) fn is_zst_type(ty: &Type) -> bool {
     }
 }
 
+/// If `path` is a `std::ffi` / `core::ffi` primitive type alias, return
+/// the native C type name it maps to. Returns `None` for non-FFI types.
+pub fn ffi_primitive_to_c(path: &PathType) -> Option<&'static str> {
+    let pkg = path.package_id.repr();
+    if pkg != CORE_PACKAGE_ID_REPR && pkg != STD_PACKAGE_ID_REPR {
+        return None;
+    }
+    match path.base_type.last().map(String::as_str)? {
+        "c_char" => Some("char"),
+        "c_schar" => Some("signed char"),
+        "c_uchar" => Some("unsigned char"),
+        "c_short" => Some("short"),
+        "c_ushort" => Some("unsigned short"),
+        "c_int" => Some("int"),
+        "c_uint" => Some("unsigned int"),
+        "c_long" => Some("long"),
+        "c_ulong" => Some("unsigned long"),
+        "c_longlong" => Some("long long"),
+        "c_ulonglong" => Some("unsigned long long"),
+        "c_float" => Some("float"),
+        "c_double" => Some("double"),
+        "c_void" => Some("void"),
+        _ => None,
+    }
+}
+
 /// Resolve all collected types into `CTypeDefinition`s, iterating to a fixed
 /// point to discover transitive field types.
 fn resolve_all_type_definitions(
@@ -510,6 +541,7 @@ fn resolve_all_type_definitions(
         }
 
         for path_type in direct {
+
             let name = c_type_name(&Type::Path(path_type.clone()));
             let kind = resolve_type_kind(&name, &path_type, collection, enum_prefix_with_name, diagnostics)?;
 

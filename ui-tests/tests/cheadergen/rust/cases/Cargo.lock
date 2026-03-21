@@ -73,6 +73,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "ffi_primitives"
+version = "0.1.0"
+
+[[package]]
 name = "fieldless_enum"
 version = "0.1.0"
 

@@ -1,0 +1,57 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 253
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+struct MixedFfi {
+  char character;
+  int count;
+  unsigned long size;
+  double ratio;
+  void *data;
+};
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+char accept_char(char x);
+
+signed char accept_schar(signed char x);
+
+unsigned char accept_uchar(unsigned char x);
+
+short accept_short(short x);
+
+unsigned short accept_ushort(unsigned short x);
+
+int accept_int(int x);
+
+unsigned int accept_uint(unsigned int x);
+
+long accept_long(long x);
+
+unsigned long accept_ulong(unsigned long x);
+
+long long accept_longlong(long long x);
+
+unsigned long long accept_ulonglong(unsigned long long x);
+
+float accept_float(float x);
+
+double accept_double(double x);
+
+void *accept_void_ptr(void *x);
+
+const void *accept_const_void_ptr(const void *x);
+
+struct MixedFfi accept_mixed(struct MixedFfi x);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

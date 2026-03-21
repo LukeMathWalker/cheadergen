@@ -4,7 +4,7 @@ use std::path::Path;
 
 use crate::analysis::{
     CEnumRepr, CFieldlessEnumDef, CIdentifier, CStructDef, CTaggedUnionDef, CTypedefDef,
-    CTypeDefinition, CTypeKind, CUnionDef, c_type_name,
+    CTypeDefinition, CTypeKind, CUnionDef, c_type_name, ffi_primitive_to_c,
 };
 use crate::config::{CConfig, CommonConfig, DocumentationLength, DocumentationStyle, Style};
 use crate::constant_item::ConstantItem;
@@ -407,7 +407,11 @@ fn write_c_type(ty: &Type, style: &Style, type_tags: &HashMap<String, CTypeTag>,
         Type::FunctionPointer(fp) => {
             write_fn_ptr_decl(fp, "", style, type_tags, out);
         }
-        Type::Path(_) | Type::TypeAlias(_) => {
+        Type::Path(p) | Type::TypeAlias(p) => {
+            if let Some(c_name) = ffi_primitive_to_c(p) {
+                out.push_str(c_name);
+                return;
+            }
             let name = c_type_name(ty);
             match style {
                 Style::Tag | Style::Both => {

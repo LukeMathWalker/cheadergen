@@ -12,7 +12,7 @@ pub use extern_items::{
 pub use type_collection::{
     CEnumRepr, CEnumVariant, CFieldlessEnumDef, CIdentifier, CStructDef, CTaggedUnionDef,
     CTypeKind, CTypeDefinition, CTypedefDef, CUnionDef, c_type_name,
-    collect_type_definitions,
+    collect_type_definitions, ffi_primitive_to_c,
 };
 use rustdoc_processor::queries::Crate;
 use rustdoc_processor::GlobalItemId;
