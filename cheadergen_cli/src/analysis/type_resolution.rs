@@ -80,6 +80,7 @@ fn setup_generic_bindings(
     name: &str,
     generics: &rustdoc_types::Generics,
     path_type: &PathType,
+    span: Option<&rustdoc_types::Span>,
     diagnostics: &mut DiagnosticSink,
 ) -> Result<GenericBindings, ()> {
     let mut bindings = if has_generic_params(generics) {
@@ -90,6 +91,7 @@ fn setup_generic_bindings(
                     .warning(format!(
                         "type `{name}` has generic type parameters"
                     ))
+                    .with_span_if(span)
                     .with_help("emitting forward declaration")
                     .emit();
                 return Err(());
@@ -149,7 +151,9 @@ fn resolve_struct_kind(
         return Ok(CTypeKind::OpaqueStruct);
     }
 
-    let generic_bindings = match setup_generic_bindings(name, &struct_def.generics, path_type, diagnostics) {
+    let global_id_for_span = GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
+    let item_for_span = collection.get_item_by_global_type_id(&global_id_for_span);
+    let generic_bindings = match setup_generic_bindings(name, &struct_def.generics, path_type, item_for_span.span.as_ref(), diagnostics) {
         Ok(bindings) => bindings,
         Err(()) => return Ok(CTypeKind::OpaqueStruct),
     };
@@ -230,6 +234,7 @@ pub(crate) fn transparent_inner_type_for_path(
         path.base_type.last().map(String::as_str).unwrap_or("?"),
         &struct_def.generics,
         path,
+        None,
         &mut throwaway,
     )
     .ok()?;
@@ -263,7 +268,7 @@ fn resolve_type_alias_kind(
 ) -> anyhow::Result<CTypeKind> {
     // Type alias resolution doesn't emit warnings — it either works or errors.
     let mut throwaway = DiagnosticSink::new(PathBuf::new(), false);
-    let generic_bindings = match setup_generic_bindings(name, &type_alias.generics, path_type, &mut throwaway) {
+    let generic_bindings = match setup_generic_bindings(name, &type_alias.generics, path_type, None, &mut throwaway) {
         Ok(bindings) => bindings,
         Err(()) => return Ok(CTypeKind::OpaqueStruct),
     };
@@ -311,7 +316,9 @@ fn resolve_union_kind(
         return Ok(CTypeKind::OpaqueUnion);
     }
 
-    let generic_bindings = match setup_generic_bindings(name, &union_def.generics, path_type, diagnostics) {
+    let global_id_for_span = GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
+    let item_for_span = collection.get_item_by_global_type_id(&global_id_for_span);
+    let generic_bindings = match setup_generic_bindings(name, &union_def.generics, path_type, item_for_span.span.as_ref(), diagnostics) {
         Ok(bindings) => bindings,
         Err(()) => return Ok(CTypeKind::OpaqueUnion),
     };
@@ -447,7 +454,9 @@ fn resolve_enum_kind(
         return Ok(CTypeKind::OpaqueStruct);
     };
 
-    let generic_bindings = match setup_generic_bindings(name, &enum_def.generics, path_type, diagnostics) {
+    let global_id_for_span = GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
+    let item_for_span = collection.get_item_by_global_type_id(&global_id_for_span);
+    let generic_bindings = match setup_generic_bindings(name, &enum_def.generics, path_type, item_for_span.span.as_ref(), diagnostics) {
         Ok(bindings) => bindings,
         Err(()) => return Ok(CTypeKind::OpaqueStruct),
     };

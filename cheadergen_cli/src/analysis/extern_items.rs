@@ -5,7 +5,9 @@ use rustdoc_processor::queries::Crate;
 
 use crate::Collection;
 use crate::diagnostic::DiagnosticSink;
-use rustdoc_resolver::{TypeAliasResolution, resolve_free_function};
+use rustdoc_resolver::{
+    CallableResolutionError, TypeAliasResolution, resolve_free_function,
+};
 use rustdoc_types::{Abi, Attribute, ItemEnum};
 
 use super::type_transform;
@@ -71,14 +73,39 @@ pub fn resolve_functions(
             continue;
         };
         let name = item.name.as_deref().unwrap_or("<unnamed>");
+        let ItemEnum::Function(func_inner) = &item.inner else {
+            continue;
+        };
         let mut free_fn =
             match resolve_free_function(&item, krate, collection, TypeAliasResolution::Preserve) {
                 Ok(f) => f,
                 Err(e) => {
+                    let (msg, source): (String, &dyn std::error::Error) = match &e {
+                        CallableResolutionError::InputParameterResolutionError(inner) => {
+                            let param_name = func_inner
+                                .sig
+                                .inputs
+                                .get(inner.parameter_index)
+                                .map(|(name, _)| name.as_str())
+                                .unwrap_or("?");
+                            (
+                                format!("failed to resolve type of parameter `{param_name}` in function `{name}`"),
+                                (*inner.source).as_ref() as _,
+                            )
+                        }
+                        CallableResolutionError::OutputTypeResolutionError(inner) => (
+                            format!("failed to resolve return type of function `{name}`"),
+                            (*inner.source).as_ref() as _,
+                        ),
+                        CallableResolutionError::SelfResolutionError(inner) => (
+                            format!("failed to resolve `Self` type for `{name}`"),
+                            (*inner.source).as_ref() as _,
+                        ),
+                    };
                     diagnostics
-                        .error(format!("failed to resolve function `{name}`"))
+                        .error(msg)
                         .with_span_if(item.span.as_ref())
-                        .with_error_chain(&e)
+                        .with_error_chain(source)
                         .emit();
                     continue;
                 }
@@ -120,7 +147,7 @@ pub fn resolve_statics(
                 diagnostics
                     .error(format!("failed to resolve static `{name}`"))
                     .with_span_if(item.span.as_ref())
-                    .with_error_chain(&e)
+                    .with_error_chain(&*e.source)
                     .emit();
                 continue;
             }
