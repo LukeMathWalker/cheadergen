@@ -2,137 +2,15 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::BTreeMap;
 use std::env;
-use std::fs::{self, File};
+use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum VariantStatus {
-    Normal,
-    Xfail,
-    Skip,
-    Exclude,
-}
-
-fn read_test_manifest(case_path: &Path) -> HashMap<String, VariantStatus> {
-    let toml_path = case_path.join("test.toml");
-    println!("cargo:rerun-if-changed={}", toml_path.display());
-    let content = fs::read_to_string(&toml_path)
-        .unwrap_or_else(|e| panic!("missing {}: {e}", toml_path.display()));
-    let raw: HashMap<String, String> =
-        toml::from_str(&content).unwrap_or_else(|e| panic!("invalid {}: {e}", toml_path.display()));
-    let result: HashMap<String, VariantStatus> = raw
-        .into_iter()
-        .map(|(key, value)| {
-            let status = match value.as_str() {
-                "xfail" => VariantStatus::Xfail,
-                "skip" => VariantStatus::Skip,
-                "exclude" => VariantStatus::Exclude,
-                other => panic!(
-                    "invalid status {:?} for variant {:?} in {}: expected xfail, skip, or exclude",
-                    other,
-                    key,
-                    toml_path.display()
-                ),
-            };
-            (key, status)
-        })
-        .collect();
-
-    let mut valid_keys: HashSet<String> =
-        VARIANTS.iter().map(|v| v.module_path.join("/")).collect();
-    valid_keys.insert("symbol".to_owned());
-    let unknown: Vec<_> = result
-        .keys()
-        .filter(|k| !valid_keys.contains(k.as_str()))
-        .collect();
-    if !unknown.is_empty() {
-        panic!(
-            "unknown variant(s) {:?} in {}\nvalid variants: {:?}",
-            unknown,
-            toml_path.display(),
-            valid_keys,
-        );
-    }
-
-    result
-}
-
-struct Variant {
-    module_path: &'static [&'static str],
-    lang: &'static str,
-    style: &'static str,
-    cpp_compat: bool,
-    file_pattern: &'static str,
-}
-
-const VARIANTS: &[Variant] = &[
-    Variant {
-        module_path: &["c", "plain"],
-        lang: "Language::C",
-        style: "Some(Style::Type)",
-        cpp_compat: false,
-        file_pattern: "{name}.c",
-    },
-    Variant {
-        module_path: &["c", "tag"],
-        lang: "Language::C",
-        style: "Some(Style::Tag)",
-        cpp_compat: false,
-        file_pattern: "{name}_tag.c",
-    },
-    Variant {
-        module_path: &["c", "both"],
-        lang: "Language::C",
-        style: "Some(Style::Both)",
-        cpp_compat: false,
-        file_pattern: "{name}_both.c",
-    },
-    Variant {
-        module_path: &["c", "compat"],
-        lang: "Language::C",
-        style: "Some(Style::Type)",
-        cpp_compat: true,
-        file_pattern: "{name}.compat.c",
-    },
-    Variant {
-        module_path: &["c", "tag_compat"],
-        lang: "Language::C",
-        style: "Some(Style::Tag)",
-        cpp_compat: true,
-        file_pattern: "{name}_tag.compat.c",
-    },
-    Variant {
-        module_path: &["c", "both_compat"],
-        lang: "Language::C",
-        style: "Some(Style::Both)",
-        cpp_compat: true,
-        file_pattern: "{name}_both.compat.c",
-    },
-    Variant {
-        module_path: &["cpp", "plain"],
-        lang: "Language::Cxx",
-        style: "None",
-        cpp_compat: false,
-        file_pattern: "{name}.cpp",
-    },
-    Variant {
-        module_path: &["cython", "plain"],
-        lang: "Language::Cython",
-        style: "Some(Style::Type)",
-        cpp_compat: false,
-        file_pattern: "{name}.pyx",
-    },
-    Variant {
-        module_path: &["cython", "tag"],
-        lang: "Language::Cython",
-        style: "Some(Style::Tag)",
-        cpp_compat: false,
-        file_pattern: "{name}_tag.pyx",
-    },
-];
+use ui_tests_toolkit::{
+    VARIANTS, Variant, VariantStatus, collect_case_dirs, read_test_manifest, write_manifest_file,
+};
 
 // Tree node for building nested module structure.
 struct ModNode {
@@ -198,7 +76,9 @@ fn collect_variants(
 
     let is_linestyle = path_segment.starts_with("linestyle_");
 
-    let manifest = read_test_manifest(case_path);
+    let toml_path = case_path.join("test.toml");
+    println!("cargo:rerun-if-changed={}", toml_path.display());
+    let manifest = read_test_manifest(&toml_path).unwrap_or_else(|e| panic!("{e}"));
 
     for variant in variants {
         let expectation_file = variant.file_pattern.replace("{name}", base_name);
@@ -206,18 +86,17 @@ fn collect_variants(
 
         let status = manifest
             .get(&variant_path)
-            .copied()
-            .unwrap_or(VariantStatus::Normal);
+            .copied();
 
-        if status == VariantStatus::Exclude {
+        if status == Some(VariantStatus::Exclude) {
             continue;
         }
 
         let status_token = match status {
-            VariantStatus::Xfail => "xfail, ",
-            VariantStatus::Skip => "skip, ",
-            VariantStatus::Normal => "",
-            VariantStatus::Exclude => unreachable!(),
+            Some(VariantStatus::Xfail) => "xfail, ",
+            Some(VariantStatus::Skip) => "skip, ",
+            None => "",
+            Some(VariantStatus::Exclude) => unreachable!(),
         };
 
         // Linestyle tests keep raw files; everything else uses .snap files.
@@ -272,15 +151,14 @@ fn collect_variants(
     if sym_snap.exists() {
         let symbol_status = manifest
             .get("symbol")
-            .copied()
-            .unwrap_or(VariantStatus::Normal);
+            .copied();
 
-        if symbol_status != VariantStatus::Exclude {
+        if symbol_status != Some(VariantStatus::Exclude) {
             let symbol_status_token = match symbol_status {
-                VariantStatus::Xfail => "xfail, ",
-                VariantStatus::Skip => "skip, ",
-                VariantStatus::Normal => "",
-                VariantStatus::Exclude => unreachable!(),
+                Some(VariantStatus::Xfail) => "xfail, ",
+                Some(VariantStatus::Skip) => "skip, ",
+                None => "",
+                Some(VariantStatus::Exclude) => unreachable!(),
             };
 
             let sym_line = format!(
@@ -313,47 +191,31 @@ fn process_suite(
         suite.cases_dir.join("Cargo.toml").display()
     );
 
-    let mut case_names: Vec<String> = Vec::new();
+    let case_names = collect_case_dirs(&suite.cases_dir);
 
-    for entry in fs::read_dir(&suite.cases_dir).unwrap() {
-        let entry = entry.expect("Couldn't read test entry");
-
-        if !entry.file_type().unwrap().is_dir() {
-            continue;
-        }
-
-        // Skip directories that aren't test cases (e.g. `target/`).
-        if !entry.path().join("test.toml").exists() {
-            continue;
-        }
-
-        let path_segment = entry.file_name().to_str().unwrap().to_owned();
+    for path_segment in &case_names {
+        let case_path = suite.cases_dir.join(path_segment);
 
         // Watch each crate's Cargo.toml for identity changes.
         println!(
             "cargo:rerun-if-changed={}",
-            entry.path().join("Cargo.toml").display()
+            case_path.join("Cargo.toml").display()
         );
         // Watch per-case expectations directory.
         println!(
             "cargo:rerun-if-changed={}",
-            entry.path().join("expectations").display()
+            case_path.join("expectations").display()
         );
 
         collect_variants(
             root,
             variants,
             suite.name,
-            &path_segment,
-            &entry.path(),
+            path_segment,
+            &case_path,
             suite.emit_generate_without_snap,
         );
-
-        case_names.push(path_segment);
     }
-
-    // Sort for deterministic output.
-    case_names.sort();
 
     // Write KNOWN_*_CASES constant into generated tests.rs.
     writeln!(dst).unwrap();
@@ -365,14 +227,7 @@ fn process_suite(
 
     // Write manifest file for staleness detection.
     if let Some(manifest_path) = &suite.manifest_path {
-        let new_manifest = case_names.join("\n") + "\n";
-        let needs_write = match fs::read_to_string(manifest_path) {
-            Ok(existing) => existing != new_manifest,
-            Err(_) => true,
-        };
-        if needs_write {
-            fs::write(manifest_path, &new_manifest).expect("failed to write .test_manifest");
-        }
+        write_manifest_file(manifest_path, &case_names);
         println!("cargo:rerun-if-changed={}", manifest_path.display());
     }
 

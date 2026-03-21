@@ -1,0 +1,7 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 198
+expression: stderr_str
+---
+warning: type `OpaqueHandle` is not #[repr(C)]
+ = help: emitting opaque forward declaration

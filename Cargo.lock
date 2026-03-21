@@ -1572,8 +1572,15 @@ version = "0.0.0"
 dependencies = [
  "fs-err",
  "insta",
- "serde",
  "tempfile",
+ "ui_tests_toolkit",
+]
+
+[[package]]
+name = "ui_tests_toolkit"
+version = "0.0.0"
+dependencies = [
+ "serde",
  "toml 1.0.7+spec-1.1.0",
 ]
 

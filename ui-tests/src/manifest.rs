@@ -2,26 +2,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-use std::fs;
-use std::path::Path;
+use ui_tests_toolkit::{collect_case_dirs, write_manifest_file};
 
 use crate::tests_dir;
-
-fn collect_case_dirs(cases_dir: &Path) -> Vec<String> {
-    let mut names: Vec<String> = fs::read_dir(cases_dir)
-        .expect("failed to read cases dir")
-        .filter_map(|entry| {
-            let entry = entry.ok()?;
-            if entry.file_type().ok()?.is_dir() && entry.path().join("test.toml").exists() {
-                Some(entry.file_name().to_str()?.to_owned())
-            } else {
-                None
-            }
-        })
-        .collect();
-    names.sort();
-    names
-}
 
 pub fn check_manifest_up_to_date(known_cbindgen: &[&str], known_cheadergen: &[&str]) {
     let tests_path = tests_dir();
@@ -32,8 +15,7 @@ pub fn check_manifest_up_to_date(known_cbindgen: &[&str], known_cheadergen: &[&s
     let actual_cbindgen = collect_case_dirs(&cbindgen_cases_dir);
 
     if actual_cbindgen != known_cbindgen {
-        let new_manifest = actual_cbindgen.join("\n") + "\n";
-        fs::write(&cbindgen_manifest_path, &new_manifest).expect("failed to write .test_manifest");
+        write_manifest_file(&cbindgen_manifest_path, &actual_cbindgen);
         panic!(
             "cbindgen test manifest is stale — re-run cargo test to pick up new/removed crates.\n\
              Known: {known_cbindgen:?}\n\
@@ -47,9 +29,7 @@ pub fn check_manifest_up_to_date(known_cbindgen: &[&str], known_cheadergen: &[&s
         let actual_cheadergen = collect_case_dirs(&cheadergen_cases_dir);
         if actual_cheadergen != known_cheadergen {
             let cheadergen_manifest_path = tests_path.join("cheadergen/.test_manifest");
-            let new_manifest = actual_cheadergen.join("\n") + "\n";
-            fs::write(&cheadergen_manifest_path, &new_manifest)
-                .expect("failed to write .test_manifest");
+            write_manifest_file(&cheadergen_manifest_path, &actual_cheadergen);
             panic!(
                 "cheadergen test manifest is stale — re-run cargo test to pick up new/removed crates.\n\
                  Known: {known_cheadergen:?}\n\

@@ -1,0 +1,7 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 198
+expression: stderr_str
+---
+warning: constant `BIG_UNSIGNED` has unsupported type
+warning: constant `BIG_SIGNED` has unsupported type

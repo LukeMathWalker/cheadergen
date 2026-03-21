@@ -1,0 +1,6 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 198
+expression: stderr_str
+---
+warning: assoc constant `Foo_COMPUTED` has no evaluated value

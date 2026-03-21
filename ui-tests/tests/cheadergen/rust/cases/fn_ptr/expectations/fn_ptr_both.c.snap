@@ -1,6 +1,5 @@
 ---
 source: ui-tests/src/generate/mod.rs
-assertion_line: 171
 expression: output
 ---
 #include <stdarg.h>
@@ -29,7 +28,7 @@ typedef union IntOrFloat IntOrFloat;
 typedef bool (*Predicate)(int32_t, int32_t);
 
 /**
- * A nullable callback (Option<fn> should simplify to bare fn ptr).
+ * A nullable callback (`Option<fn>` should simplify to bare `fn` ptr).
  */
 typedef void (*NullableCallback)(uint64_t);
 

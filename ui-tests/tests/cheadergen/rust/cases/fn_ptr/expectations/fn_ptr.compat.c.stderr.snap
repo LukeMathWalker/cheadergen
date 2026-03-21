@@ -1,0 +1,27 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 198
+expression: stderr_str
+---
+warning: unclosed HTML tag `fn`
+ --> fn_ptr/src/lib.rs:2:15
+  |
+2 | //! and Option<fn> → fn simplification.
+  |               ^^^^
+  |
+  = note: `#[warn(rustdoc::invalid_html_tags)]` on by default
+help: try marking as source code
+  |
+2 | //! and `Option<fn>` → fn simplification.
+  |         +          +
+
+warning: unclosed HTML tag `fn`
+ --> fn_ptr/src/lib.rs:7:32
+  |
+7 | /// A nullable callback (Option<fn> should simplify to bare fn ptr).
+  |                                ^^^^
+  |
+help: try marking as source code
+  |
+7 | /// A nullable callback (`Option<fn>` should simplify to bare fn ptr).
+  |                          +          +

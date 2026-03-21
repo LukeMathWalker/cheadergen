@@ -1,0 +1,9 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 198
+expression: stderr_str
+---
+warning: constant `COMPUTED_CHAR` is a computed char expression
+ = help: only literal char constants are supported
+warning: constant `COMPUTED_STR` is a computed string expression
+ = help: only literal string constants are supported

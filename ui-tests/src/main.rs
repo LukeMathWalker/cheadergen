@@ -4,19 +4,10 @@ use std::process::Command;
 use std::{env, process};
 
 use fs_err as fs;
-
-const VARIANTS: &[&str] = &[
-    "c/plain",
-    "c/tag",
-    "c/both",
-    "c/compat",
-    "c/tag_compat",
-    "c/both_compat",
-    "cpp/plain",
-    "cython/plain",
-    "cython/tag",
-    "symbol",
-];
+use ui_tests_toolkit::{
+    VariantStatus, collect_case_dirs, read_manifest_file, read_test_manifest, variant_path_strings,
+    write_manifest_file,
+};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -46,16 +37,16 @@ fn main() {
                 eprintln!("Usage: ui-tests cbindgen-report <variant>");
                 eprintln!();
                 eprintln!("Variants:");
-                for v in VARIANTS {
+                for v in variant_path_strings() {
                     eprintln!("  {v}");
                 }
                 process::exit(1);
             });
-            if !VARIANTS.contains(&variant) {
+            if !variant_path_strings().iter().any(|v| v == variant) {
                 eprintln!("Unknown variant: {variant}");
                 eprintln!();
                 eprintln!("Valid variants:");
-                for v in VARIANTS {
+                for v in variant_path_strings() {
                     eprintln!("  {v}");
                 }
                 process::exit(1);
@@ -74,28 +65,6 @@ fn main() {
             process::exit(1);
         }
     }
-}
-
-fn parse_test_toml(path: &Path) -> BTreeMap<String, String> {
-    let content = match fs::read_to_string(path) {
-        Ok(c) => c,
-        Err(_) => return BTreeMap::new(),
-    };
-    let mut map = BTreeMap::new();
-    for line in content.lines() {
-        let line = line.trim();
-        // Each line is "key" = "value"
-        if let Some(rest) = line.strip_prefix('"')
-            && let Some(eq) = rest.find("\" = \"")
-        {
-            let key = &rest[..eq];
-            let value_start = eq + "\" = \"".len();
-            if let Some(value) = rest[value_start..].strip_suffix('"') {
-                map.insert(key.to_owned(), value.to_owned());
-            }
-        }
-    }
-    map
 }
 
 fn detect_cbindgen_annotations(case_dir: &Path) -> bool {
@@ -122,17 +91,11 @@ fn detect_cbindgen_annotations(case_dir: &Path) -> bool {
 }
 
 fn collect_cbindgen_cases(cbindgen_rust_dir: &Path) -> Vec<PathBuf> {
-    let mut cases = Vec::new();
-
     let cases_dir = cbindgen_rust_dir.join("cases");
-    if let Ok(entries) = fs::read_dir(&cases_dir) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.is_dir() && path.join("test.toml").exists() {
-                cases.push(path);
-            }
-        }
-    }
+    let mut cases: Vec<PathBuf> = collect_case_dirs(&cases_dir)
+        .into_iter()
+        .map(|name| cases_dir.join(name))
+        .collect();
 
     for extra in &["workspace", "external_workspace_child"] {
         let path = cbindgen_rust_dir.join(extra);
@@ -141,7 +104,6 @@ fn collect_cbindgen_cases(cbindgen_rust_dir: &Path) -> Vec<PathBuf> {
         }
     }
 
-    cases.sort();
     cases
 }
 
@@ -164,15 +126,13 @@ fn cmd_cbindgen_report(variant: &str) {
             .unwrap()
             .to_string_lossy()
             .into_owned();
-        let test_toml = parse_test_toml(&case_path.join("test.toml"));
+        let toml_path = case_path.join("test.toml");
+        let test_toml = read_test_manifest(&toml_path).unwrap_or_default();
 
-        let status = test_toml
-            .get(variant)
-            .map(|s| s.as_str())
-            .unwrap_or("normal");
+        let status = test_toml.get(variant).copied();
 
         match status {
-            "xfail" => {
+            Some(VariantStatus::Xfail) => {
                 let has_annotations = detect_cbindgen_annotations(case_path);
                 let skipped_fields = extract_skipped_fields(&case_path.join("cheadergen.toml"));
                 let has_unsupported = !skipped_fields.is_empty();
@@ -192,10 +152,9 @@ fn cmd_cbindgen_report(variant: &str) {
                     xfail_neither.push(case_name);
                 }
             }
-            "normal" => normal_cases.push(case_name),
-            "skip" => skip_cases.push(case_name),
-            "exclude" => exclude_cases.push(case_name),
-            _ => normal_cases.push(case_name),
+            None => normal_cases.push(case_name),
+            Some(VariantStatus::Skip) => skip_cases.push(case_name),
+            Some(VariantStatus::Exclude) => exclude_cases.push(case_name),
         }
     }
 
@@ -341,20 +300,12 @@ pub extern \"C\" fn todo_new() -> TODO {
 
     // Update cheadergen .test_manifest so cargo picks up the new case immediately.
     let manifest_path = tests_dir.join("cheadergen/.test_manifest");
-    let mut case_names: Vec<String> = fs::read_to_string(&manifest_path)
-        .unwrap_or_default()
-        .lines()
-        .filter(|l| !l.is_empty())
-        .map(|l| l.to_owned())
-        .collect();
+    let mut case_names = read_manifest_file(&manifest_path);
     if !case_names.contains(&name.to_owned()) {
         case_names.push(name.to_owned());
     }
     case_names.sort();
-    let new_manifest = case_names.join("\n") + "\n";
-    fs::write(&manifest_path, new_manifest).unwrap_or_else(|e| {
-        eprintln!("Warning: failed to update .test_manifest: {e}");
-    });
+    write_manifest_file(&manifest_path, &case_names);
 
     println!("Created test case at {}", cheadergen_case.display());
     println!();

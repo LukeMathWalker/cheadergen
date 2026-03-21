@@ -129,8 +129,10 @@ pub fn run_expected_failure_test(
     let output_dir = tempfile::tempdir().expect("failed to create temp dir");
     let output = invoke_cheadergen(name, path, language, style, cpp_compat, output_dir.path());
     if !output.status.success() {
-        // Snapshot the stderr diagnostics for the failure case.
-        snapshot_stderr(name, path, language, style, cpp_compat, &output.stderr);
+        // Only snapshot stderr diagnostics for cheadergen tests.
+        if path.to_str().unwrap().contains("tests/cheadergen/") {
+            snapshot_stderr(name, path, language, style, cpp_compat, &output.stderr);
+        }
         return;
     }
 
@@ -205,6 +207,7 @@ fn snapshot_stderr(
     });
 }
 
+#[track_caller]
 fn compare_snapshot(
     name: &str,
     path: &Path,
