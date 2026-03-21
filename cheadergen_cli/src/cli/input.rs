@@ -1,4 +1,18 @@
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+
+use guppy::PackageId;
+
+#[derive(Debug, Clone, Default, clap::Args)]
+pub(super) struct PackageSelection {
+    /// Select specific workspace member(s) by name (repeatable).
+    #[arg(short = 'p', long = "package")]
+    pub packages: Vec<String>,
+
+    /// Exclude workspace member(s) by name (repeatable).
+    #[arg(long = "exclude")]
+    pub exclude: Vec<String>,
+}
 
 pub(super) enum ResolvedInput {
     /// User pointed at a specific Cargo.toml — single crate.
@@ -41,16 +55,23 @@ pub(super) fn resolve_input(input: &Path) -> anyhow::Result<ResolvedInput> {
     }
 }
 
-/// Finds workspace members matching the [`ResolvedInput`].
+/// Finds workspace members matching the [`ResolvedInput`] and [`PackageSelection`].
 ///
-/// A [`ResolvedInput::SingleCrate`] returns exactly one package; a
-/// [`ResolvedInput::Directory`] returns every member whose path is under that directory.
+/// 1. Path-based set from `resolved_input` (if provided).
+/// 2. Add any `-p`/`--package` names.
+/// 3. Remove any `--exclude` names.
+/// 4. Error if the final set is empty.
 pub(super) fn select_packages(
-    resolved_input: &ResolvedInput,
+    resolved_input: Option<&ResolvedInput>,
+    selection: &PackageSelection,
     workspace: &guppy::graph::Workspace<'_>,
-) -> anyhow::Result<Vec<(guppy::PackageId, String)>> {
+) -> anyhow::Result<Vec<(PackageId, String)>> {
+    // Keyed by PackageId to deduplicate.
+    let mut selected: BTreeMap<PackageId, String> = BTreeMap::new();
+
+    // 1. Path-based set.
     match resolved_input {
-        ResolvedInput::SingleCrate(dir) => {
+        Some(ResolvedInput::SingleCrate(dir)) => {
             let dir = dir.canonicalize()?;
             let dir = camino::Utf8PathBuf::try_from(dir)?;
             let relative = pathdiff::diff_utf8_paths(&dir, workspace.root())
@@ -58,24 +79,52 @@ pub(super) fn select_packages(
             let pkg = workspace.member_by_path(&relative).map_err(|e| {
                 anyhow::anyhow!("Could not find workspace member for {relative}: {e}")
             })?;
-            Ok(vec![(pkg.id().clone(), pkg.name().to_string())])
+            selected.insert(pkg.id().clone(), pkg.name().to_string());
         }
-        ResolvedInput::Directory(dir) => {
+        Some(ResolvedInput::Directory(dir)) => {
             let dir = dir.canonicalize()?;
             let dir = camino::Utf8PathBuf::try_from(dir)?;
             let relative_dir = pathdiff::diff_utf8_paths(&dir, workspace.root())
                 .expect("Failed to compute relative path to directory");
-            let packages: Vec<_> = workspace
-                .iter_by_path()
-                .filter(|(path, _)| path.starts_with(&relative_dir))
-                .map(|(_, pkg)| (pkg.id().clone(), pkg.name().to_string()))
-                .collect();
-            anyhow::ensure!(
-                !packages.is_empty(),
-                "No workspace members found under {}",
-                dir
-            );
-            Ok(packages)
+            for (path, pkg) in workspace.iter_by_path() {
+                if path.starts_with(&relative_dir) {
+                    selected.insert(pkg.id().clone(), pkg.name().to_string());
+                }
+            }
+        }
+        None if selection.packages.is_empty() => {
+            // No path and no -p flags: select all workspace members.
+            for pkg in workspace.iter() {
+                selected.insert(pkg.id().clone(), pkg.name().to_string());
+            }
+        }
+        None => {
+            // No path but -p flags provided: start with empty set, packages
+            // will be added in step 2.
         }
     }
+
+    // 2. Add `-p`/`--package` names.
+    for name in &selection.packages {
+        let pkg = workspace
+            .member_by_name(name)
+            .map_err(|e| anyhow::anyhow!("unknown package `{name}`: {e}"))?;
+        selected.insert(pkg.id().clone(), pkg.name().to_string());
+    }
+
+    // 3. Remove `--exclude` names.
+    for name in &selection.exclude {
+        let pkg = workspace
+            .member_by_name(name)
+            .map_err(|e| anyhow::anyhow!("unknown package in --exclude `{name}`: {e}"))?;
+        selected.remove(pkg.id());
+    }
+
+    // 4. Final validation.
+    anyhow::ensure!(
+        !selected.is_empty(),
+        "No packages selected (after applying --package and --exclude filters)"
+    );
+
+    Ok(selected.into_iter().collect())
 }

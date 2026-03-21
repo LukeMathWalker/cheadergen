@@ -8,13 +8,16 @@ use crate::diagnostic::{DiagnosticSink, render_diagnostics};
 use crate::{analysis, codegen, config, metadata, topological_sort};
 
 use crate::Collection;
-use super::input::{ResolvedInput, resolve_input, select_packages};
+use super::input::{PackageSelection, resolve_input, select_packages};
 
 #[derive(Debug, Parser)]
 pub(super) struct GenerateArgs {
     /// Path to a directory or Cargo.toml. A Cargo.toml selects a single crate;
     /// a directory selects all workspace members inside it (defaults to current directory).
     input: Option<PathBuf>,
+
+    #[command(flatten)]
+    package_selection: PackageSelection,
 
     /// Increase verbosity (can be repeated: -v, -vv, -vvv).
     #[arg(short, action = ArgAction::Count)]
@@ -64,10 +67,11 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
         anyhow::bail!("--no-header requires --symbol-file");
     }
 
-    let resolved_input = match &cli.input {
-        Some(p) => resolve_input(p)?,
-        None => ResolvedInput::Directory(PathBuf::from(".")),
-    };
+    let resolved_input = cli
+        .input
+        .as_ref()
+        .map(|p| resolve_input(p))
+        .transpose()?;
 
     // Load config file (or use defaults).
     let raw_config = if let Some(ref config_path) = cli.config {
@@ -85,9 +89,17 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
     // Validate config against the selected language.
     let config = raw_config.into_config(&cli.lang, &overrides)?;
 
+    let metadata_dir = resolved_input
+        .as_ref()
+        .map(|r| r.dir().clone())
+        .unwrap_or_else(|| PathBuf::from("."));
     let package_graph =
-        metadata::load_package_graph(cli.metadata.as_ref(), Some(resolved_input.dir()))?;
-    let packages = select_packages(&resolved_input, &package_graph.workspace())?;
+        metadata::load_package_graph(cli.metadata.as_ref(), Some(&metadata_dir))?;
+    let packages = select_packages(
+        resolved_input.as_ref(),
+        &cli.package_selection,
+        &package_graph.workspace(),
+    )?;
 
     let toolchain = std::env::var("CHEADERGEN_DOCS_TOOLCHAIN")
         .unwrap_or_else(|_| metadata::DOCS_TOOLCHAIN.to_string());
