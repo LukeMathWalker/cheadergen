@@ -12,9 +12,9 @@ allow_attributes = "warn"
 private-intra-doc-links = "allow"
 
 [workspace.dependencies]
-rustdoc_types = { git = "https://github.com/LukeMathWalker/pavex", package = "rustdoc_types" }
-rustdoc_ext = { git = "https://github.com/LukeMathWalker/pavex" }
-rustdoc_ir = { git = "https://github.com/LukeMathWalker/pavex" }
-rustdoc_processor = { git = "https://github.com/LukeMathWalker/pavex" }
-rustdoc_resolver = { git = "https://github.com/LukeMathWalker/pavex" }
+rustdoc_types = { git = "https://github.com/LukeMathWalker/pavex", package = "rustdoc_types", branch = "debug-rlookup" }
+rustdoc_ext = { git = "https://github.com/LukeMathWalker/pavex", branch = "debug-rlookup" }
+rustdoc_ir = { git = "https://github.com/LukeMathWalker/pavex", branch = "debug-rlookup" }
+rustdoc_processor = { git = "https://github.com/LukeMathWalker/pavex", branch = "debug-rlookup" }
+rustdoc_resolver = { git = "https://github.com/LukeMathWalker/pavex", branch = "debug-rlookup" }
 guppy = "0.17"
