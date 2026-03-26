@@ -1,9 +1,0 @@
----
-source: tests/tests.rs
-expression: "global_variable.c.sym"
-snapshot_kind: text
----
-{
-CONST_GLOBAL_ARRAY;
-MUT_GLOBAL_ARRAY;
-};

@@ -1,9 +1,0 @@
----
-source: tests/tests.rs
-expression: "function_noreturn.c.sym"
-snapshot_kind: text
----
-{
-loop_forever;
-normal_return;
-};

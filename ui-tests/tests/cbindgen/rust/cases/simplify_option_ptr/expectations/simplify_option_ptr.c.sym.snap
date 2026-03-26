@@ -1,8 +1,0 @@
----
-source: tests/tests.rs
-expression: "simplify_option_ptr.c.sym"
-snapshot_kind: text
----
-{
-root;
-};

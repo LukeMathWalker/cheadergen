@@ -1,0 +1,31 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 166
+expression: actual
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct {
+  uint16_t value;
+} FixedPoint_FONT_WEIGHT_FRACTION_BITS;
+
+typedef FixedPoint_FONT_WEIGHT_FRACTION_BITS FontWeightFixedPoint;
+
+typedef struct {
+  FontWeightFixedPoint m0;
+} FontWeight;
+
+#define FONT_WEIGHT_FRACTION_BITS 6
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+void root(FontWeight w);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

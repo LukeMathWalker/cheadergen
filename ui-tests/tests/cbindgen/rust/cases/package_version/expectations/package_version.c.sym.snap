@@ -1,8 +1,0 @@
----
-source: tests/tests.rs
-expression: "package_version.c.sym"
-snapshot_kind: text
----
-{
-doit;
-};

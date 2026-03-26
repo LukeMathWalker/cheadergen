@@ -1,0 +1,17 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 166
+expression: actual
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct Vec_String Vec_String;
+
+typedef struct Result_i32__String Result_i32__String;
+
+typedef struct Option_i32 Option_i32;
+
+void root(const struct Vec_String *a, const struct Option_i32 *b, const struct Result_i32__String *c);

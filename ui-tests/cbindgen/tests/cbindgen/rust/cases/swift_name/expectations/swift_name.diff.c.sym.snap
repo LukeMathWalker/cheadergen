@@ -1,0 +1,14 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 248
+expression: symbol_content
+---
+{
+free_function_should_exist_annotated_by_name;
+free_function_should_exist_annotated_mut_by_name;
+free_function_should_exist_ref;
+free_function_should_exist_ref_mut;
+free_function_should_not_exist_box;
+rust_print_hello_world;
+unnamed_argument;
+};

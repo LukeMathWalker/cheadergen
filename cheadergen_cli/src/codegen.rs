@@ -117,7 +117,9 @@ pub fn generate_c_header(
 
     // Type forward declarations.
     if !type_defs.is_empty() {
-        out.push('\n');
+        if !out.is_empty() {
+            out.push('\n');
+        }
         write_c_type_definitions(
             type_defs,
             assoc_constants,
@@ -132,7 +134,9 @@ pub fn generate_c_header(
 
     // Constants as #define macros (after types, before extern "C" block).
     for c in constants {
-        out.push('\n');
+        if !out.is_empty() {
+            out.push('\n');
+        }
         let docs = lookup_docs(Some(&c.rustdoc_id), collection);
         write_doc_comment(docs.as_deref(), common, out);
         writeln!(out, "#define {} {}", c.name, c.value).unwrap();
@@ -142,7 +146,9 @@ pub fn generate_c_header(
 
     // cpp_compat open (only if there are declarations to wrap).
     if config.cpp_compat && has_declarations {
-        out.push('\n');
+        if !out.is_empty() {
+            out.push('\n');
+        }
         out.push_str("#ifdef __cplusplus\n");
         out.push_str("extern \"C\" {\n");
         out.push_str("#endif // __cplusplus\n");
@@ -150,7 +156,9 @@ pub fn generate_c_header(
 
     // Static declarations (before functions, matching cbindgen order).
     for s in statics.iter() {
-        out.push('\n');
+        if !out.is_empty() {
+            out.push('\n');
+        }
         let docs = lookup_docs(Some(&s.rustdoc_id), collection);
         write_doc_comment(docs.as_deref(), common, out);
         write_c_static_decl(s, &config.style, &type_tags, out);
@@ -159,7 +167,9 @@ pub fn generate_c_header(
 
     // Function declarations.
     for func in functions.iter() {
-        out.push('\n');
+        if !out.is_empty() {
+            out.push('\n');
+        }
         let docs = lookup_docs(func.source_coordinates.as_ref(), collection);
         write_doc_comment(docs.as_deref(), common, out);
         write_c_function_decl(func, &config.style, &type_tags, out);
@@ -1259,7 +1269,7 @@ pub fn write_symbol_file(symbols: &BTreeSet<String>, path: &Path) -> anyhow::Res
         out.push_str(sym);
         out.push_str(";\n");
     }
-    out.push_str("};\n");
+    out.push_str("};");
     fs_err::write(path, &out)?;
     Ok(())
 }

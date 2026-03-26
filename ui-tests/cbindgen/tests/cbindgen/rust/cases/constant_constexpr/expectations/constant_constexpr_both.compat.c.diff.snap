@@ -1,0 +1,17 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 166
+expression: actual
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+#define CONSTANT_I64 216
+
+#define CONSTANT_FLOAT32 312.291992
+
+#define DELIMITER ':'
+
+#define LEFTCURLY '{'

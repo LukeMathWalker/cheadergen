@@ -1,0 +1,29 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 166
+expression: actual
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct ExportMe ExportMe;
+
+typedef struct ExportMe2 ExportMe2;
+
+#define EXPORT_ME_TOO 42
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+void from_really_nested_mod(void);
+
+void export_me_2(ExportMe2 *_);
+
+void export_me(ExportMe *val);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

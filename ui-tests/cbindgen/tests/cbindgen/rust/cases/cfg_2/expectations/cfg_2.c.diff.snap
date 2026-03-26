@@ -1,0 +1,30 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 166
+expression: actual
+---
+#if 0
+DEF DEFINED = 1
+DEF NOT_DEFINED = 0
+#endif
+
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct {
+  int32_t x;
+} Foo;
+
+typedef struct {
+  Foo z;
+} Bar;
+
+typedef struct {
+  Bar w;
+} Root;
+
+#define DEFAULT_X 42
+
+void root(Root a);

@@ -1,0 +1,35 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 166
+expression: actual
+---
+#if 0
+''' '
+#endif
+
+#ifdef __cplusplus
+template <typename T>
+using ManuallyDrop = T;
+#endif
+
+#if 0
+' '''
+#endif
+
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct MyStruct MyStruct;
+
+typedef struct Foo Foo;
+
+typedef struct {
+  int32_t x;
+  int32_t y;
+} Point;
+
+void root(const Foo *a, const MyStruct *with_manual_drop);
+
+void take(Point with_manual_drop);

@@ -1,8 +1,0 @@
----
-source: tests/tests.rs
-expression: "as_ty.c.sym"
-snapshot_kind: text
----
-{
-some_fn;
-};

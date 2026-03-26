@@ -1,0 +1,6 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 201
+expression: stderr_str
+---
+Error: No packages selected (after applying --package and --exclude filters)

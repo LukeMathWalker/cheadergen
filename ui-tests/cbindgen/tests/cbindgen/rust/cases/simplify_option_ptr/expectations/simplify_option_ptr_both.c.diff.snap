@@ -1,0 +1,32 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 166
+expression: actual
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct Opaque Opaque;
+
+/**
+ * The `Option` type. See [the module level documentation](self) for more.
+ */
+typedef struct Option_Opaque Option_Opaque;
+
+typedef struct Foo {
+  const struct Opaque *x;
+  struct Opaque *y;
+  void (*z)(void);
+  void (**zz)(void);
+} Foo;
+
+typedef union Bar {
+  const struct Opaque *x;
+  struct Opaque *y;
+  void (*z)(void);
+  void (**zz)(void);
+} Bar;
+
+void root(const struct Opaque *a, struct Opaque *b, struct Foo c, union Bar d, struct Option_Opaque *e, void (*f)(const struct Opaque *));

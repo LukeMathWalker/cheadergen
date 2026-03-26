@@ -1,0 +1,50 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 166
+expression: actual
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef int32_t NamedLenArray[22];
+
+typedef int32_t ValuedLenArray[22];
+
+enum AbsoluteFontWeight_Tag
+#ifdef __cplusplus
+  : uint8_t
+#endif // __cplusplus
+ {
+  Weight,
+  Normal,
+  Bold,
+};
+#ifndef __cplusplus
+typedef uint8_t AbsoluteFontWeight_Tag;
+#endif // __cplusplus
+
+union AbsoluteFontWeight {
+  AbsoluteFontWeight_Tag tag;
+  struct {
+    AbsoluteFontWeight_Tag weight_tag;
+    float weight;
+  };
+};
+
+#define LEN 22
+
+#define X 92274688
+
+#define Y 184549376
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+void root(NamedLenArray x, ValuedLenArray y, union AbsoluteFontWeight z);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

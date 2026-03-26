@@ -1,0 +1,55 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 166
+expression: actual
+---
+#if 0
+''' '
+#endif
+#if defined(CBINDGEN_STYLE_TYPE)
+/* ANONYMOUS STRUCTS DO NOT SUPPORT FORWARD DECLARATIONS!
+#endif
+#if 0
+' '''
+#endif
+
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct TypeInfo TypeInfo;
+
+typedef struct {
+  const const TypeInfo * *fields;
+  uintptr_t num_fields;
+} StructInfo;
+
+typedef enum {
+  Primitive,
+  Struct,
+} TypeData_Tag;
+
+typedef struct {
+  TypeData_Tag tag;
+  union {
+    struct {
+      StructInfo struct_;
+    };
+  };
+} TypeData;
+
+struct TypeInfo {
+  TypeData data;
+};
+
+void root(TypeInfo x);
+#if 0
+''' '
+#endif
+#if defined(CBINDGEN_STYLE_TYPE)
+*/
+#endif
+#if 0
+' '''
+#endif

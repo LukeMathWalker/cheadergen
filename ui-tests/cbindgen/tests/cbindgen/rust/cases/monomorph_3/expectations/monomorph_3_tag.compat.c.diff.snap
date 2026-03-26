@@ -1,0 +1,47 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 166
+expression: actual
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+union Bar_Bar_f32;
+
+union Bar_Foo_f32;
+
+union Bar_f32;
+
+union Foo_Bar_f32 {
+  const union Bar_f32 *data;
+};
+
+union Foo_f32 {
+  const float *data;
+};
+
+union Foo_i32 {
+  const int32_t *data;
+};
+
+union Tuple_Foo_f32__f32 {
+  const union Foo_f32 *a;
+  const float *b;
+};
+
+union Tuple_f32__f32 {
+  const float *a;
+  const float *b;
+};
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+void root(union Foo_i32 a, union Foo_f32 b, union Bar_f32 c, union Foo_Bar_f32 d, union Bar_Foo_f32 e, union Bar_Bar_f32 f, union Tuple_Foo_f32__f32 g, union Tuple_f32__f32 h);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

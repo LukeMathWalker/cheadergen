@@ -1,0 +1,21 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 166
+expression: actual
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+struct Parser_40__41;
+
+struct Parser_b'('__b')';
+
+struct Parser_b'{'__b'}';
+
+void init_parens_parser(struct Parser_b'('__b')' *p, uint8_t *buf, uintptr_t len);
+
+void destroy_parens_parser(struct Parser_40__41 *p);
+
+void init_braces_parser(struct Parser_b'{'__b'}' *p, uint8_t *buf, uintptr_t len);

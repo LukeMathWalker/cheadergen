@@ -1,0 +1,12 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 166
+expression: actual
+---
+#ifndef INCLUDE_GUARD_H
+#define INCLUDE_GUARD_H
+
+
+void root(void);
+
+#endif  /* INCLUDE_GUARD_H */

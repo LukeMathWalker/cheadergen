@@ -1,0 +1,47 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 166
+expression: actual
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct Opaque Opaque;
+
+typedef struct {
+  int32_t x;
+  float y;
+} Normal;
+
+typedef struct {
+  int32_t x;
+  float y;
+} NormalWithZST;
+
+/**
+ * cbindgen:rename-all=GeckoCase
+ */
+typedef struct {
+  int32_t m0;
+  float m1;
+} TupleRenamed;
+
+/**
+ * cbindgen:field-names=[x, y]
+ */
+typedef struct {
+  int32_t m0;
+  float m1;
+} TupleNamed;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+void root(Opaque *a, Normal b, NormalWithZST c, TupleRenamed d, TupleNamed e);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

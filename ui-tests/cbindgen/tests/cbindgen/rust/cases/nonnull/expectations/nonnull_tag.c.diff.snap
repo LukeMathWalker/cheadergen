@@ -1,0 +1,15 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 166
+expression: actual
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+struct Opaque;
+
+struct Foo_u64;
+
+void root(int32_t *arg, struct Foo_u64 *foo, struct Opaque * *d);

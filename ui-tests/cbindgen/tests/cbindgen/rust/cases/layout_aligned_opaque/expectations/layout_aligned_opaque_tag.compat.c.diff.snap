@@ -1,0 +1,12 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 166
+expression: actual
+---
+#define CBINDGEN_PACKED        __attribute__ ((packed))
+#define CBINDGEN_ALIGNED(n)    __attribute__ ((aligned(n)))
+
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>

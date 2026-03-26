@@ -1,5 +1,5 @@
 [workspace]
-members = ["cheaderdiff", "cheadergen", "cheadergen_cli", "cheadergen_macros", "ui-tests", "ui-tests-toolkit"]
+members = ["cheaderdiff", "cheadergen", "cheadergen_cli", "cheadergen_macros", "ui-tests/cbindgen", "ui-tests/cheadergen", "ui-tests/cli", "ui-tests/toolkit"]
 resolver = "3"
 
 [workspace.lints.clippy]

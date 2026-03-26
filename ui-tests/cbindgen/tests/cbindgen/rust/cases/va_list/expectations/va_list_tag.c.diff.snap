@@ -1,0 +1,30 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 166
+expression: actual
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+struct Interface_Option_fn {
+  int32_t (*fn1)(int32_t, struct VaList);
+};
+
+struct Interface_Option_fn {
+  int32_t (*fn1)(int32_t);
+};
+
+/**
+ * A variable argument list, equivalent to `va_list` in C.
+ */
+struct VaList {
+
+};
+
+int32_t va_list_test(int32_t count, struct VaList ap);
+
+int32_t va_list_test2(int32_t count, ...);
+
+void va_list_fn_ptrs(int32_t (*fn1)(int32_t count, struct VaList), int32_t (*fn2)(int32_t count), int32_t (*fn3)(int32_t count, struct VaList), int32_t (*fn4)(int32_t count), struct Interface_Option_fn fn5, struct Interface_Option_fn fn6);

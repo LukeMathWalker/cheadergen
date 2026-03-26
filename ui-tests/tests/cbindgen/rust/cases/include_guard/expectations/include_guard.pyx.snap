@@ -1,9 +1,0 @@
----
-source: tests/tests.rs
-expression: "include_guard.pyx"
-snapshot_kind: text
----
-
-cdef extern from *:
-
-  void root();

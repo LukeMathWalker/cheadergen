@@ -1,0 +1,25 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 166
+expression: actual
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+struct TakeUntil_'\0' {
+  const uint8_t *start;
+  uintptr_t len;
+  uintptr_t point;
+};
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+struct TakeUntil_'\0' until_nul(const uint8_t *start, uintptr_t len);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

@@ -1,9 +1,0 @@
----
-source: tests/tests.rs
-expression: "expand_default_features.c.sym"
-snapshot_kind: text
----
-{
-extra_debug_fn;
-root;
-};

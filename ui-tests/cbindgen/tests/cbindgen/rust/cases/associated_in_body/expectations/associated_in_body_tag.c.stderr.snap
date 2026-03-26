@@ -1,0 +1,10 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 201
+expression: stderr_str
+---
+error: failed to generate header for `associated_in_body`
+ = note: Failed to resolve tuple field m0: Failed to resolve a type, QualifiedPath { name: "Internal", args: None, self_type: ResolvedPath(Path { path: "AlignFlags", id: Id(1), args: None }), trait_: Some(Path { path: "$crate::__private::PublicFlags", id: Id(2), args: None }) }.
+         Failed to resolve associated type `Internal`:
+         Failed to resolve a type, ResolvedPath(Path { path: "InternalBitFlags", id: Id(100), args: None }).
+         Failed to look up the type id `100` in the rustdoc's path index for `path+file:///Users/luca/code/cheadergen2/ui-tests/cbindgen/tests/cbindgen/rust/cases/associated_in_body#0.1.0`. This is likely to be a bug in rustdoc's JSON output.Error: aborting due to previous error(s)

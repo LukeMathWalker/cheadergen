@@ -1,9 +1,0 @@
----
-source: tests/tests.rs
-expression: "constant_sort_name.c.sym"
-snapshot_kind: text
----
-{
-C;
-D;
-};

@@ -1,8 +1,0 @@
----
-source: tests/tests.rs
-expression: "using_namespaces.c.sym"
-snapshot_kind: text
----
-{
-root;
-};

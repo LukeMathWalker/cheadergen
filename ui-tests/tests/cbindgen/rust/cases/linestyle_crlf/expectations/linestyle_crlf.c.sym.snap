@@ -1,8 +1,0 @@
----
-source: tests/tests.rs
-expression: "linestyle_crlf.c.sym"
-snapshot_kind: text
----
-{
-root;
-};

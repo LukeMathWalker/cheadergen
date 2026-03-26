@@ -1,0 +1,13 @@
+[package]
+name = "cheadergen-ui-tests"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+insta = "1"
+tempfile = "3"
+ui_tests_toolkit = { path = "../toolkit" }
+
+[build-dependencies]
+ui_tests_toolkit = { path = "../toolkit" }

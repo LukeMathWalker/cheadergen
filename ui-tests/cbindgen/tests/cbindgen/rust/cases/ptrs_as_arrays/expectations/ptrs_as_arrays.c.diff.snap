@@ -1,0 +1,34 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 166
+expression: actual
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+/**
+ * cbindgen:ptrs-as-arrays=[[arg;3]]
+ */
+void ptr_as_array(uint32_t n, const uint32_t *arg, const uint64_t *v);
+
+/**
+ * cbindgen:ptrs-as-arrays=[[arg;3], [v; 4]]
+ */
+void ptr_as_array1(uint32_t n, const uint32_t *arg, uint64_t *v);
+
+/**
+ * cbindgen:ptrs-as-arrays=[[n;2], [arg; ], [v;], [k; 3]]
+ */
+void ptr_as_array2(uint32_t n, uint32_t *arg, const uint64_t *v);
+
+/**
+ * cbindgen:ptrs-as-arrays=[[a;2;3]]
+ */
+void ptr_as_array_wrong_syntax(uint32_t *arg, const uint32_t *v, const uint32_t *_);
+
+/**
+ * cbindgen:ptrs-as-arrays=[[_;2], [_;3]]
+ */
+void ptr_as_array_unnamed(uint32_t *_, const uint32_t *_);

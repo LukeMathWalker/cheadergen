@@ -1,0 +1,9 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 248
+expression: symbol_content
+---
+{
+cond;
+global_array_with_different_sizes;
+};

@@ -1,0 +1,8 @@
+{
+deprecated_with_note;
+deprecated_with_note_and_since;
+deprecated_with_note_which_requires_to_be_escaped;
+deprecated_without_bracket;
+deprecated_without_note;
+dummy;
+};

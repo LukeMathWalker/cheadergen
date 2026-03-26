@@ -1,9 +1,0 @@
----
-source: tests/tests.rs
-expression: "generic_pointer.c.sym"
-snapshot_kind: text
----
-{
-my_function;
-root;
-};

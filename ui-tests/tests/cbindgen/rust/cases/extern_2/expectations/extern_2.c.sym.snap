@@ -1,9 +1,0 @@
----
-source: tests/tests.rs
-expression: "extern_2.c.sym"
-snapshot_kind: text
----
-{
-first;
-second;
-};

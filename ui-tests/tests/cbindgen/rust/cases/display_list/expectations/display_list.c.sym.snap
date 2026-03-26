@@ -1,8 +1,0 @@
----
-source: tests/tests.rs
-expression: "display_list.c.sym"
-snapshot_kind: text
----
-{
-push_item;
-};

@@ -1,9 +1,0 @@
----
-source: tests/tests.rs
-expression: "fns.c.sym"
-snapshot_kind: text
----
-{
-no_return;
-root;
-};

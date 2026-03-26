@@ -3,15 +3,22 @@ experimental = ["setup-scripts"]
 [store]
 dir = "target/nextest"
 
-[scripts.setup.compute-metadata]
-command = ["ui-tests/tests/setup-metadata.sh"]
+[scripts.setup.compute-cbindgen-metadata]
+command = ["ui-tests/cbindgen/tests/setup-metadata.sh"]
+
+[scripts.setup.compute-cheadergen-metadata]
+command = ["ui-tests/cheadergen/tests/setup-metadata.sh"]
 
 [scripts.setup.build-cheadergen]
 command = ["cheadergen_cli/tests/setup.sh"]
 
 [[profile.default.scripts]]
-filter = 'test(~::generate::) | test(~::symbol::)'
-setup = 'compute-metadata'
+filter = 'package(=cbindgen-ui-tests) & (test(~::generate::) | test(~::symbol::))'
+setup = 'compute-cbindgen-metadata'
+
+[[profile.default.scripts]]
+filter = 'package(=cheadergen-ui-tests) & (test(~::generate::) | test(~::symbol::))'
+setup = 'compute-cheadergen-metadata'
 
 [[profile.default.scripts]]
 filter = 'binary(~cli_errors)'

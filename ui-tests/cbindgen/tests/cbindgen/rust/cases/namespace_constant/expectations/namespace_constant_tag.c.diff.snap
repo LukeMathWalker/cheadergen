@@ -1,0 +1,21 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 166
+expression: actual
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+struct Foo {
+  int32_t x[10];
+};
+
+#define FOO 10
+
+#define BAR "hello world"
+
+#define ZOM 3.1400001
+
+void root(struct Foo x);

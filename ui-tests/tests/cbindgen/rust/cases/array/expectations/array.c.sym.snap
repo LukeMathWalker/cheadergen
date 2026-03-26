@@ -1,8 +1,0 @@
----
-source: tests/tests.rs
-expression: "array.c.sym"
-snapshot_kind: text
----
-{
-root;
-};

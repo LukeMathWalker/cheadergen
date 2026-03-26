@@ -1,0 +1,23 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 166
+expression: actual
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct Opaque Opaque;
+
+typedef struct Foo_u64 Foo_u64;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+void root(int32_t *arg, struct Foo_u64 *foo, struct Opaque * *d);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

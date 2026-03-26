@@ -1,0 +1,6 @@
+"c/both_compat" = "header_diff"
+"c/compat" = "header_diff"
+"c/tag_compat" = "header_diff"
+"cpp/plain" = "generation_fails"
+"cython/plain" = "generation_fails"
+"cython/tag" = "generation_fails"

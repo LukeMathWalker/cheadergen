@@ -1,8 +1,0 @@
----
-source: tests/tests.rs
-expression: "renaming_overrides_prefixing.c.sym"
-snapshot_kind: text
----
-{
-root;
-};

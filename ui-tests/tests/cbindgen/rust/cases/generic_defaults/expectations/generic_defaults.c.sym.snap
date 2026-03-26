@@ -1,9 +1,0 @@
----
-source: tests/tests.rs
-expression: "generic_defaults.c.sym"
-snapshot_kind: text
----
-{
-foo_root;
-with_i32;
-};

@@ -1,8 +1,0 @@
----
-source: tests/tests.rs
-expression: "inner_mod.c.sym"
-snapshot_kind: text
----
-{
-root;
-};

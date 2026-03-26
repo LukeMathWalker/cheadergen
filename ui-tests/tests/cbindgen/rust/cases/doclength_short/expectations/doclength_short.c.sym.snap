@@ -1,9 +1,0 @@
----
-source: tests/tests.rs
-expression: "doclength_short.c.sym"
-snapshot_kind: text
----
-{
-root;
-trunk;
-};

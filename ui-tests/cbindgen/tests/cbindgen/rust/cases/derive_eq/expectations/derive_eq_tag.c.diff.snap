@@ -1,0 +1,46 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 166
+expression: actual
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+struct Foo {
+  bool a;
+  int32_t b;
+};
+
+enum Bar_Tag {
+  Baz,
+  Bazz,
+  FooNamed,
+  FooParen,
+};
+typedef uint8_t Bar_Tag;
+
+struct FooNamed_Body {
+  Bar_Tag tag;
+  int32_t different;
+  uint32_t fields;
+};
+
+struct FooParen_Body {
+  Bar_Tag tag;
+  int32_t m0;
+  struct Foo m1;
+};
+
+union Bar {
+  Bar_Tag tag;
+  struct {
+    Bar_Tag bazz_tag;
+    struct Foo bazz;
+  };
+  struct FooNamed_Body foonamed;
+  struct FooParen_Body fooparen;
+};
+
+struct Foo root(union Bar bar);

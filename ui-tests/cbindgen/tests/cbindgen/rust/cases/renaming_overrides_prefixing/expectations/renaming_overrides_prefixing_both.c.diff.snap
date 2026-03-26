@@ -1,0 +1,18 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 166
+expression: actual
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct A A;
+
+typedef struct B {
+  int32_t x;
+  float y;
+} B;
+
+void root(const struct A *a, struct B b);

@@ -1,9 +1,0 @@
----
-source: tests/tests.rs
-expression: "rename.c.sym"
-snapshot_kind: text
----
-{
-G;
-root;
-};

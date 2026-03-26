@@ -5,64 +5,75 @@ description: "Reference for the ui-tests infrastructure: test suites, directory 
 
 # UI-Tests Reference
 
-The `ui-tests` crate contains the project's integration test infrastructure. It generates hundreds of test functions from minimal test case definitions, using `build.rs` code generation, insta snapshots, and compilation caching.
+The ui-tests infrastructure is split into four crates under `ui-tests/`:
 
-## Cbindgen Snapshots Are Read-Only
+| Crate | Path | Purpose |
+|-------|------|---------|
+| `cbindgen-ui-tests` | `ui-tests/cbindgen/` | cbindgen compatibility test suite |
+| `cheadergen-ui-tests` | `ui-tests/cheadergen/` | cheadergen feature test suite |
+| `ui-tests` | `ui-tests/cli/` | CLI binary (`just ui-tests new`, `cbindgen-report`, etc.) |
+| `ui_tests_toolkit` | `ui-tests/toolkit/` | Shared build-time + runtime infrastructure |
 
-**NEVER modify `.snap` files under `ui-tests/tests/cbindgen/`.**
+## Cbindgen Normal Expectations Are Read-Only
+
+**NEVER modify plain expectation files (`.c`, `.hpp`, `.pyx`, `.c.sym`) under `ui-tests/cbindgen/`.**
 These are vendored golden references from mozilla/cbindgen (MPL-2.0). They define the
 target output our codegen must match. Only `test.toml` files may be changed in the
-cbindgen suite (to update variant statuses like xfail/skip).
+cbindgen suite (to update variant statuses).
 
-When cheadergen output changes, update **cheadergen** snapshots only
-(`ui-tests/tests/cheadergen/`). Cbindgen snapshots stay as-is.
+**Diff and stderr snapshots ARE mutable.** Files like `*.diff.c.snap` (header_diff output)
+and `*.stderr.snap` (generation_fails stderr) under `ui-tests/cbindgen/` are insta snapshots
+that evolve as cheadergen improves. Accept these via `mv .snap.new .snap`.
 
 ## Test Suites
 
-Two test suites, each under `ui-tests/tests/`:
-
-| Suite          | Path                           | License    | Notes                                            |
-| -------------- | ------------------------------ | ---------- | ------------------------------------------------ |
-| **cbindgen**   | `tests/cbindgen/rust/cases/`   | MPL-2.0    | Vendored from mozilla/cbindgen for compatibility |
-| **cheadergen** | `tests/cheadergen/rust/cases/` | Apache-2.0 | New tests for cheadergen-specific features       |
+| Suite | Cases path | License | Notes |
+|-------|-----------|---------|-------|
+| **cbindgen** | `ui-tests/cbindgen/tests/cbindgen/rust/cases/` | MPL-2.0 | Vendored from mozilla/cbindgen for compatibility |
+| **cheadergen** | `ui-tests/cheadergen/tests/cheadergen/rust/cases/` | Apache-2.0 | New tests for cheadergen-specific features |
 
 ## Test Categories
 
 Each case can produce tests in three categories:
 
-- **generate** — Runs cheadergen and snapshots the output header (insta `.snap` files)
+- **generate** — Runs cheadergen and compares the output header against expectations
 - **compile** — Compiles the generated header with a C/C++/Cython compiler
-- **symbol** — Snapshots the symbol file output (`--symbol-file --no-header` flag)
+- **symbol** — Compares the symbol file output (`--symbol-file --no-header` flag)
 
 ## Directory Layout
 
 ```
-ui-tests/tests/<suite>/rust/cases/<name>/
+ui-tests/cbindgen/tests/cbindgen/rust/cases/<name>/
 ├── Cargo.toml           # Workspace member package
 ├── src/lib.rs            # Rust library with extern "C" API
 ├── test.toml             # Variant status declarations
 ├── cbindgen.toml         # (cbindgen suite only) Original config
 ├── cheadergen.toml       # (optional) cheadergen config, passed via --config
 └── expectations/
+    ├── <name>.c               # Normal C/plain expectation (read-only plain file)
+    ├── <name>.c.diff.snap     # header_diff: cheadergen's differing output (insta snapshot)
+    ├── <name>.c.stderr.snap   # generation_fails: cheadergen's stderr (insta snapshot)
+    ├── <name>.c.sym            # Normal symbol expectation (read-only plain file)
+    ├── <name>.c.hash           # Compilation cache hash
+    └── <name>.c.hash-cxx       # C++ compat compilation cache hash
+```
+
+Cheadergen test cases use insta `.snap` files for all expectations:
+
+```
+ui-tests/cheadergen/tests/cheadergen/rust/cases/<name>/
+├── Cargo.toml
+├── src/lib.rs
+├── test.toml
+└── expectations/
     ├── <name>.c.snap           # C/plain snapshot
-    ├── <name>_tag.c.snap       # C/tag snapshot
-    ├── <name>.cpp.snap         # C++/plain snapshot
-    ├── <name>.c.sym.snap       # Symbol file snapshot
-    ├── <name>.c.snap.hash      # Compilation cache hash
-    └── <name>.c.snap.hash-cxx  # C++ compat compilation cache hash
+    ├── <name>.c.stderr.snap    # (generation_fails only) stderr snapshot
+    └── <name>.c.sym.snap       # Symbol file snapshot
 ```
 
 ## Crate-Level Documentation
 
-Every cheadergen test case **must** have a crate-level doc comment (`//!`) at the top of `src/lib.rs` explaining what the test is checking. This helps reviewers and future contributors understand the intent of each test at a glance.
-
-Example (from `opaque_upgrade`):
-
-```rust
-//! The generated header must include a struct definition for `Inner`,
-//! since it appears both behind a pointer ([`Outer::ptr`]) and
-//! bare ([`Outer::nested`] -> [`Middle::inner`]).
-```
+Every cheadergen test case **must** have a crate-level doc comment (`//!`) at the top of `src/lib.rs` explaining what the test is checking.
 
 ## test.toml Format
 
@@ -88,20 +99,21 @@ Maps variant keys to statuses. Omitted variants default to normal (must pass).
 
 ### Status Values
 
-| Status      | Meaning                                       |
-| ----------- | --------------------------------------------- |
-| _(omitted)_ | Normal — test is generated and must pass      |
-| `"xfail"`   | Expected failure — test runs, it must fail    |
-| `"skip"`    | Ignored — `#[ignore]` attribute, does not run |
-| `"exclude"` | No test function generated at all             |
+| Status              | Meaning |
+| ------------------- | ------- |
+| _(omitted)_         | Normal — test must pass, output matches expectation |
+| `"header_diff"`     | cheadergen succeeds but output differs from cbindgen expectation; differing output is snapshotted |
+| `"generation_fails"`| cheadergen fails (non-zero exit); stderr is snapshotted |
+| `"skip"`            | Ignored — `#[ignore]` attribute, does not run |
+| `"exclude"`         | No test function generated at all |
 
 ### Example
 
 ```toml
-"c/plain" = "xfail"
+"c/plain" = "header_diff"
+"cpp/plain" = "generation_fails"
 "cython/plain" = "exclude"
 "cython/tag" = "exclude"
-"symbol" = "skip"
 ```
 
 ## Common Commands
@@ -110,18 +122,14 @@ Maps variant keys to statuses. Omitted variants default to normal (must pass).
 # Fast feedback — generation tests only (no compilation)
 just test-generate
 
-# cbindgen suite (generate + compile), skips xfail tests
+# cbindgen suite (generate + compile)
 just test-cbindgen
 
-# Full cheadergen suite, skips xfail tests
+# cheadergen suite
 just test-cheadergen
 
-# All tests, skips xfail tests
+# All tests
 just test
-
-# Runs expected-failure tests
-just test-cbindgen-xfail
-just test-symbol-xfail
 
 # Filter to specific cases (nextest filter syntax)
 just test-generate -E 'test(~alias)'
@@ -143,24 +151,25 @@ just test-generate --profile machine
 
 ## Snapshot Workflow
 
-Snapshots use **insta**. When output changes:
+When output changes, tests fail and insta writes `.snap.new` files next to existing `.snap` files:
 
-1. Tests fail and insta writes `.snap.new` files next to existing `.snap` files
-2. Review the `.snap.new` files to verify changes are expected
-3. Accept snapshots by moving the `.snap.new` file over the `.snap` file: `mv foo.snap.new foo.snap`
-4. Re-run tests to confirm
+1. Review the `.snap.new` files to verify changes are expected
+2. Accept snapshots by moving the `.snap.new` file over the `.snap` file: `mv foo.snap.new foo.snap`
+3. Re-run tests to confirm
 
 **IMPORTANT**: Do not use `cargo insta` commands (`cargo insta review`, `cargo insta accept`, etc.). Always move `.snap.new` files directly.
 
-**IMPORTANT**: Snapshot acceptance applies only to **cheadergen** expectations (`ui-tests/tests/cheadergen/`). Never accept or modify cbindgen snapshots (`ui-tests/tests/cbindgen/`). If `.snap.new` files appear under the cbindgen tree, it means our output diverges from cbindgen's reference — investigate the codegen, don't overwrite the snapshot.
+**Cbindgen normal expectations are read-only plain files** — never modify `.c`, `.hpp`, `.pyx`, or `.c.sym` files under `ui-tests/cbindgen/`. If cheadergen output now matches a cbindgen expectation, the test will tell you to remove the `header_diff` marker from `test.toml`.
+
+**Cbindgen diff/stderr snapshots are mutable** — `.diff.*.snap` and `.stderr.snap` files under `ui-tests/cbindgen/` are expected to change as cheadergen improves. Accept these normally.
 
 ## Compilation Cache
 
-Compile tests use hash-based caching (`.hash` / `.hash-cxx` files next to snapshots). The hash covers: file content, language/style/compat flags, compiler path, compiler flags, and `testing-helpers.h`. Disable with `CHEADERGEN_NO_COMPILE_CACHE=1`.
+Compile tests use hash-based caching (`.hash` / `.hash-cxx` files next to expectations). The hash covers: file content, language/style/compat flags, compiler path, compiler flags, and `testing-helpers.h`. Disable with `CHEADERGEN_NO_COMPILE_CACHE=1`.
 
 ## Code Generation (build.rs)
 
-`build.rs` discovers test cases, reads `test.toml`, and generates a module tree:
+Each test crate has its own `build.rs` that discovers test cases, reads `test.toml`, and generates a module tree:
 
 ```
 mod <suite>::generate::<lang>::<style>::<case_name>

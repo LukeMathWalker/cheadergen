@@ -1,0 +1,5 @@
+"c/compat" = "generation_fails"
+"c/plain" = "generation_fails"
+"cpp/plain" = "generation_fails"
+"cython/plain" = "generation_fails"
+"symbol" = "generation_fails"

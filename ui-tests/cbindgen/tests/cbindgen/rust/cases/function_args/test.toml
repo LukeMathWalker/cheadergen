@@ -1,0 +1,5 @@
+"c/compat" = "exclude"
+"c/plain" = "exclude"
+"cpp/plain" = "exclude"
+"cython/plain" = "exclude"
+"symbol" = "exclude"

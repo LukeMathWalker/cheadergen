@@ -52,7 +52,9 @@ This project uses insta for snapshot testing. When expected output changes, test
 
 IMPORTANT: Do not use `cargo insta` commands (`cargo insta review`, `cargo insta accept`, etc.). Always move `.snap.new` files directly.
 
-**WARNING — cbindgen snapshots are read-only.** If `.snap.new` files appear under `ui-tests/tests/cbindgen/`, do **not** accept them. These are vendored golden references from mozilla/cbindgen. A mismatch means our codegen output diverges from cbindgen's — investigate and fix the codegen, never overwrite the cbindgen snapshot.
+**Cbindgen normal expectations are read-only.** Plain files (`.c`, `.hpp`, `.pyx`, `.c.sym`) under `ui-tests/cbindgen/` are vendored golden references from mozilla/cbindgen — never modify them. If a `header_diff` test starts matching the cbindgen expectation, the test will tell you to remove the `header_diff` marker from `test.toml`.
+
+**Cbindgen diff/stderr snapshots are mutable.** Files like `*.diff.c.snap` and `*.stderr.snap` under `ui-tests/cbindgen/` are insta snapshots that track cheadergen's current output. Accept these normally via `mv .snap.new .snap`.
 
 ### Step 4: Full test suite
 
@@ -63,16 +65,6 @@ just test
 ```
 
 If compilation tests fail but generation tests passed, the issue is in the generated header output rather than snapshot content.
-
-### Step 5: Xfail verification
-
-Run xfail tests to confirm they still fail as expected:
-
-```bash
-just test-xfail
-```
-
-These are tests marked `#[ignore]` that document known gaps. A **pass** here means the test is still failing as expected (good). A **failure** means an xfail test has started passing — the underlying issue was fixed and the test should be promoted to a regular (non-ignored) test.
 
 ## Scoping to specific cases
 

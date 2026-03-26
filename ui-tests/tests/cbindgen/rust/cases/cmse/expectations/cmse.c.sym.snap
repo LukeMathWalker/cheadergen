@@ -1,9 +1,0 @@
----
-source: tests/tests.rs
-expression: "cmse.c.sym"
-snapshot_kind: text
----
-{
-bar;
-foo;
-};

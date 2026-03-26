@@ -1,0 +1,21 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 166
+expression: actual
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct ArrayVec_u8__100 ArrayVec_u8__100;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+int32_t push(struct ArrayVec_u8__100 *v, uint8_t *elem);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

@@ -1,0 +1,47 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 166
+expression: actual
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+/**
+ * cbindgen:rename-all=CamelCase
+ */
+void test_camel_case(int32_t foo_bar);
+
+/**
+ * cbindgen:rename-all=PascalCase
+ */
+void test_pascal_case(int32_t foo_bar);
+
+/**
+ * cbindgen:rename-all=SnakeCase
+ */
+void test_snake_case(int32_t foo_bar);
+
+/**
+ * cbindgen:rename-all=ScreamingSnakeCase
+ */
+void test_screaming_snake_case(int32_t foo_bar);
+
+/**
+ * cbindgen:rename-all=GeckoCase
+ */
+void test_gecko_case(int32_t foo_bar);
+
+/**
+ * cbindgen:rename-all=prefix:prefix_
+ */
+void test_prefix(int32_t foo_bar);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

@@ -1,0 +1,5 @@
+"c/compat" = "header_diff"
+"c/plain" = "header_diff"
+"cpp/plain" = "generation_fails"
+"cython/plain" = "generation_fails"
+"symbol" = "header_diff"

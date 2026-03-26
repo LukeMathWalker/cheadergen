@@ -1,0 +1,81 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 166
+expression: actual
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+struct TypedLength_f32__LayoutUnit {
+  float m0;
+};
+
+struct TypedLength_f32__UnknownUnit {
+  float m0;
+};
+
+struct TypedSideOffsets2D_f32__LayoutUnit {
+  float top;
+  float right;
+  float bottom;
+  float left;
+};
+
+struct TypedSideOffsets2D_f32__UnknownUnit {
+  float top;
+  float right;
+  float bottom;
+  float left;
+};
+
+struct TypedSize2D_f32__LayoutUnit {
+  float width;
+  float height;
+};
+
+struct TypedSize2D_f32__UnknownUnit {
+  float width;
+  float height;
+};
+
+struct TypedPoint2D_f32__LayoutUnit {
+  float x;
+  float y;
+};
+
+struct TypedPoint2D_f32__UnknownUnit {
+  float x;
+  float y;
+};
+
+struct TypedRect_f32__LayoutUnit {
+  struct TypedPoint2D_f32__LayoutUnit origin;
+  struct TypedSize2D_f32__LayoutUnit size;
+};
+
+struct TypedRect_f32__UnknownUnit {
+  struct TypedPoint2D_f32__UnknownUnit origin;
+  struct TypedSize2D_f32__UnknownUnit size;
+};
+
+struct TypedTransform2D_f32__LayoutUnit__UnknownUnit {
+  float m11;
+  float m12;
+  float m21;
+  float m22;
+  float m31;
+  float m32;
+};
+
+struct TypedTransform2D_f32__UnknownUnit__LayoutUnit {
+  float m11;
+  float m12;
+  float m21;
+  float m22;
+  float m31;
+  float m32;
+};
+
+void root(struct TypedLength_f32__UnknownUnit length_a, struct TypedLength_f32__LayoutUnit length_b, struct TypedLength_f32__UnknownUnit length_c, struct TypedLength_f32__LayoutUnit length_d, struct TypedSideOffsets2D_f32__UnknownUnit side_offsets_a, struct TypedSideOffsets2D_f32__LayoutUnit side_offsets_b, struct TypedSideOffsets2D_f32__UnknownUnit side_offsets_c, struct TypedSideOffsets2D_f32__LayoutUnit side_offsets_d, struct TypedSize2D_f32__UnknownUnit size_a, struct TypedSize2D_f32__LayoutUnit size_b, struct TypedSize2D_f32__UnknownUnit size_c, struct TypedSize2D_f32__LayoutUnit size_d, struct TypedPoint2D_f32__UnknownUnit point_a, struct TypedPoint2D_f32__LayoutUnit point_b, struct TypedPoint2D_f32__UnknownUnit point_c, struct TypedPoint2D_f32__LayoutUnit point_d, struct TypedRect_f32__UnknownUnit rect_a, struct TypedRect_f32__LayoutUnit rect_b, struct TypedRect_f32__UnknownUnit rect_c, struct TypedRect_f32__LayoutUnit rect_d, struct TypedTransform2D_f32__UnknownUnit__LayoutUnit transform_a, struct TypedTransform2D_f32__LayoutUnit__UnknownUnit transform_b);

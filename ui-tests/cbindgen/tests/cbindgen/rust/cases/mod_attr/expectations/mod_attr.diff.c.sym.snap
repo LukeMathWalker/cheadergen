@@ -1,0 +1,7 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 248
+expression: symbol_content
+---
+{
+};

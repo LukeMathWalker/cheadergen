@@ -193,6 +193,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "cbindgen-ui-tests"
+version = "0.0.0"
+dependencies = [
+ "insta",
+ "similar",
+ "tempfile",
+ "ui_tests_toolkit",
+]
+
+[[package]]
 name = "cc"
 version = "1.2.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -245,6 +255,15 @@ version = "0.1.0"
 dependencies = [
  "cheadergen_macros",
  "trybuild",
+]
+
+[[package]]
+name = "cheadergen-ui-tests"
+version = "0.0.0"
+dependencies = [
+ "insta",
+ "tempfile",
+ "ui_tests_toolkit",
 ]
 
 [[package]]
@@ -1573,8 +1592,6 @@ name = "ui-tests"
 version = "0.0.0"
 dependencies = [
  "fs-err",
- "insta",
- "tempfile",
  "ui_tests_toolkit",
 ]
 
@@ -1583,6 +1600,7 @@ name = "ui_tests_toolkit"
 version = "0.0.0"
 dependencies = [
  "serde",
+ "tempfile",
  "toml 1.0.7+spec-1.1.0",
 ]
 

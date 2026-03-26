@@ -1,0 +1,17 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 166
+expression: actual
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct {
+
+} Foo;
+
+void extra_debug_fn(void);
+
+void root(Foo a);

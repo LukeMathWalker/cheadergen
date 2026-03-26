@@ -1,9 +1,0 @@
-[package]
-name = "ui_tests_toolkit"
-version = "0.0.0"
-edition = "2024"
-publish = false
-
-[dependencies]
-toml = "1.0"
-serde = { version = "1", features = ["derive"] }

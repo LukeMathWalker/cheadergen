@@ -1,9 +1,0 @@
----
-source: tests/tests.rs
-expression: "abi_string.c.sym"
-snapshot_kind: text
----
-{
-c;
-c_unwind;
-};

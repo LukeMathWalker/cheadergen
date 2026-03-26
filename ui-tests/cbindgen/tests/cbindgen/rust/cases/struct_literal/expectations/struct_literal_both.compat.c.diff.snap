@@ -1,0 +1,26 @@
+---
+source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 166
+expression: actual
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct Bar Bar;
+
+typedef struct Foo {
+  int32_t a;
+  uint32_t b;
+} Foo;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+void root(struct Foo x, struct Bar bar);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus
