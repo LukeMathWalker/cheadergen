@@ -87,22 +87,25 @@ pub fn topological_sort(
     }
 
     // Kahn's algorithm with source-order tiebreaker.
-    let sort_key = |idx: usize| -> (usize, usize, &str) {
+    // The key includes the compound index as a final tiebreaker to guarantee
+    // uniqueness — two compounds with the same (line, col, name) must not
+    // collide in the BTreeMap, or one would be silently lost.
+    let sort_key = |idx: usize| -> (usize, usize, &str, usize) {
         let def = &compounds[idx];
         let (line, col) = span_sort_key_for_def(def, collection);
-        (line, col, def.name.as_str())
+        (line, col, def.name.as_str(), idx)
     };
 
     let mut in_degree: Vec<usize> = (0..n)
         .map(|i| graph.neighbors_directed(nodes[i], Direction::Incoming).count())
         .collect();
 
-    // BTreeMap keyed by (line, col, name) → idx for deterministic ordering.
-    let mut queue: BTreeMap<(usize, usize, String), usize> = BTreeMap::new();
+    // BTreeMap keyed by (line, col, name, idx) for deterministic, collision-free ordering.
+    let mut queue: BTreeMap<(usize, usize, String, usize), usize> = BTreeMap::new();
     for (i, &deg) in in_degree.iter().enumerate() {
         if deg == 0 {
-            let (l, c, name) = sort_key(i);
-            queue.insert((l, c, name.to_owned()), i);
+            let (l, c, name, idx) = sort_key(i);
+            queue.insert((l, c, name.to_owned(), idx), i);
         }
     }
 
@@ -117,8 +120,8 @@ pub fn topological_sort(
             let dep_idx = graph[dependent];
             in_degree[dep_idx] -= 1;
             if in_degree[dep_idx] == 0 {
-                let (l, c, name) = sort_key(dep_idx);
-                queue.insert((l, c, name.to_owned()), dep_idx);
+                let (l, c, name, idx) = sort_key(dep_idx);
+                queue.insert((l, c, name.to_owned(), idx), dep_idx);
             }
         }
     }
@@ -153,8 +156,8 @@ pub fn topological_sort(
 
         let mut remaining: Vec<usize> = (0..n).filter(|i| !in_sorted.contains(i)).collect();
         remaining.sort_by_key(|&i| {
-            let (l, c, name) = sort_key(i);
-            (l, c, name.to_owned())
+            let (l, c, name, idx) = sort_key(i);
+            (l, c, name.to_owned(), idx)
         });
         sorted_indices.extend(remaining);
     }
@@ -197,40 +200,42 @@ fn extract_cycle_from_scc(
         .min_by_key(|&&n| &compounds[graph[n]].name)
         .unwrap();
 
+    // Walk Incoming edges (i.e. "depends on") within the SCC until we revisit
+    // a node already on the path. This is guaranteed to terminate: the SCC is
+    // finite, every node has at least one Incoming SCC-neighbor, so we must
+    // eventually revisit a node.
     let mut path = vec![start];
-    let mut visited = HashSet::new();
-    visited.insert(start);
+    let mut on_path: HashMap<NodeIndex, usize> = HashMap::new();
+    on_path.insert(start, 0);
     let mut current = start;
 
-    // Follow "depends on" (Incoming) edges within the SCC until we revisit the start.
-    loop {
+    let cycle_start_idx = loop {
+        // Pick the Incoming SCC-neighbor with the smallest name for determinism.
         let next = graph
             .neighbors_directed(current, Direction::Incoming)
-            .find(|n| scc_set.contains(n) && !visited.contains(n))
-            .or_else(|| {
-                // All neighbors visited — close the cycle back to start.
-                graph
-                    .neighbors_directed(current, Direction::Incoming)
-                    .find(|n| *n == start)
-            });
-        match next {
-            Some(n) if n == start => break,
-            Some(n) => {
-                path.push(n);
-                visited.insert(n);
-                current = n;
-            }
-            None => break,
+            .filter(|n| scc_set.contains(n))
+            .min_by_key(|&n| &compounds[graph[n]].name);
+        let Some(next) = next else {
+            // Should be unreachable in a valid SCC, but don't panic.
+            break 0;
+        };
+        if let Some(&idx) = on_path.get(&next) {
+            // Found a cycle: path[idx..] → next closes the loop.
+            path.push(next);
+            break idx;
         }
-    }
+        on_path.insert(next, path.len());
+        path.push(next);
+        current = next;
+    };
 
-    // Format: "Foo -> Bar -> Baz -> Foo"
-    let names: Vec<&str> = path
+    // The cycle is path[cycle_start_idx..] (which already ends with the repeated node).
+    let cycle_path = &path[cycle_start_idx..];
+    let names: Vec<&str> = cycle_path
         .iter()
         .map(|&n| compounds[graph[n]].name.as_str())
         .collect();
-    let start_name = compounds[graph[start]].name.as_str();
-    format!("{} -> {}", names.join(" -> "), start_name)
+    names.join(" -> ")
 }
 
 fn span_sort_key_for_def(
