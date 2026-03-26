@@ -126,24 +126,27 @@ pub fn topological_sort(
     // Handle cycles.
     if sorted_indices.len() < n {
         let in_sorted: HashSet<usize> = sorted_indices.iter().copied().collect();
-        let remaining_set: HashSet<NodeIndex> = (0..n)
-            .filter(|i| !in_sorted.contains(i))
-            .map(|i| nodes[i])
-            .collect();
 
         // Find SCCs — each non-trivial SCC contains at least one cycle.
         let sccs = petgraph::algo::tarjan_scc(&graph);
+        let mut cycle_found = false;
         for scc in &sccs {
             if scc.len() < 2 {
                 continue;
             }
-            // Only report cycles among the remaining (unsorted) nodes.
-            if !scc.iter().all(|n| remaining_set.contains(n)) {
-                continue;
-            }
+            cycle_found = true;
             let cycle = extract_cycle_from_scc(scc, &graph, &compounds);
             diagnostics
                 .warning(format!("cycle detected in by-value type dependencies: {cycle}"))
+                .with_help("appending remaining types in source order")
+                .emit();
+        }
+        if !cycle_found {
+            diagnostics
+                .warning(
+                    "topological sort did not converge, but no cycle was found; \
+                     this is a cheadergen bug",
+                )
                 .with_help("appending remaining types in source order")
                 .emit();
         }
