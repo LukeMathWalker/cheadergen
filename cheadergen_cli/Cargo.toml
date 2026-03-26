@@ -22,6 +22,7 @@ serde = { version = "1", features = ["derive"] }
 toml = "1"
 fs-err = "3"
 pathdiff = "0.2"
+petgraph = "0.8"
 guppy = { workspace = true }
 rustdoc_ir = { workspace = true }
 rustdoc_processor = { workspace = true }

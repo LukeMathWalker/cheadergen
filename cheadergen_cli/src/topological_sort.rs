@@ -1,5 +1,7 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
+use petgraph::Direction;
+use petgraph::graph::{DiGraph, NodeIndex};
 use rustdoc_ir::Type;
 
 use crate::Collection;
@@ -60,7 +62,7 @@ pub fn topological_sort(
         return;
     }
 
-    // Build name→index map.
+    // Build name→node map.
     let name_to_idx: HashMap<&str, usize> = compounds
         .iter()
         .enumerate()
@@ -69,18 +71,17 @@ pub fn topological_sort(
 
     let n = compounds.len();
 
-    // Build adjacency list and in-degree counts.
-    // Edge: dep → dependent (dep must be emitted before dependent).
-    let mut adj: Vec<Vec<usize>> = vec![Vec::new(); n];
-    let mut in_degree: Vec<usize> = vec![0; n];
+    // Build a dependency graph.
+    // Edge direction: dep → dependent (dep must be emitted before dependent).
+    let mut graph = DiGraph::<usize, ()>::with_capacity(n, 0);
+    let nodes: Vec<NodeIndex> = (0..n).map(|i| graph.add_node(i)).collect();
 
     for (i, def) in compounds.iter().enumerate() {
         for dep_name in by_value_dependencies(def) {
             if let Some(&dep_idx) = name_to_idx.get(dep_name.as_str())
                 && dep_idx != i
             {
-                adj[dep_idx].push(i);
-                in_degree[i] += 1;
+                graph.add_edge(nodes[dep_idx], nodes[i], ());
             }
         }
     }
@@ -91,6 +92,10 @@ pub fn topological_sort(
         let (line, col) = span_sort_key_for_def(def, collection);
         (line, col, def.name.as_str())
     };
+
+    let mut in_degree: Vec<usize> = (0..n)
+        .map(|i| graph.neighbors_directed(nodes[i], Direction::Incoming).count())
+        .collect();
 
     // BTreeMap keyed by (line, col, name) → idx for deterministic ordering.
     let mut queue: BTreeMap<(usize, usize, String), usize> = BTreeMap::new();
@@ -108,22 +113,41 @@ pub fn topological_sort(
         queue.remove(&key);
         sorted_indices.push(idx);
 
-        for &dependent in &adj[idx] {
-            in_degree[dependent] -= 1;
-            if in_degree[dependent] == 0 {
-                let (l, c, name) = sort_key(dependent);
-                queue.insert((l, c, name.to_owned()), dependent);
+        for dependent in graph.neighbors_directed(nodes[idx], Direction::Outgoing) {
+            let dep_idx = graph[dependent];
+            in_degree[dep_idx] -= 1;
+            if in_degree[dep_idx] == 0 {
+                let (l, c, name) = sort_key(dep_idx);
+                queue.insert((l, c, name.to_owned()), dep_idx);
             }
         }
     }
 
     // Handle cycles.
     if sorted_indices.len() < n {
-        diagnostics
-            .warning("cycle detected in by-value type dependencies")
-            .with_help("appending remaining types in source order")
-            .emit();
-        let in_sorted: std::collections::HashSet<usize> = sorted_indices.iter().copied().collect();
+        let in_sorted: HashSet<usize> = sorted_indices.iter().copied().collect();
+        let remaining_set: HashSet<NodeIndex> = (0..n)
+            .filter(|i| !in_sorted.contains(i))
+            .map(|i| nodes[i])
+            .collect();
+
+        // Find SCCs — each non-trivial SCC contains at least one cycle.
+        let sccs = petgraph::algo::tarjan_scc(&graph);
+        for scc in &sccs {
+            if scc.len() < 2 {
+                continue;
+            }
+            // Only report cycles among the remaining (unsorted) nodes.
+            if !scc.iter().all(|n| remaining_set.contains(n)) {
+                continue;
+            }
+            let cycle = extract_cycle_from_scc(scc, &graph, &compounds);
+            diagnostics
+                .warning(format!("cycle detected in by-value type dependencies: {cycle}"))
+                .with_help("appending remaining types in source order")
+                .emit();
+        }
+
         let mut remaining: Vec<usize> = (0..n).filter(|i| !in_sorted.contains(i)).collect();
         remaining.sort_by_key(|&i| {
             let (l, c, name) = sort_key(i);
@@ -150,6 +174,60 @@ pub fn topological_sort(
             type_defs.push(nc_iter.next().unwrap());
         }
     }
+}
+
+/// Walk the dependency edges within an SCC to extract a cycle in dependency order.
+///
+/// Edges in the graph point dep → dependent. We follow `Incoming` edges
+/// (i.e. "depends on") to trace the cycle in the order a developer would
+/// read: `A -> B -> C -> A` means A depends on B, B depends on C, C depends on A.
+fn extract_cycle_from_scc(
+    scc: &[NodeIndex],
+    graph: &DiGraph<usize, ()>,
+    compounds: &[CTypeDefinition],
+) -> String {
+    let scc_set: HashSet<NodeIndex> = scc.iter().copied().collect();
+
+    // Start from the node with the smallest name for deterministic output.
+    let start = *scc
+        .iter()
+        .min_by_key(|&&n| &compounds[graph[n]].name)
+        .unwrap();
+
+    let mut path = vec![start];
+    let mut visited = HashSet::new();
+    visited.insert(start);
+    let mut current = start;
+
+    // Follow "depends on" (Incoming) edges within the SCC until we revisit the start.
+    loop {
+        let next = graph
+            .neighbors_directed(current, Direction::Incoming)
+            .find(|n| scc_set.contains(n) && !visited.contains(n))
+            .or_else(|| {
+                // All neighbors visited — close the cycle back to start.
+                graph
+                    .neighbors_directed(current, Direction::Incoming)
+                    .find(|n| *n == start)
+            });
+        match next {
+            Some(n) if n == start => break,
+            Some(n) => {
+                path.push(n);
+                visited.insert(n);
+                current = n;
+            }
+            None => break,
+        }
+    }
+
+    // Format: "Foo -> Bar -> Baz -> Foo"
+    let names: Vec<&str> = path
+        .iter()
+        .map(|&n| compounds[graph[n]].name.as_str())
+        .collect();
+    let start_name = compounds[graph[start]].name.as_str();
+    format!("{} -> {}", names.join(" -> "), start_name)
 }
 
 fn span_sort_key_for_def(

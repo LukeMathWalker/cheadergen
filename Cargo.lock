@@ -260,6 +260,7 @@ dependencies = [
  "guppy",
  "insta",
  "pathdiff",
+ "petgraph",
  "rustdoc_ir",
  "rustdoc_processor",
  "rustdoc_resolver",
@@ -818,6 +819,7 @@ dependencies = [
  "fixedbitset",
  "hashbrown 0.15.5",
  "indexmap",
+ "serde",
 ]
 
 [[package]]
