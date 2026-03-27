@@ -1,69 +1,107 @@
-use rustdoc_ir::PathType;
-use rustdoc_processor::queries::Crate;
+use std::collections::HashSet;
+
+use guppy::PackageId;
+use rustdoc_ir::CanonicalType;
+use rustdoc_processor::compute::CannotGetCrateData;
+use rustdoc_resolver::{TypeAliasResolution, rustdoc_item_def2type};
 use rustdoc_types::ItemEnum;
 
+use crate::Collection;
 use crate::diagnostic::DiagnosticSink;
-use crate::indexing::CheadergenAnnotations;
+use crate::indexing::ExportMode;
 
-/// Build [`PathType`]s for items annotated with `#[cheadergen::export]`.
+/// Types annotated with `#[cheadergen::config(export)]` or
+/// `#[cheadergen::config(export(opaque))]` in a given crate,
+/// split by export mode.
+///
+/// Types are stored in canonical form so that "contains" checks are robust
+/// against lifetime/generic parameter differences.
+pub struct AnnotatedExports {
+    #[expect(unused)]
+    /// The package ID of the crate that these types belong to.
+    pub package_id: PackageId,
+    /// Types to include with their full definition.
+    pub full: HashSet<CanonicalType>,
+    /// Types to include as opaque forward declarations only.
+    pub opaque: HashSet<CanonicalType>,
+}
+
+/// Build [`CanonicalType`]s for items annotated with `#[cheadergen::export]`.
 ///
 /// Looks up each annotated ID in the crate's import index to determine its
 /// path. Items that aren't structs, enums, unions, or type aliases are
 /// skipped with a warning.
-pub fn annotated_path_types(
-    annotations: Option<&CheadergenAnnotations>,
-    krate: &Crate,
+///
+/// Returns the types split by export mode: full definitions vs opaque
+/// forward declarations.
+pub fn exported_via_annotations(
+    package_id: &PackageId,
+    collection: &Collection,
     diagnostics: &mut DiagnosticSink,
-) -> Vec<PathType> {
-    let Some(annotations) = annotations else {
-        return Vec::new();
+) -> Result<AnnotatedExports, CannotGetCrateData> {
+    let Some(annotations) = collection.get_annotated_items(package_id) else {
+        return Ok(AnnotatedExports {
+            full: HashSet::new(),
+            opaque: HashSet::new(),
+            package_id: package_id.to_owned(),
+        });
     };
+    let krate = collection.get_or_compute(package_id)?;
+    let mut full = HashSet::new();
+    let mut opaque = HashSet::new();
+    for (id, ann) in &annotations.items {
+        let Some(export_mode) = &ann.export else {
+            continue;
+        };
 
-    let mut result = Vec::new();
-    for id in &annotations.exported_ids {
         let Some(item) = krate.core.krate.index.get(id) else {
             diagnostics
-                .warning(format!("annotated item {id:?} not found in crate index"))
+                .warning(format!(
+                    "annotated item {id:?} not found in crate index for package {}",
+                    package_id.repr()
+                ))
                 .emit();
             continue;
         };
 
-        match &item.inner {
-            ItemEnum::Struct(_)
-            | ItemEnum::Enum(_)
-            | ItemEnum::Union(_)
-            | ItemEnum::TypeAlias(_) => {}
-            _ => {
-                let name = item.name.as_deref().unwrap_or("<unnamed>");
-                diagnostics
-                    .warning(format!(
-                        "#[cheadergen::export] on `{name}` is not a struct, enum, union, or type alias"
-                    ))
-                    .with_span_if(item.span.as_ref())
-                    .emit();
-                continue;
-            }
-        }
-
-        let Some(entry) = krate.import_index.items.get(id) else {
+        if !matches!(
+            &item.inner,
+            ItemEnum::Struct(_) | ItemEnum::Enum(_) | ItemEnum::Union(_) | ItemEnum::TypeAlias(_)
+        ) {
             let name = item.name.as_deref().unwrap_or("<unnamed>");
             diagnostics
                 .warning(format!(
-                    "annotated item `{name}` not found in import index"
+                    "#[cheadergen::export] on `{name}` is not a struct, enum, union, or type alias"
                 ))
                 .with_span_if(item.span.as_ref())
                 .emit();
             continue;
-        };
+        }
 
-        let path = entry.canonical_path();
-        result.push(PathType {
-            package_id: krate.core.package_id.clone(),
-            rustdoc_id: Some(*id),
-            base_type: path.to_vec(),
-            generic_arguments: Vec::new(),
-        });
+        let ty =
+            match rustdoc_item_def2type(&item, krate, collection, TypeAliasResolution::Preserve) {
+                Ok(t) => t,
+                Err(e) => {
+                    let name = item.name.as_deref().unwrap_or("<unnamed>");
+                    diagnostics
+                        .warning(format!("failed to resolve exported type `{name}`"))
+                        .with_span_if(item.span.as_ref())
+                        .with_error_chain(&e)
+                        .emit();
+                    continue;
+                }
+            };
+        let canonical = ty.canonicalize();
+
+        match export_mode {
+            ExportMode::Full => full.insert(canonical),
+            ExportMode::Opaque => opaque.insert(canonical),
+        };
     }
 
-    result
+    Ok(AnnotatedExports {
+        package_id: package_id.to_owned(),
+        full,
+        opaque,
+    })
 }

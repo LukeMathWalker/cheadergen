@@ -1,6 +1,5 @@
 ---
 source: ui-tests/cbindgen/src/lib.rs
-assertion_line: 201
 expression: stderr_str
 ---
 error: failed to resolve return type of function `loop_forever`
@@ -27,4 +26,5 @@ error: failed to resolve type of parameter `other` in function `normal_return`
    = note: Failed to resolve a type, FunctionPointer(FunctionPointer { sig: FunctionSignature { inputs: [("_", Primitive("u8"))], output: Some(Primitive("never")), is_c_variadic: false }, generic_params: [], header: FunctionHeader { is_const: false, is_unsafe: false, is_async: false, abi: C { unwind: false } } }).
            Failed to resolve function pointer output:
            Failed to resolve a type, Primitive("never").
-           Unknown primitive type, `never`Error: aborting due to previous error(s)
+           Unknown primitive type, `never`
+Error: aborting due to previous error(s)

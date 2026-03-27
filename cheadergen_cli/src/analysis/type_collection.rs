@@ -1,15 +1,16 @@
 use std::collections::HashMap;
 use std::fmt;
 
-use rustdoc_ir::{FreeFunction, GenericArgument, PathType, ScalarPrimitive, Type};
+use rustdoc_ir::{CanonicalType, GenericArgument, PathType, ScalarPrimitive, Type};
 use rustdoc_processor::{CORE_PACKAGE_ID_REPR, GlobalItemId, STD_PACKAGE_ID_REPR};
 
-use crate::Collection;
-use crate::diagnostic::DiagnosticSink;
-use rustdoc_types::ItemEnum;
-
 use super::type_resolution::resolve_type_kind;
-use crate::static_item::StaticItem;
+use crate::Collection;
+use crate::analysis::exported_via_annotations;
+use crate::analysis::extern_items::ExternItems;
+use crate::diagnostic::DiagnosticSink;
+use crate::indexing::ExportMode;
+use rustdoc_types::ItemEnum;
 
 /// C and C++ reserved keywords that cannot be used as identifiers.
 ///
@@ -149,8 +150,11 @@ impl fmt::Display for CIdentifier {
 /// A user-defined type that needs a C declaration in the header.
 pub struct CTypeDefinition {
     /// The C name for this type (last path segment from PathType::base_type),
-    /// or a custom name provided via `#[export(name = "...")]`.
+    /// or a custom name provided via `#[cheadergen::config(rename = "...")]`.
     pub name: String,
+    /// The original C name before rename, if the type was renamed.
+    /// Used to build a rename map so function signatures reference the correct name.
+    pub original_name: Option<String>,
     /// Whether this is an opaque forward declaration or a full struct definition.
     pub kind: CTypeKind,
     /// The global rustdoc item ID, used for doc comment lookup at codegen time.
@@ -205,12 +209,16 @@ pub struct CStructField {
     pub name: CIdentifier,
     /// The resolved type of this field.
     pub type_: Type,
+    /// If set, emit this field as a C bitfield with the given width in bits.
+    pub bitfield_width: Option<u64>,
 }
 
 /// A C-like enum (all variants are fieldless).
 pub struct CFieldlessEnumDef {
     pub repr: CEnumRepr,
     pub variants: Vec<CEnumVariant>,
+    /// Prefix each variant name with the enum name (e.g. `Status_Ok`).
+    pub prefix_with_name: bool,
 }
 
 /// A single variant of a fieldless enum.
@@ -330,35 +338,44 @@ pub(super) enum TypeUsage {
 /// Types used directly (not only behind pointers) and marked `#[repr(C)]` get
 /// full struct definitions. All others get forward declarations.
 ///
-/// `extra_by_value_types` are seeded as by-value entries (e.g. from
-/// `#[cheadergen::export]` annotations) before the fixed-point resolution loop.
+/// Exported types from [`AnnotatedExports`] are seeded before the fixed-point
+/// resolution loop: `full` exports as by-value, `opaque` exports as
+/// behind-pointer (forward declaration only).
 pub fn collect_type_definitions(
-    functions: &[FreeFunction],
-    statics: &[StaticItem],
-    extra_by_value_types: &[PathType],
+    extern_items: &ExternItems,
     collection: &Collection,
     enum_prefix_with_name: bool,
     diagnostics: &mut DiagnosticSink,
 ) -> anyhow::Result<Vec<CTypeDefinition>> {
-    let mut seen: HashMap<PathType, TypeUsage> = HashMap::new();
-    for func in functions {
-        for input in &func.header.inputs {
-            collect_paths_from_type(&input.type_, TypeUsage::ByValue, &mut seen);
-        }
-        if let Some(output) = &func.header.output {
-            collect_paths_from_type(output, TypeUsage::ByValue, &mut seen);
-        }
-    }
-    for s in statics {
-        collect_paths_from_type(&s.type_, TypeUsage::ByValue, &mut seen);
-    }
-    for pt in extra_by_value_types {
-        seen.entry(canonical_path_key(pt))
+    let exports = exported_via_annotations(&extern_items.package_id, collection, diagnostics)
+        .map_err(|e| anyhow::anyhow!(e))?;
+
+    let mut seen: HashMap<CanonicalType, TypeUsage> = HashMap::new();
+
+    // Seed the queue with types that were annotated using `#[cheadergen::export]`.
+    for ct in &exports.full {
+        seen.entry(ct.clone())
             .and_modify(|u| *u = TypeUsage::ByValue)
             .or_insert(TypeUsage::ByValue);
     }
+    for ct in &exports.opaque {
+        seen.insert(ct.clone(), TypeUsage::BehindPointer);
+    }
 
-    // Resolve struct fields for directly-used types. This may discover new
+    // Do a first pass over extern items to collect paths from their input/output types.
+    for func in &extern_items.fns {
+        for input in &func.header.inputs {
+            collect_paths_from_type(&input.type_, TypeUsage::ByValue, &mut seen, collection);
+        }
+        if let Some(output) = &func.header.output {
+            collect_paths_from_type(output, TypeUsage::ByValue, &mut seen, collection);
+        }
+    }
+    for s in &extern_items.statics {
+        collect_paths_from_type(&s.type_, TypeUsage::ByValue, &mut seen, collection);
+    }
+
+    // Resolve struct/enum/union fields for directly-used types. This may discover new
     // transitive types that also need definitions.
     resolve_all_type_definitions(&mut seen, collection, enum_prefix_with_name, diagnostics)
 }
@@ -410,22 +427,22 @@ pub fn c_type_name(ty: &Type) -> String {
     }
 }
 
-/// Canonicalize a `PathType` for use as a map key.
+/// Extract the inner `PathType` from a `CanonicalType`.
 ///
-/// Normalizes lifetime arguments so that e.g. `MyRef<'_>` and `MyRef<'a>`
-/// produce the same key. Type parameters are preserved.
-fn canonical_path_key(p: &PathType) -> PathType {
-    let canonical = Type::Path(p.clone()).canonicalize();
-    match canonical.into_inner() {
-        Type::Path(p) => p,
-        _ => unreachable!(),
+/// Panics if the canonical type is not a `Type::Path` or `Type::TypeAlias`.
+fn canonical_type_to_path(ct: &CanonicalType) -> PathType {
+    match ct.inner() {
+        Type::Path(p) | Type::TypeAlias(p) => p.clone(),
+        _ => unreachable!("AnnotatedExports should only contain path types"),
     }
 }
 
+/// Traverse a type to collect other types that are transitively used by it.
 pub(super) fn collect_paths_from_type(
     ty: &Type,
     usage: TypeUsage,
-    seen: &mut HashMap<PathType, TypeUsage>,
+    seen: &mut HashMap<CanonicalType, TypeUsage>,
+    collection: &Collection,
 ) {
     match ty {
         Type::Path(p) | Type::TypeAlias(p) => {
@@ -434,28 +451,43 @@ pub(super) fn collect_paths_from_type(
             if ffi_primitive_to_c(p).is_some() {
                 return;
             }
-            let entry = seen
-                .entry(canonical_path_key(p))
-                .or_insert(TypeUsage::BehindPointer);
-            if usage == TypeUsage::ByValue {
+            let annotation = collection
+                .get_annotated_items(&p.package_id)
+                .and_then(|ann| ann.get(&p.rustdoc_id?));
+
+            let is_skip = annotation.as_ref().is_some_and(|a| a.skip);
+            if is_skip {
+                return;
+            }
+
+            let must_stay_opaque =
+                annotation.as_ref().and_then(|ann| ann.export) == Some(ExportMode::Opaque);
+
+            let canonical = Type::Path(p.clone()).canonicalize();
+            let entry = seen.entry(canonical).or_insert(TypeUsage::BehindPointer);
+            if usage == TypeUsage::ByValue && !must_stay_opaque {
                 *entry = TypeUsage::ByValue;
             }
         }
-        Type::Reference(r) => collect_paths_from_type(&r.inner, TypeUsage::BehindPointer, seen),
-        Type::RawPointer(r) => collect_paths_from_type(&r.inner, TypeUsage::BehindPointer, seen),
+        Type::Reference(r) => {
+            collect_paths_from_type(&r.inner, TypeUsage::BehindPointer, seen, collection)
+        }
+        Type::RawPointer(r) => {
+            collect_paths_from_type(&r.inner, TypeUsage::BehindPointer, seen, collection)
+        }
         Type::Tuple(t) => {
             for element in &t.elements {
-                collect_paths_from_type(element, usage, seen);
+                collect_paths_from_type(element, usage, seen, collection);
             }
         }
-        Type::Slice(s) => collect_paths_from_type(&s.element_type, usage, seen),
-        Type::Array(a) => collect_paths_from_type(&a.element_type, usage, seen),
+        Type::Slice(s) => collect_paths_from_type(&s.element_type, usage, seen, collection),
+        Type::Array(a) => collect_paths_from_type(&a.element_type, usage, seen, collection),
         Type::FunctionPointer(fp) => {
             for input in &fp.inputs {
-                collect_paths_from_type(&input.type_, TypeUsage::BehindPointer, seen);
+                collect_paths_from_type(&input.type_, TypeUsage::BehindPointer, seen, collection);
             }
             if let Some(output) = &fp.output {
-                collect_paths_from_type(output, TypeUsage::BehindPointer, seen);
+                collect_paths_from_type(output, TypeUsage::BehindPointer, seen, collection);
             }
         }
         Type::ScalarPrimitive(_) | Type::Generic(_) => {}
@@ -516,10 +548,33 @@ pub fn ffi_primitive_to_c(path: &PathType) -> Option<&'static str> {
     }
 }
 
+/// Look up any `rename` annotation for a type by its rustdoc ID.
+fn annotation_rename(collection: &Collection, path_type: &PathType) -> Option<String> {
+    let ann = collection.get_annotated_items(&path_type.package_id)?;
+    let id = path_type.rustdoc_id?;
+    ann.get(&id)?.rename.clone()
+}
+
+/// Look up `prefix_with_name` annotation for a type, falling back to
+/// the global config value.
+fn annotation_prefix_with_name(
+    collection: &Collection,
+    path_type: &PathType,
+    global_default: bool,
+) -> bool {
+    collection
+        .get_annotated_items(&path_type.package_id)
+        .and_then(|ann| {
+            let id = path_type.rustdoc_id?;
+            ann.get(&id)?.prefix_with_name
+        })
+        .unwrap_or(global_default)
+}
+
 /// Resolve all collected types into `CTypeDefinition`s, iterating to a fixed
 /// point to discover transitive field types.
 fn resolve_all_type_definitions(
-    seen: &mut HashMap<PathType, TypeUsage>,
+    seen: &mut HashMap<CanonicalType, TypeUsage>,
     collection: &Collection,
     enum_prefix_with_name: bool,
     diagnostics: &mut DiagnosticSink,
@@ -528,12 +583,12 @@ fn resolve_all_type_definitions(
     // By resolving all direct uses first, we ensure that a type initially seen
     // behind a pointer gets upgraded to direct when a struct field references it
     // by value — before we emit any opaques.
-    let mut resolved: HashMap<PathType, CTypeDefinition> = HashMap::new();
+    let mut resolved: HashMap<CanonicalType, CTypeDefinition> = HashMap::new();
     loop {
         let direct: Vec<PathType> = seen
             .iter()
             .filter(|(pt, usage)| **usage == TypeUsage::ByValue && !resolved.contains_key(*pt))
-            .map(|(pt, _)| pt.clone())
+            .map(|(pt, _)| canonical_type_to_path(pt))
             .collect();
 
         if direct.is_empty() {
@@ -541,41 +596,53 @@ fn resolve_all_type_definitions(
         }
 
         for path_type in direct {
+            let per_type_prefix =
+                annotation_prefix_with_name(collection, &path_type, enum_prefix_with_name);
 
-            let name = c_type_name(&Type::Path(path_type.clone()));
-            let kind = resolve_type_kind(&name, &path_type, collection, enum_prefix_with_name, diagnostics)?;
+            let default_name = c_type_name(&Type::Path(path_type.clone()));
+            let renamed = annotation_rename(collection, &path_type);
+            let original_name = renamed.as_ref().map(|_| default_name.clone());
+            let name = renamed.unwrap_or(default_name);
+            let kind =
+                resolve_type_kind(&name, &path_type, collection, per_type_prefix, diagnostics)?;
 
             // Discover transitive field types from full definitions.
             match &kind {
                 CTypeKind::Struct(def) => {
                     for field in &def.fields {
-                        collect_paths_from_type(&field.type_, TypeUsage::ByValue, seen);
+                        collect_paths_from_type(&field.type_, TypeUsage::ByValue, seen, collection);
                     }
                 }
                 CTypeKind::Union(def) => {
                     for field in &def.fields {
-                        collect_paths_from_type(&field.type_, TypeUsage::ByValue, seen);
+                        collect_paths_from_type(&field.type_, TypeUsage::ByValue, seen, collection);
                     }
                 }
                 CTypeKind::TaggedUnion(def) => {
                     for variant in &def.variants {
                         if let Some(ref body) = variant.body {
                             for field in &body.fields {
-                                collect_paths_from_type(&field.type_, TypeUsage::ByValue, seen);
+                                collect_paths_from_type(
+                                    &field.type_,
+                                    TypeUsage::ByValue,
+                                    seen,
+                                    collection,
+                                );
                             }
                         }
                     }
                 }
                 CTypeKind::Typedef(def) => {
-                    collect_paths_from_type(&def.inner, TypeUsage::ByValue, seen);
+                    collect_paths_from_type(&def.inner, TypeUsage::ByValue, seen, collection);
                 }
                 CTypeKind::OpaqueStruct | CTypeKind::OpaqueUnion | CTypeKind::FieldlessEnum(_) => {}
             }
 
             resolved.insert(
-                path_type.clone(),
+                Type::Path(path_type.clone()).canonicalize(),
                 CTypeDefinition {
                     name,
+                    original_name,
                     kind,
                     rustdoc_id: path_type
                         .rustdoc_id
@@ -589,10 +656,13 @@ fn resolve_all_type_definitions(
     let opaque: Vec<PathType> = seen
         .keys()
         .filter(|pt| !resolved.contains_key(*pt))
-        .cloned()
+        .map(canonical_type_to_path)
         .collect();
     for path_type in opaque {
-        let name = c_type_name(&Type::Path(path_type.clone()));
+        let default_name = c_type_name(&Type::Path(path_type.clone()));
+        let renamed = annotation_rename(collection, &path_type);
+        let original_name = renamed.as_ref().map(|_| default_name.clone());
+        let name = renamed.unwrap_or(default_name);
         let rustdoc_id = path_type
             .rustdoc_id
             .map(|id| GlobalItemId::new(id, path_type.package_id.clone()));
@@ -607,9 +677,10 @@ fn resolve_all_type_definitions(
             CTypeKind::OpaqueStruct
         };
         resolved.insert(
-            path_type,
+            Type::Path(path_type).canonicalize(),
             CTypeDefinition {
                 name,
+                original_name,
                 kind,
                 rustdoc_id,
             },

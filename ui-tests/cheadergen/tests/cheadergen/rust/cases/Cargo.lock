@@ -7,6 +7,13 @@ name = "associated_constants"
 version = "0.1.0"
 
 [[package]]
+name = "bitfield_attr"
+version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
+
+[[package]]
 name = "box_pointers"
 version = "0.1.0"
 
@@ -73,8 +80,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "export_opaque"
+version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
+
+[[package]]
 name = "ffi_primitives"
 version = "0.1.0"
+
+[[package]]
+name = "field_names_tuple"
+version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "fieldless_enum"
@@ -153,6 +174,13 @@ name = "plain_union"
 version = "0.1.0"
 
 [[package]]
+name = "prefix_with_name_attr"
+version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
+
+[[package]]
 name = "private_fields"
 version = "0.1.0"
 
@@ -183,6 +211,27 @@ name = "ref_primitives"
 version = "0.1.0"
 
 [[package]]
+name = "rename_field"
+version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
+
+[[package]]
+name = "rename_type"
+version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
+
+[[package]]
+name = "rename_variant"
+version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
+
+[[package]]
 name = "self_type"
 version = "0.1.0"
 
@@ -193,6 +242,20 @@ version = "0.1.0"
 [[package]]
 name = "simple_struct"
 version = "0.1.0"
+
+[[package]]
+name = "skip_function"
+version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
+
+[[package]]
+name = "skip_static"
+version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "syn"

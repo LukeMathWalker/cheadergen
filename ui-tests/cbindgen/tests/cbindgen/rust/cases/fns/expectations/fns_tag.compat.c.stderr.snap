@@ -1,6 +1,5 @@
 ---
 source: ui-tests/cbindgen/src/lib.rs
-assertion_line: 201
 expression: stderr_str
 ---
 error: failed to resolve return type of function `no_return`
@@ -13,4 +12,5 @@ error: failed to resolve return type of function `no_return`
    | |_^
    |
    = note: Failed to resolve a type, Primitive("never").
-           Unknown primitive type, `never`Error: aborting due to previous error(s)
+           Unknown primitive type, `never`
+Error: aborting due to previous error(s)

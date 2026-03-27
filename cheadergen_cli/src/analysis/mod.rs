@@ -4,18 +4,15 @@ mod type_collection;
 mod type_resolution;
 mod type_transform;
 
-pub use annotation_types::annotated_path_types;
-pub use extern_items::{
-    collect_symbols, find_assoc_constants, find_extern_items, resolve_constants, resolve_functions,
-    resolve_statics,
-};
+pub use annotation_types::exported_via_annotations;
+pub use extern_items::{ExternItemCoordinates, collect_symbols, find_assoc_constants};
+use rustdoc_processor::GlobalItemId;
+use rustdoc_processor::queries::Crate;
 pub use type_collection::{
-    CEnumRepr, CEnumVariant, CFieldlessEnumDef, CIdentifier, CStructDef, CTaggedUnionDef,
-    CTypeKind, CTypeDefinition, CTypedefDef, CUnionDef, c_type_name,
+    CEnumRepr, CEnumVariant, CFieldlessEnumDef, CIdentifier, CStructDef, CStructField,
+    CTaggedUnionDef, CTypeDefinition, CTypeKind, CTypedefDef, CUnionDef, c_type_name,
     collect_type_definitions, ffi_primitive_to_c,
 };
-use rustdoc_processor::queries::Crate;
-use rustdoc_processor::GlobalItemId;
 
 use crate::Collection;
 use crate::config::SortKey;
@@ -51,11 +48,7 @@ pub fn sort_local_ids_by_key(ids: &mut [rustdoc_types::Id], sort_by: SortKey, kr
 }
 
 /// Sort items that carry a [`GlobalItemId`] using the [`Collection`] for lookups.
-pub fn sort_by_key<T: HasGlobalId>(
-    items: &mut [T],
-    sort_by: SortKey,
-    collection: &Collection,
-) {
+pub fn sort_by_key<T: HasGlobalId>(items: &mut [T], sort_by: SortKey, collection: &Collection) {
     match sort_by {
         SortKey::SourceOrder => items.sort_by_cached_key(|item| {
             let (line, col) = match item.global_id() {
@@ -94,10 +87,7 @@ fn name_sort_key_local(id: &rustdoc_types::Id, krate: &Crate) -> String {
 }
 
 /// Sort key: (line, column) from the item's span, using the collection for cross-crate lookup.
-pub(crate) fn span_sort_key_global(
-    gid: &GlobalItemId,
-    collection: &Collection,
-) -> (usize, usize) {
+pub(crate) fn span_sort_key_global(gid: &GlobalItemId, collection: &Collection) -> (usize, usize) {
     let item = collection.get_item_by_global_type_id(gid);
     match item.span.as_ref() {
         Some(span) => (span.begin.0, span.begin.1),
@@ -106,10 +96,7 @@ pub(crate) fn span_sort_key_global(
 }
 
 /// Sort key: item name, using the collection for cross-crate lookup.
-fn name_sort_key_global(
-    gid: &GlobalItemId,
-    collection: &Collection,
-) -> String {
+fn name_sort_key_global(gid: &GlobalItemId, collection: &Collection) -> String {
     let item = collection.get_item_by_global_type_id(gid);
     item.name.clone().unwrap_or_default()
 }

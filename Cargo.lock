@@ -204,9 +204,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.57"
+version = "1.2.58"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a0dd1ca384932ff3641c8718a02769f1698e7563dc6974ffd03346116310423"
+checksum = "e1e928d4b69e3077709075a938a05ffbedfa53a84c8f766efbf8220bb1ff60e1"
 dependencies = [
  "find-msvc-tools",
  "shlex",
@@ -286,7 +286,7 @@ dependencies = [
  "rustdoc_types",
  "serde",
  "tempfile",
- "toml 1.0.7+spec-1.1.0",
+ "toml 1.1.0+spec-1.1.0",
  "xdg-home",
 ]
 
@@ -347,14 +347,13 @@ checksum = "1d07550c9036bf2ae0c684c4297d503f838287c83c53686d05370d0e139ae570"
 
 [[package]]
 name = "console"
-version = "0.15.11"
+version = "0.16.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "054ccb5b10f9f2cbf51eb355ca1d05c2d279ce1804688d0db74b4733a5aeafd8"
+checksum = "d64e8af5551369d19cf50138de61f1c42074ab970f74e99be916646777f8fc87"
 dependencies = [
  "encode_unicode",
  "libc",
- "once_cell",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -649,9 +648,9 @@ dependencies = [
 
 [[package]]
 name = "insta"
-version = "1.46.3"
+version = "1.47.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e82db8c87c7f1ccecb34ce0c24399b8a73081427f3c7c50a5d597925356115e4"
+checksum = "6f40e41efb5f592d3a0764f818e2f08e5e21c4f368126f74f37c81bd4af7a0c6"
 dependencies = [
  "console",
  "once_cell",
@@ -1087,7 +1086,7 @@ checksum = "357703d41365b4b27c590e3ed91eabb1b663f07c4c084095e60cbed4362dff0d"
 [[package]]
 name = "rustdoc_ext"
 version = "0.2.10"
-source = "git+https://github.com/LukeMathWalker/pavex#b048045ea34cee80b33e89cd4c3493910c177b4e"
+source = "git+https://github.com/LukeMathWalker/pavex#daadc90a4b04dd21bc66b58f0b6b51340f303d38"
 dependencies = [
  "guppy",
  "rustdoc_types",
@@ -1096,7 +1095,7 @@ dependencies = [
 [[package]]
 name = "rustdoc_ir"
 version = "0.2.10"
-source = "git+https://github.com/LukeMathWalker/pavex#b048045ea34cee80b33e89cd4c3493910c177b4e"
+source = "git+https://github.com/LukeMathWalker/pavex#daadc90a4b04dd21bc66b58f0b6b51340f303d38"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1114,7 +1113,7 @@ dependencies = [
 [[package]]
 name = "rustdoc_processor"
 version = "0.2.10"
-source = "git+https://github.com/LukeMathWalker/pavex#b048045ea34cee80b33e89cd4c3493910c177b4e"
+source = "git+https://github.com/LukeMathWalker/pavex#daadc90a4b04dd21bc66b58f0b6b51340f303d38"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1150,7 +1149,7 @@ dependencies = [
 [[package]]
 name = "rustdoc_resolver"
 version = "0.2.10"
-source = "git+https://github.com/LukeMathWalker/pavex#b048045ea34cee80b33e89cd4c3493910c177b4e"
+source = "git+https://github.com/LukeMathWalker/pavex#daadc90a4b04dd21bc66b58f0b6b51340f303d38"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1167,7 +1166,7 @@ dependencies = [
 [[package]]
 name = "rustdoc_types"
 version = "0.2.10"
-source = "git+https://github.com/LukeMathWalker/pavex#b048045ea34cee80b33e89cd4c3493910c177b4e"
+source = "git+https://github.com/LukeMathWalker/pavex#daadc90a4b04dd21bc66b58f0b6b51340f303d38"
 dependencies = [
  "bincode",
  "rkyv",
@@ -1275,9 +1274,9 @@ dependencies = [
 
 [[package]]
 name = "serde_spanned"
-version = "1.0.4"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8bbf91e5a4d6315eee45e704372590b30e260ee83af6639d64557f51b067776"
+checksum = "876ac351060d4f882bb1032b6369eb0aef79ad9df1ea8bc404874d8cc3d0cd98"
 dependencies = [
  "serde_core",
 ]
@@ -1456,14 +1455,14 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "1.0.7+spec-1.1.0"
+version = "1.1.0+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd28d57d8a6f6e458bc0b8784f8fdcc4b99a437936056fa122cb234f18656a96"
+checksum = "f8195ca05e4eb728f4ba94f3e3291661320af739c4e43779cbdfae82ab239fcc"
 dependencies = [
  "indexmap",
  "serde_core",
  "serde_spanned",
- "toml_datetime 1.0.1+spec-1.1.0",
+ "toml_datetime 1.1.0+spec-1.1.0",
  "toml_parser",
  "toml_writer",
  "winnow 1.0.0",
@@ -1480,27 +1479,27 @@ dependencies = [
 
 [[package]]
 name = "toml_datetime"
-version = "1.0.1+spec-1.1.0"
+version = "1.1.0+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b320e741db58cac564e26c607d3cc1fdc4a88fd36c879568c07856ed83ff3e9"
+checksum = "97251a7c317e03ad83774a8752a7e81fb6067740609f75ea2b585b569a59198f"
 dependencies = [
  "serde_core",
 ]
 
 [[package]]
 name = "toml_parser"
-version = "1.0.10+spec-1.1.0"
+version = "1.1.0+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7df25b4befd31c4816df190124375d5a20c6b6921e2cad937316de3fccd63420"
+checksum = "2334f11ee363607eb04df9b8fc8a13ca1715a72ba8662a26ac285c98aabb4011"
 dependencies = [
  "winnow 1.0.0",
 ]
 
 [[package]]
 name = "toml_writer"
-version = "1.0.7+spec-1.1.0"
+version = "1.1.0+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f17aaa1c6e3dc22b1da4b6bba97d066e354c7945cac2f7852d4e4e7ca7a6b56d"
+checksum = "d282ade6016312faf3e41e57ebbba0c073e4056dab1232ab1cb624199648f8ed"
 
 [[package]]
 name = "tracing"
@@ -1584,7 +1583,7 @@ dependencies = [
  "serde_json",
  "target-triple",
  "termcolor",
- "toml 1.0.7+spec-1.1.0",
+ "toml 1.1.0+spec-1.1.0",
 ]
 
 [[package]]
@@ -1601,7 +1600,7 @@ version = "0.0.0"
 dependencies = [
  "serde",
  "tempfile",
- "toml 1.0.7+spec-1.1.0",
+ "toml 1.1.0+spec-1.1.0",
 ]
 
 [[package]]
@@ -1636,9 +1635,9 @@ checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 
 [[package]]
 name = "uuid"
-version = "1.22.0"
+version = "1.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a68d3c8f01c0cfa54a75291d83601161799e4a89a39e0929f4b0354d88757a37"
+checksum = "5ac8b6f42ead25368cf5b098aeb3dc8a1a2c05a3eee8a9a1a68c640edbfc79d9"
 dependencies = [
  "getrandom 0.4.2",
  "js-sys",

@@ -1,0 +1,27 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+/**
+ * A struct exported as opaque — only a forward declaration should appear,
+ * not the full definition, despite `#[repr(C)]` and by-value usage.
+ */
+struct OpaqueConfig;
+
+/**
+ * A non-repr(C) type exported as opaque — should also produce a forward declaration.
+ */
+struct OpaqueHandle;
+
+/**
+ * A struct exported normally — full definition should appear.
+ */
+struct FullConfig {
+  uint32_t width;
+  uint32_t height;
+};

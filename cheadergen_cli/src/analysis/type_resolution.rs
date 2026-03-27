@@ -7,6 +7,7 @@ use rustdoc_processor::GlobalItemId;
 
 use crate::Collection;
 use crate::diagnostic::DiagnosticSink;
+use crate::indexing::FieldAnnotation;
 use rustdoc_resolver::{GenericBindings, TypeAliasResolution, resolve_type};
 use rustdoc_types::{Attribute, AttributeRepr, ItemEnum, ReprKind, StructKind, VariantKind};
 
@@ -38,14 +39,31 @@ pub(super) fn resolve_type_kind(
 
     let global_id = GlobalItemId::new(*id, path_type.package_id.clone());
     let item = collection.get_item_by_global_type_id(&global_id);
+    let annotations = collection.get_annotated_items(&path_type.package_id);
+
+    // Extract field_names annotation for this item, if any.
+    let field_names = annotations
+        .and_then(|ann| ann.get(id))
+        .and_then(|a| a.field_names.as_deref());
 
     let mut kind = match &item.inner {
-        ItemEnum::Struct(struct_def) => {
-            resolve_struct_kind(name, struct_def, &item.attrs, path_type, collection, diagnostics)
-        }
-        ItemEnum::Union(union_def) => {
-            resolve_union_kind(name, union_def, &item.attrs, path_type, collection, diagnostics)
-        }
+        ItemEnum::Struct(struct_def) => resolve_struct_kind(
+            name,
+            struct_def,
+            &item.attrs,
+            path_type,
+            collection,
+            field_names,
+            diagnostics,
+        ),
+        ItemEnum::Union(union_def) => resolve_union_kind(
+            name,
+            union_def,
+            &item.attrs,
+            path_type,
+            collection,
+            diagnostics,
+        ),
         ItemEnum::Enum(enum_def) => resolve_enum_kind(
             name,
             enum_def,
@@ -88,9 +106,7 @@ fn setup_generic_bindings(
             Some(bindings) => bindings,
             None => {
                 diagnostics
-                    .warning(format!(
-                        "type `{name}` has generic type parameters"
-                    ))
+                    .warning(format!("type `{name}` has generic type parameters"))
                     .with_span_if(span)
                     .with_help("emitting forward declaration")
                     .emit();
@@ -117,6 +133,7 @@ fn resolve_struct_kind(
     attrs: &[Attribute],
     path_type: &PathType,
     collection: &Collection,
+    field_names: Option<&[String]>,
     diagnostics: &mut DiagnosticSink,
 ) -> anyhow::Result<CTypeKind> {
     // Check for #[repr(C)] or #[repr(transparent)].
@@ -140,7 +157,8 @@ fn resolve_struct_kind(
     });
 
     if !is_repr_c && !is_repr_transparent {
-        let global_id = GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
+        let global_id =
+            GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
         let type_item = collection.get_item_by_global_type_id(&global_id);
         diagnostics
             .warning(format!("type `{name}` is not #[repr(C)]"))
@@ -151,14 +169,27 @@ fn resolve_struct_kind(
         return Ok(CTypeKind::OpaqueStruct);
     }
 
-    let global_id_for_span = GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
+    let global_id_for_span =
+        GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
     let item_for_span = collection.get_item_by_global_type_id(&global_id_for_span);
-    let generic_bindings = match setup_generic_bindings(name, &struct_def.generics, path_type, item_for_span.span.as_ref(), diagnostics) {
+    let generic_bindings = match setup_generic_bindings(
+        name,
+        &struct_def.generics,
+        path_type,
+        item_for_span.span.as_ref(),
+        diagnostics,
+    ) {
         Ok(bindings) => bindings,
         Err(()) => return Ok(CTypeKind::OpaqueStruct),
     };
 
-    let fields = resolve_struct_fields(struct_def, &generic_bindings, path_type, collection)?;
+    let fields = resolve_struct_fields(
+        struct_def,
+        &generic_bindings,
+        path_type,
+        collection,
+        field_names,
+    )?;
     if is_repr_transparent {
         match fields.len() {
             0 => Ok(CTypeKind::Struct(CStructDef { fields })),
@@ -166,7 +197,8 @@ fn resolve_struct_kind(
                 inner: fields.into_iter().next().unwrap().type_,
             })),
             n => {
-                let global_id = GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
+                let global_id =
+                    GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
                 let item = collection.get_item_by_global_type_id(&global_id);
                 diagnostics
                     .warning(format!(
@@ -189,14 +221,19 @@ fn resolve_struct_fields(
     generic_bindings: &rustdoc_resolver::GenericBindings,
     path_type: &PathType,
     collection: &Collection,
+    field_names: Option<&[String]>,
 ) -> anyhow::Result<Vec<CStructField>> {
     match &struct_def.kind {
         StructKind::Plain { fields, .. } => {
             resolve_plain_fields(fields, generic_bindings, &path_type.package_id, collection)
         }
-        StructKind::Tuple(fields) => {
-            resolve_tuple_fields(fields, generic_bindings, &path_type.package_id, collection)
-        }
+        StructKind::Tuple(fields) => resolve_tuple_fields(
+            fields,
+            generic_bindings,
+            &path_type.package_id,
+            collection,
+            field_names,
+        ),
         StructKind::Unit => Ok(Vec::new()),
     }
 }
@@ -251,7 +288,7 @@ fn resolve_transparent_inner_type(
     collection: &Collection,
 ) -> Option<Type> {
     let c_fields =
-        resolve_struct_fields(struct_def, generic_bindings, path_type, collection).ok()?;
+        resolve_struct_fields(struct_def, generic_bindings, path_type, collection, None).ok()?;
     if c_fields.len() == 1 {
         Some(c_fields.into_iter().next().unwrap().type_)
     } else {
@@ -268,10 +305,11 @@ fn resolve_type_alias_kind(
 ) -> anyhow::Result<CTypeKind> {
     // Type alias resolution doesn't emit warnings — it either works or errors.
     let mut throwaway = DiagnosticSink::new(PathBuf::new(), false);
-    let generic_bindings = match setup_generic_bindings(name, &type_alias.generics, path_type, None, &mut throwaway) {
-        Ok(bindings) => bindings,
-        Err(()) => return Ok(CTypeKind::OpaqueStruct),
-    };
+    let generic_bindings =
+        match setup_generic_bindings(name, &type_alias.generics, path_type, None, &mut throwaway) {
+            Ok(bindings) => bindings,
+            Err(()) => return Ok(CTypeKind::OpaqueStruct),
+        };
 
     // Resolve the aliased type fully (resolve through nested aliases).
     let resolved = resolve_type(
@@ -305,7 +343,8 @@ fn resolve_union_kind(
         )
     });
     if !is_repr_c {
-        let global_id = GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
+        let global_id =
+            GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
         let item = collection.get_item_by_global_type_id(&global_id);
         diagnostics
             .warning(format!("union `{name}` is not #[repr(C)]"))
@@ -316,9 +355,16 @@ fn resolve_union_kind(
         return Ok(CTypeKind::OpaqueUnion);
     }
 
-    let global_id_for_span = GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
+    let global_id_for_span =
+        GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
     let item_for_span = collection.get_item_by_global_type_id(&global_id_for_span);
-    let generic_bindings = match setup_generic_bindings(name, &union_def.generics, path_type, item_for_span.span.as_ref(), diagnostics) {
+    let generic_bindings = match setup_generic_bindings(
+        name,
+        &union_def.generics,
+        path_type,
+        item_for_span.span.as_ref(),
+        diagnostics,
+    ) {
         Ok(bindings) => bindings,
         Err(()) => return Ok(CTypeKind::OpaqueUnion),
     };
@@ -442,21 +488,27 @@ fn resolve_enum_kind(
     diagnostics: &mut DiagnosticSink,
 ) -> anyhow::Result<CTypeKind> {
     let Some(repr) = extract_enum_repr(attrs)? else {
-        let global_id = GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
+        let global_id =
+            GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
         let item = collection.get_item_by_global_type_id(&global_id);
         diagnostics
-            .warning(format!(
-                "enum `{name}` has no C-compatible repr"
-            ))
+            .warning(format!("enum `{name}` has no C-compatible repr"))
             .with_span_if(item.span.as_ref())
             .with_help("emitting opaque forward declaration")
             .emit();
         return Ok(CTypeKind::OpaqueStruct);
     };
 
-    let global_id_for_span = GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
+    let global_id_for_span =
+        GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
     let item_for_span = collection.get_item_by_global_type_id(&global_id_for_span);
-    let generic_bindings = match setup_generic_bindings(name, &enum_def.generics, path_type, item_for_span.span.as_ref(), diagnostics) {
+    let generic_bindings = match setup_generic_bindings(
+        name,
+        &enum_def.generics,
+        path_type,
+        item_for_span.span.as_ref(),
+        diagnostics,
+    ) {
         Ok(bindings) => bindings,
         Err(()) => return Ok(CTypeKind::OpaqueStruct),
     };
@@ -481,7 +533,14 @@ fn resolve_enum_kind(
     }
 
     if all_plain {
-        resolve_fieldless_enum(name, enum_def, repr, package_id, collection)
+        resolve_fieldless_enum(
+            name,
+            enum_def,
+            repr,
+            package_id,
+            collection,
+            enum_prefix_with_name,
+        )
     } else {
         resolve_tagged_union(
             name,
@@ -502,6 +561,7 @@ fn resolve_fieldless_enum(
     repr: CEnumRepr,
     package_id: &PackageId,
     collection: &Collection,
+    prefix_with_name: bool,
 ) -> anyhow::Result<CTypeKind> {
     let mut variants = Vec::new();
     for variant_id in &enum_def.variants {
@@ -510,7 +570,10 @@ fn resolve_fieldless_enum(
         let ItemEnum::Variant(variant) = &variant_item.inner else {
             anyhow::bail!("Expected Variant for enum `{name}`");
         };
-        let variant_name = variant_item.name.clone().unwrap_or_default();
+        let variant_ann = FieldAnnotation::from_attrs(&variant_item.attrs);
+        let variant_name = variant_ann
+            .rename
+            .unwrap_or_else(|| variant_item.name.clone().unwrap_or_default());
         let discriminant = variant.discriminant.as_ref().map(|d| d.expr.clone());
         variants.push(CEnumVariant {
             name: CIdentifier::new(variant_name),
@@ -520,6 +583,7 @@ fn resolve_fieldless_enum(
     Ok(CTypeKind::FieldlessEnum(CFieldlessEnumDef {
         repr,
         variants,
+        prefix_with_name,
     }))
 }
 
@@ -542,13 +606,16 @@ fn resolve_tagged_union(
         let ItemEnum::Variant(variant) = &variant_item.inner else {
             anyhow::bail!("Expected Variant for enum `{name}`");
         };
-        let variant_name = variant_item.name.clone().unwrap_or_default();
+        let variant_ann = FieldAnnotation::from_attrs(&variant_item.attrs);
+        let variant_name = variant_ann
+            .rename
+            .unwrap_or_else(|| variant_item.name.clone().unwrap_or_default());
 
         let body = match &variant.kind {
             VariantKind::Plain => None,
             VariantKind::Tuple(fields) => {
                 let c_fields =
-                    resolve_tuple_fields(fields, generic_bindings, package_id, collection)?;
+                    resolve_tuple_fields(fields, generic_bindings, package_id, collection, None)?;
                 if c_fields.is_empty() {
                     None
                 } else {
@@ -582,6 +649,8 @@ fn resolve_tagged_union(
 /// Resolve named struct fields into C struct fields.
 ///
 /// It skips fields with zero-sized types.
+/// Reads `#[diagnostic::cheadergen::rename(...)]` and
+/// `#[diagnostic::cheadergen::bitfield(...)]` from field attributes.
 fn resolve_plain_fields(
     field_ids: &[rustdoc_types::Id],
     generic_bindings: &GenericBindings,
@@ -596,10 +665,14 @@ fn resolve_plain_fields(
             anyhow::bail!("Expected StructField for id {:?}", field_id);
         };
 
-        let field_name = field_item
-            .name
-            .clone()
-            .unwrap_or_else(|| "<unnamed>".to_string());
+        let field_ann = FieldAnnotation::from_attrs(&field_item.attrs);
+
+        let field_name = field_ann.rename.unwrap_or_else(|| {
+            field_item
+                .name
+                .clone()
+                .unwrap_or_else(|| "<unnamed>".to_string())
+        });
         let resolved = resolve_type(
             raw_type,
             package_id,
@@ -617,6 +690,7 @@ fn resolve_plain_fields(
         c_fields.push(CStructField {
             name: CIdentifier::new(field_name),
             type_: resolved,
+            bitfield_width: field_ann.bitfield_width,
         });
     }
     Ok(c_fields)
@@ -624,12 +698,16 @@ fn resolve_plain_fields(
 
 /// Resolve tuple struct fields into C struct fields named `m0`, `m1`, etc.
 ///
+/// When `custom_names` is provided (from `#[cheadergen::config(field_names(...))]`),
+/// those names are used instead of the default `m0`, `m1`, etc.
+///
 /// It skips fields with zero-sized types.
 fn resolve_tuple_fields(
     fields: &[Option<rustdoc_types::Id>],
     generic_bindings: &GenericBindings,
     package_id: &PackageId,
     collection: &Collection,
+    custom_names: Option<&[String]>,
 ) -> anyhow::Result<Vec<CStructField>> {
     let mut c_fields = Vec::new();
     let mut index = 0;
@@ -658,9 +736,15 @@ fn resolve_tuple_fields(
             continue;
         }
 
+        let field_name = custom_names
+            .and_then(|names| names.get(index))
+            .cloned()
+            .unwrap_or_else(|| format!("m{index}"));
+
         c_fields.push(CStructField {
-            name: CIdentifier::new(format!("m{index}")),
+            name: CIdentifier::new(field_name),
             type_: resolved,
+            bitfield_width: None,
         });
         index += 1;
     }

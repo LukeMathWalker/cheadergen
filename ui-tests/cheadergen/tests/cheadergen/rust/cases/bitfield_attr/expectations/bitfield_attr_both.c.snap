@@ -1,0 +1,15 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 249
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct Flags {
+  uint8_t low_nibble : 4;
+  uint8_t high_nibble : 4;
+  uint32_t value;
+} Flags;

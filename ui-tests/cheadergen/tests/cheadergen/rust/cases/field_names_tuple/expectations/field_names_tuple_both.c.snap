@@ -1,0 +1,27 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 249
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+/**
+ * Tuple struct with custom field names.
+ */
+typedef struct Point2D {
+  double x;
+  double y;
+} Point2D;
+
+/**
+ * Tuple struct with default naming (no annotation).
+ */
+typedef struct Pair {
+  uint32_t m0;
+  uint32_t m1;
+} Pair;
+
+struct Pair make_pair(uint32_t a, uint32_t b);

@@ -3,12 +3,13 @@ use std::path::PathBuf;
 
 use clap::{ArgAction, Parser};
 
+use crate::analysis::ExternItemCoordinates;
 use crate::config::{Language, Style};
 use crate::diagnostic::{DiagnosticSink, render_diagnostics};
 use crate::{analysis, codegen, config, metadata, topological_sort};
 
-use crate::Collection;
 use super::input::{PackageSelection, resolve_input, select_packages};
+use crate::Collection;
 
 #[derive(Debug, Parser)]
 pub(super) struct GenerateArgs {
@@ -67,11 +68,7 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
         anyhow::bail!("--no-header requires --symbol-file");
     }
 
-    let resolved_input = cli
-        .input
-        .as_ref()
-        .map(|p| resolve_input(p))
-        .transpose()?;
+    let resolved_input = cli.input.as_ref().map(|p| resolve_input(p)).transpose()?;
 
     // Load config file (or use defaults).
     let raw_config = if let Some(ref config_path) = cli.config {
@@ -93,8 +90,7 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
         .as_ref()
         .map(|r| r.dir().clone())
         .unwrap_or_else(|| PathBuf::from("."));
-    let package_graph =
-        metadata::load_package_graph(cli.metadata.as_ref(), Some(&metadata_dir))?;
+    let package_graph = metadata::load_package_graph(cli.metadata.as_ref(), Some(&metadata_dir))?;
     let packages = select_packages(
         resolved_input.as_ref(),
         &cli.package_selection,
@@ -162,9 +158,14 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
 
         if !debug && has_hidden_causes {
             eprintln!("note: rerun with `CHEADERGEN_DEBUG=true` for more details");
+        } else {
+            eprintln!();
         }
 
-        if all.iter().any(|d| d.severity == crate::diagnostic::Severity::Error) {
+        if all
+            .iter()
+            .any(|d| d.severity == crate::diagnostic::Severity::Error)
+        {
             anyhow::bail!("aborting due to previous error(s)");
         }
     }
@@ -197,7 +198,8 @@ fn generate_one_crate(
         );
     }
 
-    let mut extern_items = analysis::find_extern_items(krate);
+    let extern_items =
+        ExternItemCoordinates::collect(collection, package_id).map_err(|e| anyhow::anyhow!(e))?;
 
     if !cli.quiet {
         eprintln!(
@@ -244,52 +246,19 @@ fn generate_one_crate(
             _ => anyhow::bail!("Only C output is currently supported"),
         };
 
-        // Sort IDs before resolution — resolvers preserve input order,
-        // so the output inherits the sort.
-        analysis::sort_local_ids_by_key(
-            &mut extern_items.fn_ids,
-            c_config.common.fn_sort_by,
-            krate,
-        );
-        analysis::sort_local_ids_by_key(
-            &mut extern_items.static_ids,
-            c_config.common.static_sort_by,
-            krate,
-        );
-        analysis::sort_local_ids_by_key(
-            &mut extern_items.constant_ids,
-            c_config.common.constant_sort_by,
-            krate,
-        );
-
-        let resolved_fns = analysis::resolve_functions(
-            &extern_items.fn_ids,
-            krate,
-            collection,
-            diagnostics,
-        );
-        let resolved_statics = analysis::resolve_statics(
-            &extern_items.static_ids,
-            krate,
-            collection,
-            diagnostics,
-        );
-        let resolved_constants =
-            analysis::resolve_constants(&extern_items.constant_ids, krate, collection, diagnostics);
+        let extern_items = extern_items.resolve(collection, &c_config.common, diagnostics);
 
         if !cli.quiet {
-            eprintln!("Resolved {} function(s) to IR", resolved_fns.len());
-            eprintln!("Resolved {} static(s) to IR", resolved_statics.len());
-            eprintln!("Resolved {} constant(s) to IR", resolved_constants.len());
+            eprintln!("Resolved {} function(s) to IR", extern_items.fns.len());
+            eprintln!("Resolved {} static(s) to IR", extern_items.statics.len());
+            eprintln!(
+                "Resolved {} constant(s) to IR",
+                extern_items.constants.len()
+            );
         }
 
-        let annotations = collection.get_annotated_items(package_id);
-        let extra_types = analysis::annotated_path_types(annotations, krate, diagnostics);
-
         let mut type_defs = analysis::collect_type_definitions(
-            &resolved_fns,
-            &resolved_statics,
-            &extra_types,
+            &extern_items,
             collection,
             c_config.enum_prefix_with_name,
             diagnostics,
@@ -301,16 +270,17 @@ fn generate_one_crate(
         analysis::sort_by_key(&mut type_defs, config::SortKey::SourceOrder, collection);
         topological_sort::topological_sort(&mut type_defs, collection, diagnostics);
 
-        let assoc_constants = analysis::find_assoc_constants(&type_defs, krate, collection, diagnostics);
+        let assoc_constants =
+            analysis::find_assoc_constants(&type_defs, krate, collection, diagnostics);
 
         let mut header = String::new();
         codegen::generate_c_header(
             c_config,
             &type_defs,
-            &resolved_constants,
+            &extern_items.constants,
             &assoc_constants,
-            &resolved_fns,
-            &resolved_statics,
+            &extern_items.fns,
+            &extern_items.statics,
             collection,
             &mut header,
         );

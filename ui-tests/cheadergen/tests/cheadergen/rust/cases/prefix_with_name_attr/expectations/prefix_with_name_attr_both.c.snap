@@ -1,0 +1,38 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 249
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+/**
+ * Variants should be prefixed: `Status_Ok`, `Status_Error`, `Status_Pending`.
+ */
+typedef enum Status {
+  Status_Ok,
+  Status_Error,
+  Status_Pending,
+} Status;
+
+/**
+ * Variants should NOT be prefixed (explicit false).
+ */
+typedef enum Flags {
+  A,
+  B,
+  C,
+} Flags;
+
+/**
+ * No annotation — uses global default (which is `false` by default).
+ */
+typedef enum Color {
+  Red,
+  Green,
+  Blue,
+} Color;
+
+enum Color get_color(void);

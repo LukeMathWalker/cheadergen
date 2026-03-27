@@ -1,0 +1,37 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 249
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+/**
+ * Enum renamed in the C header.
+ */
+typedef enum {
+  Ok,
+  Error,
+} Status;
+
+/**
+ * Struct renamed from `InternalPoint` to `Point` in the C header.
+ */
+typedef struct {
+  double x;
+  double y;
+} Point;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+Point make_point(double x, double y);
+
+Status get_status(void);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

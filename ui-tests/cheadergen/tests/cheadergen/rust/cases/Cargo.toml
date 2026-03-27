@@ -6,5 +6,8 @@ resolver = "3"
 [workspace.package]
 edition = "2024"
 
+[workspace.dependencies]
+cheadergen = { path = "../../../../../../cheadergen" }
+
 [workspace.lints.rustdoc]
 missing_crate_level_docs = "deny"

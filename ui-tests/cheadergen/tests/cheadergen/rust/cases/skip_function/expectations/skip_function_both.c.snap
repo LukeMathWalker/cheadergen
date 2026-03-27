@@ -1,0 +1,19 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 249
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct Point {
+  double x;
+  double y;
+} Point;
+
+/**
+ * This function SHOULD appear in the header.
+ */
+struct Point make_point(double x, double y);
