@@ -7,12 +7,12 @@ description: "Reference for the ui-tests infrastructure: test suites, directory 
 
 The ui-tests infrastructure is split into four crates under `ui-tests/`:
 
-| Crate | Path | Purpose |
-|-------|------|---------|
-| `cbindgen-ui-tests` | `ui-tests/cbindgen/` | cbindgen compatibility test suite |
-| `cheadergen-ui-tests` | `ui-tests/cheadergen/` | cheadergen feature test suite |
-| `ui-tests` | `ui-tests/cli/` | CLI binary (`just ui-tests new`, `cbindgen-report`, etc.) |
-| `ui_tests_toolkit` | `ui-tests/toolkit/` | Shared build-time + runtime infrastructure |
+| Crate                 | Path                   | Purpose                                                   |
+| --------------------- | ---------------------- | --------------------------------------------------------- |
+| `cbindgen-ui-tests`   | `ui-tests/cbindgen/`   | cbindgen compatibility test suite                         |
+| `cheadergen-ui-tests` | `ui-tests/cheadergen/` | cheadergen feature test suite                             |
+| `ui-tests`            | `ui-tests/cli/`        | CLI binary (`just ui-tests new`, `cbindgen-report`, etc.) |
+| `ui_tests_toolkit`    | `ui-tests/toolkit/`    | Shared build-time + runtime infrastructure                |
 
 ## Cbindgen Normal Expectations Are Read-Only
 
@@ -27,10 +27,10 @@ that evolve as cheadergen improves. Accept these via `mv .snap.new .snap`.
 
 ## Test Suites
 
-| Suite | Cases path | License | Notes |
-|-------|-----------|---------|-------|
-| **cbindgen** | `ui-tests/cbindgen/tests/cbindgen/rust/cases/` | MPL-2.0 | Vendored from mozilla/cbindgen for compatibility |
-| **cheadergen** | `ui-tests/cheadergen/tests/cheadergen/rust/cases/` | Apache-2.0 | New tests for cheadergen-specific features |
+| Suite          | Cases path                                         | License    | Notes                                            |
+| -------------- | -------------------------------------------------- | ---------- | ------------------------------------------------ |
+| **cbindgen**   | `ui-tests/cbindgen/tests/cbindgen/rust/cases/`     | MPL-2.0    | Vendored from mozilla/cbindgen for compatibility |
+| **cheadergen** | `ui-tests/cheadergen/tests/cheadergen/rust/cases/` | Apache-2.0 | New tests for cheadergen-specific features       |
 
 ## Test Categories
 
@@ -99,13 +99,13 @@ Maps variant keys to statuses. Omitted variants default to normal (must pass).
 
 ### Status Values
 
-| Status              | Meaning |
-| ------------------- | ------- |
-| _(omitted)_         | Normal — test must pass, output matches expectation |
-| `"header_diff"`     | cheadergen succeeds but output differs from cbindgen expectation; differing output is snapshotted |
-| `"generation_fails"`| cheadergen fails (non-zero exit); stderr is snapshotted |
-| `"skip"`            | Ignored — `#[ignore]` attribute, does not run |
-| `"exclude"`         | No test function generated at all |
+| Status               | Meaning                                                                                           |
+| -------------------- | ------------------------------------------------------------------------------------------------- |
+| _(omitted)_          | Normal — test must pass, output matches expectation                                               |
+| `"header_diff"`      | cheadergen succeeds but output differs from cbindgen expectation; differing output is snapshotted |
+| `"generation_fails"` | cheadergen fails (non-zero exit); stderr is snapshotted                                           |
+| `"skip"`             | Ignored — `#[ignore]` attribute, does not run                                                     |
+| `"exclude"`          | No test function generated at all                                                                 |
 
 ### Example
 
