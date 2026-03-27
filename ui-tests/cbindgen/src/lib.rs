@@ -10,6 +10,16 @@ use ui_tests_toolkit::generate::find_generated_file;
 
 const SKIP_WARNING_AS_ERROR_SUFFIX: &str = ".skip_warning_as_error";
 
+fn workspace_root() -> PathBuf {
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+    Path::new(&manifest_dir)
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .to_owned()
+}
+
 fn tests_dir() -> PathBuf {
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
     Path::new(&manifest_dir).join("tests")
@@ -184,7 +194,8 @@ pub fn run_generation_fails_test(
         );
     }
 
-    let stderr_str = str::from_utf8(&output.stderr).unwrap_or_default();
+    let stderr_raw = str::from_utf8(&output.stderr).unwrap_or_default();
+    let stderr_str = ui_tests_toolkit::normalize_stderr(stderr_raw, &workspace_root());
     if !stderr_str.is_empty() {
         let expectations_dir = path.join("expectations");
         let snap_name = format!(

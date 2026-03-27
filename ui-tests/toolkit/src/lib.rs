@@ -19,3 +19,13 @@ pub use variant_status::VariantStatus;
 
 // Runtime re-exports
 pub use types::{Language, Style, language_extension, style_str};
+
+use std::path::Path;
+
+/// Replace the workspace root in stderr so snapshots are portable across checkouts.
+pub fn normalize_stderr(stderr: &str, workspace_root: &Path) -> String {
+    let root_str = workspace_root
+        .to_str()
+        .expect("non-UTF-8 workspace root");
+    stderr.replace(root_str, "[WORKSPACE]")
+}
