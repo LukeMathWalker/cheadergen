@@ -8,6 +8,7 @@ use super::type_resolution::resolve_type_kind;
 use crate::Collection;
 use crate::analysis::exported_via_annotations;
 use crate::analysis::extern_items::ExternItems;
+use crate::cli::generate::PackageTypeOverrides;
 use crate::diagnostic::DiagnosticSink;
 use crate::indexing::ExportMode;
 use rustdoc_types::ItemEnum;
@@ -345,6 +346,7 @@ pub fn collect_type_definitions(
     extern_items: &ExternItems,
     collection: &Collection,
     enum_prefix_with_name: bool,
+    overrides: &PackageTypeOverrides,
     diagnostics: &mut DiagnosticSink,
 ) -> anyhow::Result<Vec<CTypeDefinition>> {
     let exports = exported_via_annotations(&extern_items.package_id, collection, diagnostics)
@@ -365,19 +367,19 @@ pub fn collect_type_definitions(
     // Do a first pass over extern items to collect paths from their input/output types.
     for func in &extern_items.fns {
         for input in &func.header.inputs {
-            collect_paths_from_type(&input.type_, TypeUsage::ByValue, &mut seen, collection);
+            collect_paths_from_type(&input.type_, TypeUsage::ByValue, &mut seen, collection, overrides);
         }
         if let Some(output) = &func.header.output {
-            collect_paths_from_type(output, TypeUsage::ByValue, &mut seen, collection);
+            collect_paths_from_type(output, TypeUsage::ByValue, &mut seen, collection, overrides);
         }
     }
     for s in &extern_items.statics {
-        collect_paths_from_type(&s.type_, TypeUsage::ByValue, &mut seen, collection);
+        collect_paths_from_type(&s.type_, TypeUsage::ByValue, &mut seen, collection, overrides);
     }
 
     // Resolve struct/enum/union fields for directly-used types. This may discover new
     // transitive types that also need definitions.
-    resolve_all_type_definitions(&mut seen, collection, enum_prefix_with_name, diagnostics)
+    resolve_all_type_definitions(&mut seen, collection, enum_prefix_with_name, overrides, diagnostics)
 }
 
 /// Compute the cbindgen-style monomorphized C name for a type.
@@ -443,6 +445,7 @@ pub(super) fn collect_paths_from_type(
     usage: TypeUsage,
     seen: &mut HashMap<CanonicalType, TypeUsage>,
     collection: &Collection,
+    overrides: &PackageTypeOverrides,
 ) {
     match ty {
         Type::Path(p) | Type::TypeAlias(p) => {
@@ -451,6 +454,13 @@ pub(super) fn collect_paths_from_type(
             if ffi_primitive_to_c(p).is_some() {
                 return;
             }
+
+            // Package-level skip: don't collect the type at all,
+            // same as annotation-level `#[cheadergen::skip]`.
+            if overrides.skipped.contains(&p.package_id) {
+                return;
+            }
+
             let annotation = collection
                 .get_annotated_items(&p.package_id)
                 .and_then(|ann| ann.get(&p.rustdoc_id?));
@@ -460,8 +470,11 @@ pub(super) fn collect_paths_from_type(
                 return;
             }
 
+            // Package-level opaque: never upgrade to ByValue,
+            // same as annotation-level `#[cheadergen::export(opaque)]`.
             let must_stay_opaque =
-                annotation.as_ref().and_then(|ann| ann.export) == Some(ExportMode::Opaque);
+                overrides.opaque.contains(&p.package_id)
+                    || annotation.as_ref().and_then(|ann| ann.export) == Some(ExportMode::Opaque);
 
             let canonical = Type::Path(p.clone()).canonicalize();
             let entry = seen.entry(canonical).or_insert(TypeUsage::BehindPointer);
@@ -470,24 +483,24 @@ pub(super) fn collect_paths_from_type(
             }
         }
         Type::Reference(r) => {
-            collect_paths_from_type(&r.inner, TypeUsage::BehindPointer, seen, collection)
+            collect_paths_from_type(&r.inner, TypeUsage::BehindPointer, seen, collection, overrides)
         }
         Type::RawPointer(r) => {
-            collect_paths_from_type(&r.inner, TypeUsage::BehindPointer, seen, collection)
+            collect_paths_from_type(&r.inner, TypeUsage::BehindPointer, seen, collection, overrides)
         }
         Type::Tuple(t) => {
             for element in &t.elements {
-                collect_paths_from_type(element, usage, seen, collection);
+                collect_paths_from_type(element, usage, seen, collection, overrides);
             }
         }
-        Type::Slice(s) => collect_paths_from_type(&s.element_type, usage, seen, collection),
-        Type::Array(a) => collect_paths_from_type(&a.element_type, usage, seen, collection),
+        Type::Slice(s) => collect_paths_from_type(&s.element_type, usage, seen, collection, overrides),
+        Type::Array(a) => collect_paths_from_type(&a.element_type, usage, seen, collection, overrides),
         Type::FunctionPointer(fp) => {
             for input in &fp.inputs {
-                collect_paths_from_type(&input.type_, TypeUsage::BehindPointer, seen, collection);
+                collect_paths_from_type(&input.type_, TypeUsage::BehindPointer, seen, collection, overrides);
             }
             if let Some(output) = &fp.output {
-                collect_paths_from_type(output, TypeUsage::BehindPointer, seen, collection);
+                collect_paths_from_type(output, TypeUsage::BehindPointer, seen, collection, overrides);
             }
         }
         Type::ScalarPrimitive(_) | Type::Generic(_) => {}
@@ -577,6 +590,7 @@ fn resolve_all_type_definitions(
     seen: &mut HashMap<CanonicalType, TypeUsage>,
     collection: &Collection,
     enum_prefix_with_name: bool,
+    overrides: &PackageTypeOverrides,
     diagnostics: &mut DiagnosticSink,
 ) -> anyhow::Result<Vec<CTypeDefinition>> {
     // Phase 1: fixed-point loop over directly-used types.
@@ -610,12 +624,12 @@ fn resolve_all_type_definitions(
             match &kind {
                 CTypeKind::Struct(def) => {
                     for field in &def.fields {
-                        collect_paths_from_type(&field.type_, TypeUsage::ByValue, seen, collection);
+                        collect_paths_from_type(&field.type_, TypeUsage::ByValue, seen, collection, overrides);
                     }
                 }
                 CTypeKind::Union(def) => {
                     for field in &def.fields {
-                        collect_paths_from_type(&field.type_, TypeUsage::ByValue, seen, collection);
+                        collect_paths_from_type(&field.type_, TypeUsage::ByValue, seen, collection, overrides);
                     }
                 }
                 CTypeKind::TaggedUnion(def) => {
@@ -627,13 +641,14 @@ fn resolve_all_type_definitions(
                                     TypeUsage::ByValue,
                                     seen,
                                     collection,
+                                    overrides,
                                 );
                             }
                         }
                     }
                 }
                 CTypeKind::Typedef(def) => {
-                    collect_paths_from_type(&def.inner, TypeUsage::ByValue, seen, collection);
+                    collect_paths_from_type(&def.inner, TypeUsage::ByValue, seen, collection, overrides);
                 }
                 CTypeKind::OpaqueStruct | CTypeKind::OpaqueUnion | CTypeKind::FieldlessEnum(_) => {}
             }

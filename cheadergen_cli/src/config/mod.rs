@@ -1,5 +1,6 @@
 pub mod cbindgen;
 
+use std::collections::HashMap;
 use std::path::Path;
 
 use clap::ValueEnum;
@@ -106,6 +107,27 @@ pub struct RawEnumSection {
     pub prefix_with_name: Option<bool>,
 }
 
+/// Controls how types from a specific dependency package are emitted
+/// in the generated header.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PackageTypeMode {
+    /// Emit only forward declarations for all types from this package.
+    Opaque,
+    /// Do not emit anything for types from this package.
+    /// The consumer is expected to provide definitions via included headers.
+    Skip,
+}
+
+/// Per-dependency-package configuration inside a `[package.<name>]` TOML section.
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RawPackageConfig {
+    /// How types from this package should be emitted.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub types: Option<PackageTypeMode>,
+}
+
 /// The declaration style for C struct and enum definitions.
 ///
 /// This only applies when the target language is [`Language::C`].
@@ -198,6 +220,13 @@ pub struct RawConfig {
     /// Enum-specific configuration.
     #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
     pub enum_: Option<RawEnumSection>,
+
+    /// Per-dependency-package configuration.
+    ///
+    /// Keys are crate names (e.g. `my-dep`) or Cargo-style `name@version`
+    /// specifiers for disambiguation (e.g. `"foo@1.0"`).
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub package: HashMap<String, RawPackageConfig>,
 
     /// C-specific configuration section.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -338,6 +367,16 @@ pub struct CommonConfig {
     pub documentation_style: DocumentationStyle,
     /// How much of the doc comment to include.
     pub documentation_length: DocumentationLength,
+    /// Per-dependency-package configuration, keyed by the raw config key
+    /// (crate name or `name@version`).
+    pub package_configs: HashMap<String, PackageConfig>,
+}
+
+/// Validated per-dependency-package configuration.
+#[derive(Debug, Clone)]
+pub struct PackageConfig {
+    /// How types from this package should be emitted.
+    pub types: PackageTypeMode,
 }
 
 /// C-specific configuration, including options that are only meaningful for
@@ -402,6 +441,7 @@ struct RawCommonFields {
     documentation: Option<bool>,
     documentation_style: Option<DocumentationStyle>,
     documentation_length: Option<DocumentationLength>,
+    package_configs: HashMap<String, PackageConfig>,
 }
 
 /// Optional overrides from a language section that can replace top-level
@@ -451,6 +491,7 @@ impl RawCommonFields {
                 .documentation_length
                 .or(self.documentation_length)
                 .unwrap_or_default(),
+            package_configs: self.package_configs,
         }
     }
 }
@@ -562,6 +603,13 @@ impl RawConfig {
             documentation: self.documentation,
             documentation_style: self.documentation_style,
             documentation_length: self.documentation_length,
+            package_configs: self
+                .package
+                .into_iter()
+                .filter_map(|(key, raw)| {
+                    raw.types.map(|types| (key, PackageConfig { types }))
+                })
+                .collect(),
         };
 
         match language {
@@ -786,5 +834,134 @@ header = "/* C++ */"
 "#;
         let raw: RawConfig = toml::from_str(toml_str).unwrap();
         assert!(raw.cxx.is_some());
+    }
+
+    #[test]
+    fn package_opaque_mode() {
+        let toml_str = r#"
+[package.my-dep]
+types = "opaque"
+"#;
+        let raw: RawConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(
+            raw.package["my-dep"].types,
+            Some(PackageTypeMode::Opaque)
+        );
+        let config = raw
+            .into_config(&Language::C, &CliOverrides::default())
+            .unwrap();
+        match config {
+            Config::C(c) => {
+                assert_eq!(
+                    c.common.package_configs["my-dep"].types,
+                    PackageTypeMode::Opaque
+                );
+            }
+            _ => panic!("expected Config::C"),
+        }
+    }
+
+    #[test]
+    fn package_skip_mode() {
+        let toml_str = r#"
+[package.other-dep]
+types = "skip"
+"#;
+        let raw: RawConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(
+            raw.package["other-dep"].types,
+            Some(PackageTypeMode::Skip)
+        );
+        let config = raw
+            .into_config(&Language::C, &CliOverrides::default())
+            .unwrap();
+        match config {
+            Config::C(c) => {
+                assert_eq!(
+                    c.common.package_configs["other-dep"].types,
+                    PackageTypeMode::Skip
+                );
+            }
+            _ => panic!("expected Config::C"),
+        }
+    }
+
+    #[test]
+    fn package_versioned_key() {
+        let toml_str = r#"
+[package."foo@1.0"]
+types = "opaque"
+
+[package."foo@2.0"]
+types = "skip"
+"#;
+        let raw: RawConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(raw.package.len(), 2);
+        assert_eq!(
+            raw.package["foo@1.0"].types,
+            Some(PackageTypeMode::Opaque)
+        );
+        assert_eq!(
+            raw.package["foo@2.0"].types,
+            Some(PackageTypeMode::Skip)
+        );
+    }
+
+    #[test]
+    fn package_empty_section_accepted() {
+        let toml_str = r#"
+[package.my-dep]
+"#;
+        let raw: RawConfig = toml::from_str(toml_str).unwrap();
+        assert!(raw.package.contains_key("my-dep"));
+        assert_eq!(raw.package["my-dep"].types, None);
+        // Empty section produces no PackageConfig entry (types is None → filtered out)
+        let config = raw
+            .into_config(&Language::C, &CliOverrides::default())
+            .unwrap();
+        match config {
+            Config::C(c) => {
+                assert!(c.common.package_configs.is_empty());
+            }
+            _ => panic!("expected Config::C"),
+        }
+    }
+
+    #[test]
+    fn package_unknown_field_rejected() {
+        let toml_str = r#"
+[package.my-dep]
+typos = "opaque"
+"#;
+        let result: Result<RawConfig, _> = toml::from_str(toml_str);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn package_with_other_config() {
+        let toml_str = r#"
+header = "/* License */"
+
+[package.my-dep]
+types = "opaque"
+
+[c]
+style = "Tag"
+"#;
+        let raw: RawConfig = toml::from_str(toml_str).unwrap();
+        let config = raw
+            .into_config(&Language::C, &CliOverrides::default())
+            .unwrap();
+        match config {
+            Config::C(c) => {
+                assert_eq!(c.common.header.as_deref(), Some("/* License */"));
+                assert!(matches!(c.style, Style::Tag));
+                assert_eq!(
+                    c.common.package_configs["my-dep"].types,
+                    PackageTypeMode::Opaque
+                );
+            }
+            _ => panic!("expected Config::C"),
+        }
     }
 }

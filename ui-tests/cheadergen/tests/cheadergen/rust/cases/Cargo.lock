@@ -158,6 +158,17 @@ name = "not_repr_c"
 version = "0.1.0"
 
 [[package]]
+name = "opaque-dep"
+version = "0.1.0"
+
+[[package]]
+name = "opaque_dependency"
+version = "0.1.0"
+dependencies = [
+ "opaque-dep",
+]
+
+[[package]]
 name = "opaque_union"
 version = "0.1.0"
 
@@ -242,6 +253,17 @@ version = "0.1.0"
 [[package]]
 name = "simple_struct"
 version = "0.1.0"
+
+[[package]]
+name = "skip-dep"
+version = "0.1.0"
+
+[[package]]
+name = "skip_dependency"
+version = "0.1.0"
+dependencies = [
+ "skip-dep",
+]
 
 [[package]]
 name = "skip_function"

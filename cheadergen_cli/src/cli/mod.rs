@@ -1,4 +1,4 @@
-mod generate;
+pub(crate) mod generate;
 mod input;
 mod warm_cache;
 

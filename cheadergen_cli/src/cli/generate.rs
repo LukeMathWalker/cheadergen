@@ -1,10 +1,11 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 use std::path::PathBuf;
 
 use clap::{ArgAction, Parser};
+use guppy::graph::DependencyDirection;
 
 use crate::analysis::ExternItemCoordinates;
-use crate::config::{Language, Style};
+use crate::config::{Language, PackageConfig, PackageTypeMode, Style};
 use crate::diagnostic::{DiagnosticSink, render_diagnostics};
 use crate::{analysis, codegen, config, metadata, topological_sort};
 
@@ -59,6 +60,103 @@ pub(super) struct GenerateArgs {
     /// Suppress header output. Must be used with --symbol-file.
     #[arg(long)]
     no_header: bool,
+}
+
+/// Resolved per-package type overrides, keyed by [`guppy::PackageId`].
+///
+/// Built from the `[package.*]` config sections after resolving crate names
+/// (and optional `@version` specifiers) against the dependency graph.
+pub(crate) struct PackageTypeOverrides {
+    /// Types from these packages are emitted as opaque forward declarations.
+    pub opaque: HashSet<guppy::PackageId>,
+    /// Types from these packages are not emitted at all.
+    pub skipped: HashSet<guppy::PackageId>,
+}
+
+/// Parse a package config key into `(name, optional_version_req)`.
+///
+/// Keys follow the Cargo `name@version` convention:
+/// - `"my-dep"` → `("my-dep", None)`
+/// - `"foo@1.0"` → `("foo", Some(VersionReq::parse("1.0")?))`
+fn parse_package_key(key: &str) -> Result<(&str, Option<guppy::VersionReq>), config::ConfigError> {
+    if let Some((name, version_str)) = key.split_once('@') {
+        let req = guppy::VersionReq::parse(version_str).map_err(|e| config::ConfigError {
+            message: format!(
+                "invalid version requirement `{version_str}` in [package.\"{key}\"]: {e}"
+            ),
+        })?;
+        Ok((name, Some(req)))
+    } else {
+        Ok((key, None))
+    }
+}
+
+/// Resolve `[package.*]` config entries against the dependency graph.
+///
+/// Returns a [`PackageTypeOverrides`] containing the resolved package IDs,
+/// or an error if any package name is unknown or ambiguous.
+fn resolve_package_overrides(
+    package_configs: &std::collections::HashMap<String, PackageConfig>,
+    collection: &Collection,
+    diagnostics: &mut DiagnosticSink,
+) -> Result<PackageTypeOverrides, anyhow::Error> {
+    let mut opaque = HashSet::new();
+    let mut skipped = HashSet::new();
+    let graph = collection.package_graph();
+
+    for (key, config) in package_configs {
+        let (name, version_req) = parse_package_key(key)?;
+        let package_set = graph.resolve_package_name(name);
+
+        if package_set.is_empty() {
+            diagnostics
+                .error(format!("package `{name}` not found in the dependency graph"))
+                .emit();
+            continue;
+        }
+
+        // Collect matching packages, filtering by version if specified.
+        let matching: Vec<_> = package_set
+            .packages(DependencyDirection::Forward)
+            .filter(|pkg| match &version_req {
+                Some(req) => req.matches(pkg.version()),
+                None => true,
+            })
+            .collect();
+
+        if matching.is_empty() {
+            diagnostics
+                .error(format!(
+                    "no version of `{name}` matches requirement `{}`",
+                    version_req.as_ref().unwrap()
+                ))
+                .emit();
+            continue;
+        }
+
+        // Bare name with multiple versions → error requiring disambiguation.
+        if version_req.is_none() && matching.len() > 1 {
+            let versions: Vec<_> = matching.iter().map(|p| format!("v{}", p.version())).collect();
+            diagnostics
+                .error(format!(
+                    "package name `{name}` is ambiguous: matches {}; \
+                     use [package.\"{name}@<version>\"] to disambiguate",
+                    versions.join(" and ")
+                ))
+                .emit();
+            continue;
+        }
+
+        let target = match config.types {
+            PackageTypeMode::Opaque => &mut opaque,
+            PackageTypeMode::Skip => &mut skipped,
+        };
+        for pkg in &matching {
+            target.insert(pkg.id().clone());
+        }
+    }
+
+    Ok(PackageTypeOverrides { opaque, skipped })
 }
 
 /// Entry point for the `generate` subcommand — validates CLI args, loads
@@ -118,6 +216,13 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
     let debug = std::env::var("CHEADERGEN_DEBUG").is_ok_and(|v| v == "true" || v == "1");
     let mut diagnostics = DiagnosticSink::new(ws_root, debug);
 
+    // Resolve per-package overrides against the dependency graph.
+    let package_configs = match &config {
+        config::Config::C(c) => &c.common.package_configs,
+        config::Config::Cxx(c) => &c.common.package_configs,
+    };
+    let type_overrides = resolve_package_overrides(package_configs, &collection, &mut diagnostics)?;
+
     for (package_id, package_name) in &packages {
         if !cli.quiet {
             eprintln!("Generating header for `{package_name}`...");
@@ -129,6 +234,7 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
             &config,
             &collection,
             cli,
+            &type_overrides,
             &mut diagnostics,
         ) {
             Ok(symbols) => {
@@ -181,6 +287,7 @@ fn generate_one_crate(
     config: &config::Config,
     collection: &Collection,
     cli: &GenerateArgs,
+    overrides: &PackageTypeOverrides,
     diagnostics: &mut DiagnosticSink,
 ) -> anyhow::Result<BTreeSet<String>> {
     let krate = collection
@@ -261,6 +368,7 @@ fn generate_one_crate(
             &extern_items,
             collection,
             c_config.enum_prefix_with_name,
+            overrides,
             diagnostics,
         )?;
 

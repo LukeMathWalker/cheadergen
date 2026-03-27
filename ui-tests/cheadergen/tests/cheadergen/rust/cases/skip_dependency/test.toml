@@ -1,0 +1,5 @@
+"c/plain" = "compilation_fails"
+"c/compat" = "compilation_fails"
+"cpp/plain" = "generation_fails"
+"cython/plain" = "generation_fails"
+"cython/tag" = "generation_fails"

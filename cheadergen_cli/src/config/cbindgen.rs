@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::Path;
 
 use serde::Deserialize;
@@ -245,6 +246,7 @@ fn translate_config(cb: &CbindgenConfig) -> (RawConfig, Vec<String>) {
         static_: static_section,
         constant_: None,
         enum_: enum_section,
+        package: HashMap::new(),
         c: None,
         cxx: None,
     };

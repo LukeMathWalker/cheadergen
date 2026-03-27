@@ -1,0 +1,2 @@
+[package.opaque-dep]
+types = "opaque"
