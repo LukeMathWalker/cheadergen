@@ -5,6 +5,8 @@ pub enum VariantStatus {
     HeaderDiff,
     /// cheadergen fails to generate output (non-zero exit).
     GenerationFails,
+    /// cheadergen generates output successfully, but the generated header fails to compile.
+    CompilationFails,
     Skip,
     Exclude,
 }

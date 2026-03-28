@@ -186,7 +186,8 @@ fn collect_variants(
             Some(VariantStatus::HeaderDiff) => "header_diff, ",
             Some(VariantStatus::GenerationFails) => "generation_fails, ",
             Some(VariantStatus::Skip) => "skip, ",
-            None => "",
+            // CompilationFails: generation runs normally, only compilation differs.
+            Some(VariantStatus::CompilationFails) | None => "",
             Some(VariantStatus::Exclude) => unreachable!(),
         };
 
@@ -223,7 +224,7 @@ fn collect_variants(
         }
 
         // Compile test requires expectation content.
-        // - For normal/skip tests: use the normal expectation file.
+        // - For normal/skip/compilation_fails tests: use the normal expectation file.
         // - For header_diff: use the .diff.{ext}.snap file (snapshot of cheadergen's output).
         // - For generation_fails: no compile test (no header to compile).
         let compile_path_resolved = match status {
@@ -232,8 +233,13 @@ fn collect_variants(
         };
 
         if let Some(compile_expectation) = compile_path_resolved {
+            let compile_status_token = match status {
+                Some(VariantStatus::CompilationFails) => "compilation_fails, ",
+                Some(VariantStatus::Skip) => "skip, ",
+                _ => "",
+            };
             let compile_line = format!(
-                "compile_variant!({status_token}r#{}, {:?}, {:?}, {:?}, {}, {}, {}, {});",
+                "compile_variant!({compile_status_token}r#{}, {:?}, {:?}, {:?}, {}, {}, {}, {});",
                 identifier_base,
                 path_segment,
                 variant_path,
@@ -267,7 +273,9 @@ fn collect_variants(
                 Some(VariantStatus::HeaderDiff) => "header_diff, ",
                 Some(VariantStatus::GenerationFails) => "generation_fails, ",
                 Some(VariantStatus::Skip) => "skip, ",
-                None => "",
+                // CompilationFails is not meaningful for symbol tests (no compilation),
+                // so treat it the same as normal.
+                Some(VariantStatus::CompilationFails) | None => "",
                 Some(VariantStatus::Exclude) => unreachable!(),
             };
 

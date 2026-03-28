@@ -88,7 +88,7 @@ pub fn run_compile_check(
     };
 
     if !primary_cached {
-        compile(
+        let out = compile(
             &source_file,
             testing_helpers_dir,
             tmp_dir.path(),
@@ -97,13 +97,14 @@ pub fn run_compile_check(
             skip_warning_as_error,
             cpp_compat,
         );
+        assert!(out.status.success(), "Output failed to compile: {out:?}");
         if use_cache {
             write_cached_hash(&primary_cache, primary_hash);
         }
     }
 
     if secondary_needed && !secondary_cached {
-        compile(
+        let out = compile(
             &source_file,
             testing_helpers_dir,
             tmp_dir.path(),
@@ -112,8 +113,56 @@ pub fn run_compile_check(
             skip_warning_as_error,
             cpp_compat,
         );
+        assert!(out.status.success(), "Output failed to compile: {out:?}");
         if use_cache {
             write_cached_hash(&secondary_cache, secondary_hash);
         }
     }
+}
+
+/// Run a compile check that asserts compilation **fails**.
+///
+/// No caching is used for negative compilation tests.
+pub fn run_compilation_fails_check(
+    snap_or_raw: &Path,
+    language: Language,
+    style: Option<Style>,
+    skip_warning_as_error: bool,
+    cpp_compat: bool,
+    testing_helpers_dir: &Path,
+) {
+    let tmp_dir = tempfile::Builder::new()
+        .prefix("cheadergen-test-output")
+        .tempdir()
+        .expect("Creating tmp dir failed");
+
+    let is_snap = snap_or_raw.extension().is_some_and(|ext| ext == "snap");
+
+    let source_file = if is_snap {
+        let content = read_snap_content(snap_or_raw);
+        let ext = match language {
+            Language::C => "c",
+            Language::Cxx => "cpp",
+            Language::Cython => "pyx",
+        };
+        let source_file = tmp_dir.path().join(format!("test.{ext}"));
+        fs::write(&source_file, &content).unwrap();
+        source_file
+    } else {
+        snap_or_raw.to_path_buf()
+    };
+
+    let out = compile(
+        &source_file,
+        testing_helpers_dir,
+        tmp_dir.path(),
+        language,
+        style,
+        skip_warning_as_error,
+        cpp_compat,
+    );
+    assert!(
+        !out.status.success(),
+        "compilation_fails test expected compilation to fail, but it succeeded: {out:?}"
+    );
 }

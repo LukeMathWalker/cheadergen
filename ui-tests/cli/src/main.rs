@@ -158,7 +158,7 @@ fn cmd_cbindgen_report(variant: &str) {
                     xfail_neither.push(case_name);
                 }
             }
-            None => normal_cases.push(case_name),
+            Some(VariantStatus::CompilationFails) | None => normal_cases.push(case_name),
             Some(VariantStatus::Skip) => skip_cases.push(case_name),
             Some(VariantStatus::Exclude) => exclude_cases.push(case_name),
         }

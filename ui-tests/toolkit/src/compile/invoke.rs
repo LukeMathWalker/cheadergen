@@ -1,5 +1,5 @@
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Output};
 use std::{env, fs};
 
 use crate::types::{Language, Style, style_str};
@@ -12,7 +12,7 @@ pub(crate) fn compile(
     style: Option<Style>,
     skip_warning_as_error: bool,
     cpp_compat: bool,
-) {
+) -> Output {
     let cc = match language {
         Language::Cxx => env::var("CXX").unwrap_or_else(|_| "g++".to_owned()),
         Language::C => env::var("CC").unwrap_or_else(|_| "gcc".to_owned()),
@@ -75,9 +75,10 @@ pub(crate) fn compile(
 
     println!("Running: {command:?}");
     let out = command.output().expect("failed to compile");
-    assert!(out.status.success(), "Output failed to compile: {out:?}");
 
     if object.exists() {
         fs::remove_file(object).unwrap();
     }
+
+    out
 }

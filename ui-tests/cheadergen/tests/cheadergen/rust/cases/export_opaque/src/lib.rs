@@ -23,3 +23,32 @@ pub struct FullConfig {
 pub struct OpaqueHandle {
     _inner: u64,
 }
+
+/// A struct that embeds an opaque type by value — the generated header won't
+/// compile because `OpaqueConfig` is an incomplete type.
+#[repr(C)]
+pub struct ContainsOpaque {
+    pub label: u32,
+    pub config: OpaqueConfig,
+}
+
+/// Takes an opaque type by value — invalid C (incomplete type as parameter).
+#[unsafe(no_mangle)]
+pub extern "C" fn consume_opaque(config: OpaqueConfig) -> u32 {
+    config.width + config.height
+}
+
+/// Takes a struct containing an opaque type by value.
+#[unsafe(no_mangle)]
+pub extern "C" fn consume_contains_opaque(container: ContainsOpaque) -> u32 {
+    container.label + container.config.width
+}
+
+/// Returns an opaque type by value — invalid C (incomplete return type).
+#[unsafe(no_mangle)]
+pub extern "C" fn produce_opaque() -> OpaqueConfig {
+    OpaqueConfig {
+        width: 640,
+        height: 480,
+    }
+}

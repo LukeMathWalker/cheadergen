@@ -61,6 +61,23 @@ pub fn run_compile_check(
     );
 }
 
+pub fn run_compilation_fails_check(
+    expectation: &Path,
+    language: Language,
+    style: Option<Style>,
+    skip_warning_as_error: bool,
+    cpp_compat: bool,
+) {
+    compile::run_compilation_fails_check(
+        expectation,
+        language,
+        style,
+        skip_warning_as_error,
+        cpp_compat,
+        &testing_helpers_dir(),
+    );
+}
+
 fn invoke_cheadergen(
     _name: &str,
     path: &Path,

@@ -1,5 +1,6 @@
 ---
 source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 277
 expression: output
 ---
 #include <stdarg.h>
@@ -25,3 +26,35 @@ typedef struct FullConfig {
   uint32_t width;
   uint32_t height;
 } FullConfig;
+
+/**
+ * A struct that embeds an opaque type by value — the generated header won't
+ * compile because `OpaqueConfig` is an incomplete type.
+ */
+typedef struct ContainsOpaque {
+  uint32_t label;
+  struct OpaqueConfig config;
+} ContainsOpaque;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+/**
+ * Takes an opaque type by value — invalid C (incomplete type as parameter).
+ */
+uint32_t consume_opaque(struct OpaqueConfig config);
+
+/**
+ * Takes a struct containing an opaque type by value.
+ */
+uint32_t consume_contains_opaque(struct ContainsOpaque container);
+
+/**
+ * Returns an opaque type by value — invalid C (incomplete return type).
+ */
+struct OpaqueConfig produce_opaque(void);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

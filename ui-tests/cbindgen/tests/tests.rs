@@ -40,6 +40,12 @@ macro_rules! generate_variant {
 }
 
 macro_rules! compile_variant {
+    (compilation_fails, $fn_name:ident, $($rest:tt)*) => {
+        #[test]
+        fn $fn_name() {
+            compile_variant!(@compilation_fails_body $($rest)*);
+        }
+    };
     (header_diff, $fn_name:ident, $($rest:tt)*) => {
         #[test]
         fn $fn_name() {
@@ -67,6 +73,15 @@ macro_rules! compile_variant {
     };
     (@body $name:expr, $variant_path:expr, $expectation:expr, $lang:expr, $style:expr, $skip_warn:expr, $cpp_compat:expr) => {
         run_compile_check(
+            Path::new($expectation),
+            $lang,
+            $style,
+            $skip_warn,
+            $cpp_compat,
+        )
+    };
+    (@compilation_fails_body $name:expr, $variant_path:expr, $expectation:expr, $lang:expr, $style:expr, $skip_warn:expr, $cpp_compat:expr) => {
+        run_compilation_fails_check(
             Path::new($expectation),
             $lang,
             $style,
