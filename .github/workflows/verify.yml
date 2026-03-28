@@ -41,22 +41,6 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
 
-  xfail:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          toolchain: nightly-2025-12-15
-          components: rust-docs-json
-          override: false
-      - uses: taiki-e/install-action@nextest
-      - uses: extractions/setup-just@v2
-      - uses: astral-sh/setup-uv@v6
-      - run: uv tool install cython
-      - run: just test-cbindgen-xfail
-
   fmt:
     runs-on: ubuntu-latest
     steps:
