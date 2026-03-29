@@ -278,6 +278,12 @@ pub struct RawConfig {
     #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
     pub enum_: Option<RawEnumSection>,
 
+    /// Produce a single combined header per target, inlining all dependency
+    /// types instead of emitting per-crate headers with `#include` directives.
+    /// Defaults to `false` (partitioned mode).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bundle: Option<bool>,
+
     /// Per-dependency-package configuration.
     ///
     /// Keys are crate names (e.g. `my-dep`) or Cargo-style `name@version`
@@ -401,6 +407,8 @@ pub struct ConfigSet {
     pub default: Config,
     /// Per-header configs, keyed by crate name.
     pub per_header: HashMap<String, Config>,
+    /// Whether to produce a single combined header per target (bundle mode).
+    pub bundle: bool,
 }
 
 impl ConfigSet {
@@ -800,6 +808,7 @@ impl RawConfig {
         Ok(ConfigSet {
             default,
             per_header,
+            bundle: self.bundle.unwrap_or(false),
         })
     }
 

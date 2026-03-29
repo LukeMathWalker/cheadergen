@@ -1,0 +1,10 @@
+[package]
+name = "partitioned-rename-pointer"
+version = "0.1.0"
+edition.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+partitioned-rename-pointer-dep = { path = "../dep" }

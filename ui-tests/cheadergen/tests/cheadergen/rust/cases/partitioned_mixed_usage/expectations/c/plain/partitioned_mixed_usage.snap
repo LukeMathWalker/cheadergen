@@ -1,0 +1,14 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 294
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include "partitioned_mixed_usage_dep.h"
+
+int32_t use_by_value(DepType1 s);
+
+const DepType2 *use_by_pointer(const DepType2 *ptr);

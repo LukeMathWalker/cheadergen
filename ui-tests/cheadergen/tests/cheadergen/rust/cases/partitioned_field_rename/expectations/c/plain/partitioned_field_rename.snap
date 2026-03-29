@@ -1,0 +1,12 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 294
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include "partitioned_field_rename_dep.h"
+
+float use_vec2(Vec2 v);

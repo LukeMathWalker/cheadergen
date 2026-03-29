@@ -1,0 +1,10 @@
+[package]
+name = "partitioned-generic-overlap-dep"
+version = "0.1.0"
+edition.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+partitioned-generic-overlap-dep2 = { path = "../dep2" }

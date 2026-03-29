@@ -1,0 +1,16 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 332
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+struct DepStruct {
+  int32_t x;
+  int32_t y;
+};
+
+int32_t use_dep(struct DepStruct s);

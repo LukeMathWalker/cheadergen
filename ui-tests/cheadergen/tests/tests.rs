@@ -23,7 +23,7 @@ macro_rules! generate_variant {
         }
     };
     (@body $name:expr, $variant_path:expr, $file:tt, $lang:expr, $style:expr, $cpp_compat:expr, $package:expr) => {
-        run_generate_test($name, Path::new($file), $lang, $style, $cpp_compat, $package)
+        run_generate_test($name, $variant_path, Path::new($file), $lang, $style, $cpp_compat, $package)
     };
     (@generation_fails_body $name:expr, $variant_path:expr, $file:tt, $lang:expr, $style:expr, $cpp_compat:expr, $package:expr) => {
         run_generation_fails_test($name, $variant_path, Path::new($file), $lang, $style, $cpp_compat, $package)

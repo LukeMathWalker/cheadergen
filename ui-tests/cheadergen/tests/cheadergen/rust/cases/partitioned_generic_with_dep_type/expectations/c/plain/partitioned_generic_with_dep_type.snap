@@ -1,0 +1,19 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 294
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include "partitioned_generic_with_dep_type_struct.h"
+
+#ifndef WRAPPER_MYSTRUCT_DEFINED
+#define WRAPPER_MYSTRUCT_DEFINED
+typedef struct {
+  MyStruct value;
+} Wrapper_MyStruct;
+#endif /* WRAPPER_MYSTRUCT_DEFINED */
+
+int32_t use_wrapped(Wrapper_MyStruct w);

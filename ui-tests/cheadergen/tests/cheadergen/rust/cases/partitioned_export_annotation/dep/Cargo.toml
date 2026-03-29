@@ -1,0 +1,10 @@
+[package]
+name = "partitioned-export-annotation-dep"
+version = "0.1.0"
+edition.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+cheadergen.workspace = true

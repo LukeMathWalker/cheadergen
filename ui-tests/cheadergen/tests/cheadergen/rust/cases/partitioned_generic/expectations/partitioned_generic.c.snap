@@ -1,0 +1,21 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 332
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct {
+  float value;
+} Wrapper_f32;
+
+typedef struct {
+  int32_t value;
+} Wrapper_i32;
+
+Wrapper_i32 use_wrapper_i32(Wrapper_i32 w);
+
+Wrapper_f32 use_wrapper_f32(Wrapper_f32 w);

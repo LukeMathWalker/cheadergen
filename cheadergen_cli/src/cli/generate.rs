@@ -2,9 +2,11 @@ use std::collections::{BTreeSet, HashSet};
 use std::path::PathBuf;
 
 use clap::{ArgAction, Parser};
+use guppy::PackageId;
 use guppy::graph::DependencyDirection;
 
 use crate::analysis::ExternItemCoordinates;
+use crate::analysis::partitioning::{self, HeaderFilenames};
 use crate::config::{Language, PackageConfig, PackageTypeMode, Style};
 use crate::diagnostic::{DiagnosticSink, render_diagnostics};
 use crate::{analysis, codegen, config, metadata, topological_sort};
@@ -60,6 +62,11 @@ pub(super) struct GenerateArgs {
     /// Suppress header output. Must be used with --symbol-file.
     #[arg(long)]
     no_header: bool,
+
+    /// Produce a single combined header per target, inlining all dependency types.
+    /// Only valid with a single target package.
+    #[arg(long)]
+    bundle: bool,
 }
 
 /// Resolved per-package type overrides, keyed by [`guppy::PackageId`].
@@ -110,7 +117,9 @@ fn resolve_package_overrides(
 
         if package_set.is_empty() {
             diagnostics
-                .error(format!("package `{name}` not found in the dependency graph"))
+                .error(format!(
+                    "package `{name}` not found in the dependency graph"
+                ))
                 .emit();
             continue;
         }
@@ -136,7 +145,10 @@ fn resolve_package_overrides(
 
         // Bare name with multiple versions → error requiring disambiguation.
         if version_req.is_none() && matching.len() > 1 {
-            let versions: Vec<_> = matching.iter().map(|p| format!("v{}", p.version())).collect();
+            let versions: Vec<_> = matching
+                .iter()
+                .map(|p| format!("v{}", p.version()))
+                .collect();
             diagnostics
                 .error(format!(
                     "package name `{name}` is ambiguous: matches {}; \
@@ -182,7 +194,12 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
     };
 
     // Validate config against the selected language.
-    let config_set = raw_config.into_config(&cli.lang, &overrides)?;
+    let mut config_set = raw_config.into_config(&cli.lang, &overrides)?;
+
+    // CLI --bundle overrides the config file setting.
+    if cli.bundle {
+        config_set.bundle = true;
+    }
 
     let metadata_dir = resolved_input
         .as_ref()
@@ -194,6 +211,13 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
         &cli.package_selection,
         &package_graph.workspace(),
     )?;
+
+    if config_set.bundle && packages.len() > 1 {
+        anyhow::bail!(
+            "--bundle is only valid with a single target package, but {} were selected",
+            packages.len()
+        );
+    }
 
     let toolchain = std::env::var("CHEADERGEN_DOCS_TOOLCHAIN")
         .unwrap_or_else(|_| metadata::DOCS_TOOLCHAIN.to_string());
@@ -237,17 +261,40 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
     };
     let type_overrides = resolve_package_overrides(package_configs, &collection, &mut diagnostics)?;
 
-    for (package_id, package_name) in &packages {
-        if !cli.quiet {
-            eprintln!("Generating header for `{package_name}`...");
+    if config_set.bundle {
+        // Bundle mode: standalone headers.
+        for (package_id, package_name) in &packages {
+            if !cli.quiet {
+                eprintln!("Generating header for `{package_name}`...");
+            }
+
+            let config = config_set.for_crate(package_name);
+
+            match generate_one_crate(
+                package_id,
+                package_name,
+                config,
+                &collection,
+                cli,
+                &type_overrides,
+                &mut diagnostics,
+            ) {
+                Ok(symbols) => {
+                    all_symbols.extend(symbols);
+                }
+                Err(e) => {
+                    diagnostics
+                        .error(format!("failed to generate header for `{package_name}`"))
+                        .with_error_chain(e.as_ref())
+                        .emit();
+                }
+            }
         }
-
-        let config = config_set.for_crate(package_name);
-
-        match generate_one_crate(
-            package_id,
-            package_name,
-            config,
+    } else {
+        // Partitioned mode: generate one header per crate with #include directives.
+        match generate_partitioned(
+            &packages,
+            &config_set,
             &collection,
             cli,
             &type_overrides,
@@ -258,7 +305,7 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
             }
             Err(e) => {
                 diagnostics
-                    .error(format!("failed to generate header for `{package_name}`"))
+                    .error("failed to generate partitioned headers".to_string())
                     .with_error_chain(e.as_ref())
                     .emit();
             }
@@ -293,6 +340,195 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+/// Partitioned mode: generates one header per crate with `#include` directives
+/// linking them. Types are partitioned by defining crate, generic instantiations
+/// go in the consuming crate's header with `#ifndef` guards.
+fn generate_partitioned(
+    packages: &[(PackageId, String)],
+    config_set: &config::ConfigSet,
+    collection: &Collection,
+    cli: &GenerateArgs,
+    type_overrides: &PackageTypeOverrides,
+    diagnostics: &mut DiagnosticSink,
+) -> anyhow::Result<BTreeSet<String>> {
+    let mut all_symbols = BTreeSet::new();
+
+    // Step 1: Collect and resolve extern items for each target.
+    let mut target_extern_items: Vec<(PackageId, analysis::extern_items::ExternItems)> = Vec::new();
+
+    for (package_id, package_name) in packages {
+        let krate = collection
+            .get_or_compute(package_id)
+            .map_err(|e| anyhow::anyhow!(e))?;
+
+        if !cli.quiet {
+            let root_item = krate.core.krate.index.get(&krate.core.krate.root_item_id);
+            let root_name = root_item
+                .as_ref()
+                .and_then(|item| item.name.as_deref())
+                .unwrap_or("<unknown>");
+            eprintln!(
+                "Successfully loaded rustdoc JSON for `{package_name}`: root module `{root_name}`"
+            );
+        }
+
+        let coordinates = ExternItemCoordinates::collect(collection, package_id)
+            .map_err(|e| anyhow::anyhow!(e))?;
+
+        // Collect symbols for the merged symbol file.
+        if cli.symbol_file.is_some() {
+            all_symbols.extend(analysis::collect_symbols(&coordinates, krate));
+        }
+
+        let config = config_set.for_crate(package_name);
+        let c_config = match config {
+            config::Config::C(c) => c,
+            _ => anyhow::bail!("Only C output is currently supported"),
+        };
+
+        let extern_items = coordinates.resolve(collection, &c_config.common, diagnostics);
+
+        if !cli.quiet {
+            eprintln!(
+                "`{package_name}`: {} function(s), {} static(s), {} constant(s)",
+                extern_items.fns.len(),
+                extern_items.statics.len(),
+                extern_items.constants.len()
+            );
+        }
+
+        target_extern_items.push((package_id.clone(), extern_items));
+    }
+
+    if cli.no_header {
+        return Ok(all_symbols);
+    }
+
+    // Step 2: Get a common C config (for enum_prefix_with_name and other shared settings).
+    // Use the first target's config as the baseline for type collection settings.
+    let first_config = config_set.for_crate(&packages[0].1);
+    let c_config = match first_config {
+        config::Config::C(c) => c,
+        _ => anyhow::bail!("Only C output is currently supported"),
+    };
+
+    // Step 3: Unified type collection across all targets.
+    let all_type_defs = analysis::collect_type_definitions_multi(
+        &target_extern_items,
+        collection,
+        c_config.enum_prefix_with_name,
+        type_overrides,
+        diagnostics,
+    )?;
+
+    if !cli.quiet {
+        eprintln!(
+            "Collected {} type definitions across all targets",
+            all_type_defs.len()
+        );
+    }
+
+    // Step 4: Partition types into per-crate buckets.
+    let partitioned =
+        partitioning::partition_types(all_type_defs, &target_extern_items, type_overrides);
+
+    // Step 5: Build header filename map from the package graph.
+    let all_header_pkg_ids: Vec<&PackageId> = partitioned.per_crate.keys().collect();
+    let graph = collection.package_graph();
+    let filenames = HeaderFilenames::new(&all_header_pkg_ids, graph);
+
+    // Step 6: Compute include graph.
+    let header_deps = partitioning::compute_header_deps(
+        &partitioned,
+        &target_extern_items,
+        type_overrides,
+        &filenames,
+        cli.lang.extension(),
+    );
+
+    // Step 7: Generate each header.
+    let target_ids: HashSet<&PackageId> = packages.iter().map(|(id, _)| id).collect();
+    // Only use #ifndef guards when there are multiple output headers.
+    let multi_header = partitioned.per_crate.len() > 1;
+
+    fs_err::create_dir_all(&cli.output_dir)?;
+
+    for (pkg_id, mut type_defs) in partitioned.per_crate {
+        let is_target = target_ids.contains(&pkg_id);
+
+        // Determine the config for this header.
+        // Use the package name from the graph for config lookup.
+        let pkg_name = graph
+            .metadata(&pkg_id)
+            .map(|m| m.name().to_owned())
+            .unwrap_or_else(|_| filenames.base_name(&pkg_id).to_owned());
+        let config = config_set.for_crate(&pkg_name);
+        let c_cfg = match config {
+            config::Config::C(c) => c,
+            _ => continue,
+        };
+
+        // Add forward declarations from header deps.
+        let deps = header_deps.get(&pkg_id);
+        if let Some(deps) = deps {
+            for fwd in &deps.forward_decls {
+                type_defs.push(fwd.clone());
+            }
+        }
+
+        // Sort types: source order first, then topological sort.
+        analysis::sort_by_key(&mut type_defs, config::SortKey::SourceOrder, collection);
+        topological_sort::topological_sort(&mut type_defs, collection, diagnostics);
+
+        // Get extern items for target packages (empty for non-targets).
+        let (fns, statics, constants) = if is_target {
+            let items = target_extern_items
+                .iter()
+                .find(|(id, _)| *id == pkg_id)
+                .map(|(_, items)| items)
+                .unwrap();
+            (&items.fns[..], &items.statics[..], &items.constants[..])
+        } else {
+            (&[][..], &[][..], &[][..])
+        };
+
+        // Find associated constants for types in this header.
+        let krate_data = collection
+            .get_or_compute(&pkg_id)
+            .map_err(|e| anyhow::anyhow!(e))?;
+        let assoc_constants =
+            analysis::find_assoc_constants(&type_defs, krate_data, collection, diagnostics);
+
+        let dep_includes = deps.map(|d| &d.includes[..]).unwrap_or(&[]);
+        let type_hints = deps.map(|d| &d.type_hints[..]).unwrap_or(&[]);
+
+        let mut header = String::new();
+        codegen::generate_c_header(
+            c_cfg,
+            &type_defs,
+            constants,
+            &assoc_constants,
+            fns,
+            statics,
+            dep_includes,
+            type_hints,
+            multi_header,
+            collection,
+            &mut header,
+        );
+
+        let filename = filenames.filename(&pkg_id, cli.lang.extension());
+        fs_err::write(cli.output_dir.join(&filename), &header)?;
+
+        if !cli.quiet {
+            let kind = if is_target { "target" } else { "dependency" };
+            eprintln!("Wrote {kind} header: {filename}");
+        }
+    }
+
+    Ok(all_symbols)
 }
 
 /// Processes a single crate: loads its rustdoc JSON via [`Collection`],
@@ -405,6 +641,9 @@ fn generate_one_crate(
             &assoc_constants,
             &extern_items.fns,
             &extern_items.statics,
+            &[],
+            &[],
+            false,
             collection,
             &mut header,
         );

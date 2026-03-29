@@ -1,0 +1,25 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 332
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+enum Either_i32_Tag {
+  Value,
+  None,
+};
+
+struct Either_i32 {
+  enum Either_i32_Tag tag;
+  union {
+    struct {
+      int32_t value;
+    };
+  };
+};
+
+struct Either_i32 use_either(struct Either_i32 e);

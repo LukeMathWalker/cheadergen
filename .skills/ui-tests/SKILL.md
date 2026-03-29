@@ -71,6 +71,50 @@ ui-tests/cheadergen/tests/cheadergen/rust/cases/<name>/
     └── <name>.c.sym.snap       # Symbol file snapshot
 ```
 
+### Multi-Crate Test Cases
+
+Tests that involve multiple crates (e.g. partitioned header tests, opaque/skip dependency
+tests) use a **nested directory layout**: a parent directory contains sub-crates, with
+`test.toml` and `expectations/` at the parent level.
+
+```
+ui-tests/cheadergen/tests/cheadergen/rust/cases/<name>/
+├── entrypoint/           # Entrypoint crate (the one cheadergen generates for)
+│   ├── Cargo.toml
+│   └── src/lib.rs
+├── dep/                  # Dependency crate
+│   ├── Cargo.toml
+│   └── src/lib.rs
+├── dep2/                 # (optional) Second dependency
+│   ├── Cargo.toml
+│   └── src/lib.rs
+├── test.toml             # At parent level, with `package = "<entrypoint-crate-name>"`
+├── cheadergen.toml       # (optional) Config, also at parent level
+└── expectations/
+    └── c/plain/          # Per-variant subdirectories (for multi-file output)
+        ├── <entrypoint>.snap
+        └── <dep>.snap
+```
+
+Key points:
+
+- The entrypoint crate directory is always named `entrypoint/` (not `target/`,
+  which would conflict with Cargo's build output directory).
+- **`test.toml` must set `package = "<name>"`** so the harness passes `--package` to
+  cheadergen (otherwise it would try to process the parent directory as a crate).
+- **No `test.toml` in sub-crates** — only the parent has one.
+- **Workspace `Cargo.toml`** must explicitly list nested members and exclude the parent:
+  ```toml
+  members = ["*", "<name>/entrypoint", "<name>/dep"]
+  exclude = ["<name>"]
+  ```
+- **Expectations for multi-file output** use per-variant subdirectories
+  (`expectations/c/plain/`, `expectations/c/tag/`, etc.) with one `.snap` per output file.
+  Single-file output keeps the flat layout.
+- Each sub-crate's `src/lib.rs` **must** have a crate-level doc comment (`//!`).
+
+See `opaque_dependency/`, `skip_dependency/`, and `partitioned_basic/` for examples.
+
 ## Crate-Level Documentation
 
 Every cheadergen test case **must** have a crate-level doc comment (`//!`) at the top of `src/lib.rs` explaining what the test is checking.

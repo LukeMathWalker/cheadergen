@@ -1,0 +1,21 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 332
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct Message Message;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+const Message *use_message(const Message *ptr);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

@@ -1,5 +1,6 @@
 mod annotation_types;
-mod extern_items;
+pub(crate) mod extern_items;
+pub(crate) mod partitioning;
 mod type_collection;
 mod type_resolution;
 mod type_transform;
@@ -11,7 +12,7 @@ use rustdoc_processor::queries::Crate;
 pub use type_collection::{
     CEnumRepr, CEnumVariant, CFieldlessEnumDef, CIdentifier, CStructDef, CStructField,
     CTaggedUnionDef, CTypeDefinition, CTypeKind, CTypedefDef, CUnionDef, c_type_name,
-    collect_type_definitions, ffi_primitive_to_c,
+    collect_type_definitions, collect_type_definitions_multi, ffi_primitive_to_c,
 };
 
 use crate::Collection;

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fmt;
 
+use guppy::PackageId;
 use rustdoc_ir::{CanonicalType, GenericArgument, PathType, ScalarPrimitive, Type};
 use rustdoc_processor::{CORE_PACKAGE_ID_REPR, GlobalItemId, STD_PACKAGE_ID_REPR};
 
@@ -117,6 +118,7 @@ const C_KEYWORDS: &[&str] = &[
 ///
 /// On construction, if the name matches a reserved keyword, a trailing `_`
 /// is appended (e.g. `"register"` → `"register_"`).
+#[derive(Clone)]
 pub struct CIdentifier(String);
 
 impl CIdentifier {
@@ -149,6 +151,7 @@ impl fmt::Display for CIdentifier {
 }
 
 /// A user-defined type that needs a C declaration in the header.
+#[derive(Clone)]
 pub struct CTypeDefinition {
     /// The C name for this type (last path segment from PathType::base_type),
     /// or a custom name provided via `#[cheadergen::config(rename = "...")]`.
@@ -161,9 +164,18 @@ pub struct CTypeDefinition {
     /// The global rustdoc item ID, used for doc comment lookup at codegen time.
     /// Pairs the crate-local rustdoc ID with the package that defines the type.
     pub rustdoc_id: Option<GlobalItemId>,
+    /// The package that defines this type (from `PathType::package_id`).
+    /// Used for partitioning types across per-crate header files.
+    pub defining_package: PackageId,
+    /// `true` when this is a monomorphized generic instantiation
+    /// (the originating `PathType` had concrete generic arguments).
+    /// Generic instantiations are placed in the consuming crate's header
+    /// and wrapped in `#ifndef` guards to handle potential duplication.
+    pub is_generic_instantiation: bool,
 }
 
 /// The kind of C type definition to emit.
+#[derive(Clone)]
 pub enum CTypeKind {
     /// Emit only a forward declaration (`struct Foo;` / `typedef struct Foo Foo;`).
     OpaqueStruct,
@@ -187,24 +199,28 @@ pub enum CTypeKind {
 ///
 /// Produced from `#[repr(transparent)]` structs (single non-ZST field)
 /// and Rust `type` aliases.
+#[derive(Clone)]
 pub struct CTypedefDef {
     /// The resolved inner type that the typedef aliases.
     pub inner: Type,
 }
 
 /// A resolved `#[repr(C)]` struct with its fields.
+#[derive(Clone)]
 pub struct CStructDef {
     /// The fields of the struct, in declaration order.
     pub fields: Vec<CStructField>,
 }
 
 /// A resolved `#[repr(C)]` union with its fields.
+#[derive(Clone)]
 pub struct CUnionDef {
     /// The fields of the union, in declaration order.
     pub fields: Vec<CStructField>,
 }
 
 /// A single field of a C struct.
+#[derive(Clone)]
 pub struct CStructField {
     /// The C field name (Rust name for plain structs, `m0`/`m1`/... for tuple structs).
     pub name: CIdentifier,
@@ -215,6 +231,7 @@ pub struct CStructField {
 }
 
 /// A C-like enum (all variants are fieldless).
+#[derive(Clone)]
 pub struct CFieldlessEnumDef {
     pub repr: CEnumRepr,
     pub variants: Vec<CEnumVariant>,
@@ -223,6 +240,7 @@ pub struct CFieldlessEnumDef {
 }
 
 /// A single variant of a fieldless enum.
+#[derive(Clone)]
 pub struct CEnumVariant {
     pub name: CIdentifier,
     pub discriminant: Option<String>,
@@ -286,6 +304,7 @@ impl ReprIntType {
 }
 
 /// How the enum's discriminant is represented in C.
+#[derive(Clone)]
 pub enum CEnumRepr {
     /// `#[repr(C)]` only — use a plain C enum.
     C,
@@ -306,6 +325,7 @@ impl CEnumRepr {
 }
 
 /// A tagged union (enum with data variants).
+#[derive(Clone)]
 pub struct CTaggedUnionDef {
     pub repr: CEnumRepr,
     /// When true, variant names in the tag enum are prefixed with the enum name.
@@ -314,12 +334,14 @@ pub struct CTaggedUnionDef {
 }
 
 /// A single variant of a tagged union.
+#[derive(Clone)]
 pub struct CTaggedVariant {
     pub name: String,
     pub body: Option<CTaggedVariantBody>,
 }
 
 /// The body (fields) of a tagged union variant.
+#[derive(Clone)]
 pub struct CTaggedVariantBody {
     pub fields: Vec<CStructField>,
 }
@@ -382,6 +404,57 @@ pub fn collect_type_definitions(
     resolve_all_type_definitions(&mut seen, collection, enum_prefix_with_name, overrides, diagnostics)
 }
 
+/// Walk all types across **multiple** targets' extern items, collecting the union of
+/// path types that need C declarations across all generated headers.
+///
+/// This is the partitioned-mode counterpart of [`collect_type_definitions`]: it seeds
+/// the `seen` map from every target's functions, statics, and annotated exports, then
+/// runs the same fixed-point resolution.
+pub fn collect_type_definitions_multi(
+    target_extern_items: &[(PackageId, ExternItems)],
+    collection: &Collection,
+    enum_prefix_with_name: bool,
+    overrides: &PackageTypeOverrides,
+    diagnostics: &mut DiagnosticSink,
+) -> anyhow::Result<Vec<CTypeDefinition>> {
+    let mut seen: HashMap<CanonicalType, TypeUsage> = HashMap::new();
+
+    for (package_id, extern_items) in target_extern_items {
+        // Seed annotated exports for each target.
+        let exports = exported_via_annotations(package_id, collection, diagnostics)
+            .map_err(|e| anyhow::anyhow!(e))?;
+        for ct in &exports.full {
+            seen.entry(ct.clone())
+                .and_modify(|u| *u = TypeUsage::ByValue)
+                .or_insert(TypeUsage::ByValue);
+        }
+        for ct in &exports.opaque {
+            seen.entry(ct.clone()).or_insert(TypeUsage::BehindPointer);
+        }
+
+        // Seed from extern items.
+        for func in &extern_items.fns {
+            for input in &func.header.inputs {
+                collect_paths_from_type(
+                    &input.type_,
+                    TypeUsage::ByValue,
+                    &mut seen,
+                    collection,
+                    overrides,
+                );
+            }
+            if let Some(output) = &func.header.output {
+                collect_paths_from_type(output, TypeUsage::ByValue, &mut seen, collection, overrides);
+            }
+        }
+        for s in &extern_items.statics {
+            collect_paths_from_type(&s.type_, TypeUsage::ByValue, &mut seen, collection, overrides);
+        }
+    }
+
+    resolve_all_type_definitions(&mut seen, collection, enum_prefix_with_name, overrides, diagnostics)
+}
+
 /// Compute the cbindgen-style monomorphized C name for a type.
 ///
 /// - Scalars use their Rust name (e.g. `"i32"`, `"bool"`).
@@ -427,6 +500,18 @@ pub fn c_type_name(ty: &Type) -> String {
             "fn".to_owned()
         }
     }
+}
+
+/// Returns `true` if the path type has at least one concrete generic argument
+/// (a type parameter or const value), indicating this is a monomorphized instantiation
+/// rather than a plain non-generic type.
+fn has_concrete_generic_args(path_type: &PathType) -> bool {
+    path_type.generic_arguments.iter().any(|a| {
+        matches!(
+            a,
+            GenericArgument::TypeParameter(_) | GenericArgument::Const(_)
+        )
+    })
 }
 
 /// Extract the inner `PathType` from a `CanonicalType`.
@@ -653,6 +738,7 @@ fn resolve_all_type_definitions(
                 CTypeKind::OpaqueStruct | CTypeKind::OpaqueUnion | CTypeKind::FieldlessEnum(_) => {}
             }
 
+            let is_generic_instantiation = has_concrete_generic_args(&path_type);
             resolved.insert(
                 Type::Path(path_type.clone()).canonicalize(),
                 CTypeDefinition {
@@ -662,6 +748,8 @@ fn resolve_all_type_definitions(
                     rustdoc_id: path_type
                         .rustdoc_id
                         .map(|id| GlobalItemId::new(id, path_type.package_id.clone())),
+                    defining_package: path_type.package_id.clone(),
+                    is_generic_instantiation,
                 },
             );
         }
@@ -691,13 +779,16 @@ fn resolve_all_type_definitions(
         } else {
             CTypeKind::OpaqueStruct
         };
+        let is_generic_instantiation = has_concrete_generic_args(&path_type);
         resolved.insert(
-            Type::Path(path_type).canonicalize(),
+            Type::Path(path_type.clone()).canonicalize(),
             CTypeDefinition {
                 name,
                 original_name,
                 kind,
                 rustdoc_id,
+                defining_package: path_type.package_id.clone(),
+                is_generic_instantiation,
             },
         );
     }

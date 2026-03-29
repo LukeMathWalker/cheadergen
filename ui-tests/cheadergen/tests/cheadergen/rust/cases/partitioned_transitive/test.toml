@@ -1,0 +1,6 @@
+package = "partitioned-transitive"
+
+"cpp/plain" = "exclude"
+"cython/plain" = "exclude"
+"cython/tag" = "exclude"
+"symbol" = "exclude"

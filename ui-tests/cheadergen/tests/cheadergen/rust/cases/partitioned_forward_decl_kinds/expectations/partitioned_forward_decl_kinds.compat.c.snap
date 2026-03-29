@@ -1,0 +1,29 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 332
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct MyStruct MyStruct;
+
+typedef union MyUnion MyUnion;
+
+typedef struct MyEnum MyEnum;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+const MyStruct *use_struct_ptr(const MyStruct *ptr);
+
+const MyUnion *use_union_ptr(const MyUnion *ptr);
+
+const MyEnum *use_enum_ptr(const MyEnum *ptr);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

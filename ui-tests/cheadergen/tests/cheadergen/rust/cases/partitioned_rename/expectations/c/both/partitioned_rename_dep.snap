@@ -1,0 +1,45 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 294
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef enum Color {
+  Red,
+  COLOR_GREEN,
+  Blue,
+} Color;
+
+typedef struct Point {
+  int32_t x;
+  int32_t y;
+} Point;
+
+typedef struct Dimensions {
+  int32_t w;
+  int32_t h;
+} Dimensions;
+
+typedef enum Shape_Tag {
+  SHAPE_CIRCLE,
+  Rect,
+} Shape_Tag;
+
+typedef struct Rect_Body {
+  int32_t w;
+  int32_t h;
+} Rect_Body;
+
+typedef struct Shape {
+  Shape_Tag tag;
+  union {
+    struct {
+      float shape_circle;
+    };
+    struct Rect_Body rect;
+  };
+} Shape;

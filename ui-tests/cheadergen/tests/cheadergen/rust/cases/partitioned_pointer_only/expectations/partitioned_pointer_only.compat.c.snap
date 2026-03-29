@@ -1,0 +1,21 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 332
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct DepStruct DepStruct;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+const DepStruct *use_dep(const DepStruct *ptr);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

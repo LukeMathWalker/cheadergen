@@ -1,0 +1,15 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 294
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include "partitioned_transitive_dep2.h"
+
+typedef struct BStruct {
+  struct CStruct c;
+  int32_t extra;
+} BStruct;

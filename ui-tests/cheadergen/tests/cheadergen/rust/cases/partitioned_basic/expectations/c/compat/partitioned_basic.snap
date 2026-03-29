@@ -1,0 +1,20 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 294
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include "partitioned_basic_dep.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+int32_t use_dep(DepStruct s);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

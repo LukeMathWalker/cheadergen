@@ -93,7 +93,7 @@ fn invoke_cheadergen(
     } else {
         &*CBINDGEN_WORKSPACE_METADATA
     };
-    run_cheadergen(path, language, cpp_compat, style, output_dir, metadata, package)
+    run_cheadergen(path, language, cpp_compat, style, output_dir, metadata, package, true)
 }
 
 pub fn run_generate_test(

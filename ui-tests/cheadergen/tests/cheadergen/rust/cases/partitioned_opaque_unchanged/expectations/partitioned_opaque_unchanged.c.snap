@@ -1,0 +1,19 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 332
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct DepStruct DepStruct;
+
+typedef struct {
+  int32_t a;
+} LocalStruct;
+
+const DepStruct *use_dep(const DepStruct *ptr);
+
+LocalStruct use_local(LocalStruct s);

@@ -1,0 +1,10 @@
+[package]
+name = "partitioned-tagged-union-fwd"
+version = "0.1.0"
+edition.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+partitioned-tagged-union-fwd-dep = { path = "../dep" }

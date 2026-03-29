@@ -1,0 +1,13 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 332
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+struct OpaqueConfig;
+
+const struct OpaqueConfig *use_config(const struct OpaqueConfig *ptr);

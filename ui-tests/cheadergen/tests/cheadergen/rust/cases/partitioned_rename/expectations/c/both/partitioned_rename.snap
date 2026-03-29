@@ -1,0 +1,18 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 294
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include "partitioned_rename_dep.h"
+
+int32_t use_point(struct Point p);
+
+int32_t use_dims(struct Dimensions d);
+
+int32_t use_color(enum Color c);
+
+float use_shape(struct Shape s);

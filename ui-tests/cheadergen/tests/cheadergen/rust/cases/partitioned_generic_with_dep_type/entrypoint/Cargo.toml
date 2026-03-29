@@ -1,0 +1,11 @@
+[package]
+name = "partitioned-generic-with-dep-type"
+version = "0.1.0"
+edition.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+partitioned-generic-with-dep-type-wrapper = { path = "../dep" }
+partitioned-generic-with-dep-type-struct = { path = "../dep2" }

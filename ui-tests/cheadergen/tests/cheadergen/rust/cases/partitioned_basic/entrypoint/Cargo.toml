@@ -1,0 +1,10 @@
+[package]
+name = "partitioned-basic"
+version = "0.1.0"
+edition.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+partitioned-basic-dep = { path = "../dep" }

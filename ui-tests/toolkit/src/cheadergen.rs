@@ -71,6 +71,7 @@ pub fn run_cheadergen_symbols(
 }
 
 /// Invoke cheadergen to generate a header file, returning the raw `Output`.
+#[allow(clippy::too_many_arguments)]
 pub fn run_cheadergen(
     path: &Path,
     language: Language,
@@ -79,6 +80,7 @@ pub fn run_cheadergen(
     output_dir: &Path,
     metadata: &Path,
     package: Option<&str>,
+    bundle: bool,
 ) -> std::process::Output {
     let cheadergen = env::var("CARGO_BIN_EXE_cheadergen")
         .expect("CARGO_BIN_EXE_cheadergen not set — add cheadergen as a dev-dependency");
@@ -109,6 +111,10 @@ pub fn run_cheadergen(
 
     if let Some(pkg) = package {
         command.arg("--package").arg(pkg);
+    }
+
+    if bundle {
+        command.arg("--bundle");
     }
 
     command.arg("--output-dir").arg(output_dir);

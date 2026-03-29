@@ -1,0 +1,10 @@
+[package]
+name = "partitioned-skip-type"
+version = "0.1.0"
+edition.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+partitioned-skip-type-dep = { path = "../dep" }

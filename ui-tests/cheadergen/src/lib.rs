@@ -6,7 +6,8 @@ use std::{fs, str};
 pub use ui_tests_toolkit::types::{Language, Style};
 pub use ui_tests_toolkit::{compile, style_str};
 use ui_tests_toolkit::cheadergen::{get_metadata, run_cheadergen, run_cheadergen_symbols};
-use ui_tests_toolkit::generate::{find_generated_file, has_snapshot_diagnostics_marker};
+use ui_tests_toolkit::generate::{find_generated_files, has_snapshot_diagnostics_marker};
+use ui_tests_toolkit::types::language_extension;
 
 const SKIP_WARNING_AS_ERROR_SUFFIX: &str = ".skip_warning_as_error";
 
@@ -88,11 +89,13 @@ fn invoke_cheadergen(
         output_dir,
         &CHEADERGEN_CASES_METADATA,
         package,
+        false,
     )
 }
 
 pub fn run_generate_test(
     name: &str,
+    variant_path: &str,
     path: &Path,
     language: Language,
     style: Option<Style>,
@@ -107,8 +110,33 @@ pub fn run_generate_test(
         str::from_utf8(&output.stderr).unwrap_or_default()
     );
 
-    let content = find_generated_file(output_dir.path(), language);
-    compare_snapshot(name, path, language, style, cpp_compat, &content);
+    let files = find_generated_files(output_dir.path(), language);
+    if files.len() == 1 {
+        // Single file → existing flat snapshot layout.
+        compare_snapshot(name, path, language, style, cpp_compat, &files[0].1);
+    } else {
+        // Multiple files → per-variant subdirectory layout.
+        // Run all snapshot assertions, deferring panics so that every `.snap.new`
+        // file is written even on the first run (when no snapshots exist yet).
+        let ext = language_extension(language);
+        let mut first_panic: Option<Box<dyn std::any::Any + Send>> = None;
+        for (filename, content) in &files {
+            let snap_name = filename
+                .strip_suffix(&format!(".{ext}"))
+                .unwrap_or(filename);
+            let result = std::panic::catch_unwind(|| {
+                compare_snapshot_in_variant_dir(snap_name, path, variant_path, content);
+            });
+            if let Err(e) = result
+                && first_panic.is_none()
+            {
+                first_panic = Some(e);
+            }
+        }
+        if let Some(panic) = first_panic {
+            std::panic::resume_unwind(panic);
+        }
+    }
 
     // Snapshot stderr diagnostics when the test case opts in via a
     // `snapshot_diagnostics` marker in its `test.toml`.
@@ -241,6 +269,29 @@ fn snapshot_stderr(
     settings.set_prepend_module_to_snapshot(false);
     settings.bind(|| {
         insta::assert_snapshot!(snap_name, stderr_str);
+    });
+}
+
+/// Compare a single output file against a snapshot in a per-variant subdirectory.
+///
+/// Used for partitioned tests that produce multiple output files. Each variant
+/// (e.g. `c/plain`, `c/tag`) gets its own subdirectory under `expectations/`.
+#[track_caller]
+fn compare_snapshot_in_variant_dir(
+    snap_name: &str,
+    path: &Path,
+    variant_path: &str,
+    content: &[u8],
+) {
+    let expectations_dir = path.join("expectations").join(variant_path);
+
+    let output = str::from_utf8(content).expect("non-utf8 cheadergen output");
+
+    let mut settings = insta::Settings::clone_current();
+    settings.set_snapshot_path(&expectations_dir);
+    settings.set_prepend_module_to_snapshot(false);
+    settings.bind(|| {
+        insta::assert_snapshot!(snap_name.to_owned(), output);
     });
 }
 

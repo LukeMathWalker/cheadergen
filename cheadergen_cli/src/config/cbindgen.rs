@@ -245,6 +245,7 @@ fn translate_config(cb: &CbindgenConfig) -> (RawConfig, Vec<String>) {
         static_: static_section,
         constant_: None,
         enum_: enum_section,
+        bundle: None,
         package: HashMap::new(),
         header: HashMap::new(),
         c: None,

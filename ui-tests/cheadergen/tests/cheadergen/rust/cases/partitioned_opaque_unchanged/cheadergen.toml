@@ -1,0 +1,2 @@
+[package.partitioned-opaque-unchanged-dep]
+types = "opaque"

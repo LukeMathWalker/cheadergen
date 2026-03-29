@@ -181,6 +181,260 @@ name = "optional_references"
 version = "0.1.0"
 
 [[package]]
+name = "partitioned-basic"
+version = "0.1.0"
+dependencies = [
+ "partitioned-basic-dep",
+]
+
+[[package]]
+name = "partitioned-basic-dep"
+version = "0.1.0"
+
+[[package]]
+name = "partitioned-bundle"
+version = "0.1.0"
+dependencies = [
+ "partitioned-bundle-dep",
+]
+
+[[package]]
+name = "partitioned-bundle-dep"
+version = "0.1.0"
+
+[[package]]
+name = "partitioned-export-annotation"
+version = "0.1.0"
+dependencies = [
+ "partitioned-export-annotation-dep",
+]
+
+[[package]]
+name = "partitioned-export-annotation-dep"
+version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
+
+[[package]]
+name = "partitioned-export-opaque"
+version = "0.1.0"
+dependencies = [
+ "partitioned-export-opaque-dep",
+]
+
+[[package]]
+name = "partitioned-export-opaque-dep"
+version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
+
+[[package]]
+name = "partitioned-field-rename"
+version = "0.1.0"
+dependencies = [
+ "partitioned-field-rename-dep",
+]
+
+[[package]]
+name = "partitioned-field-rename-dep"
+version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
+
+[[package]]
+name = "partitioned-forward-decl-kinds"
+version = "0.1.0"
+dependencies = [
+ "partitioned-forward-decl-kinds-dep",
+]
+
+[[package]]
+name = "partitioned-forward-decl-kinds-dep"
+version = "0.1.0"
+
+[[package]]
+name = "partitioned-generic"
+version = "0.1.0"
+dependencies = [
+ "partitioned-generic-dep",
+]
+
+[[package]]
+name = "partitioned-generic-dep"
+version = "0.1.0"
+
+[[package]]
+name = "partitioned-generic-enum"
+version = "0.1.0"
+dependencies = [
+ "partitioned-generic-enum-dep",
+]
+
+[[package]]
+name = "partitioned-generic-enum-dep"
+version = "0.1.0"
+
+[[package]]
+name = "partitioned-generic-in-dep-struct"
+version = "0.1.0"
+dependencies = [
+ "partitioned-generic-in-dep-struct-dep",
+]
+
+[[package]]
+name = "partitioned-generic-in-dep-struct-dep"
+version = "0.1.0"
+dependencies = [
+ "partitioned-generic-in-dep-struct-dep2",
+]
+
+[[package]]
+name = "partitioned-generic-in-dep-struct-dep2"
+version = "0.1.0"
+
+[[package]]
+name = "partitioned-generic-overlap"
+version = "0.1.0"
+dependencies = [
+ "partitioned-generic-overlap-dep",
+ "partitioned-generic-overlap-dep2",
+]
+
+[[package]]
+name = "partitioned-generic-overlap-dep"
+version = "0.1.0"
+dependencies = [
+ "partitioned-generic-overlap-dep2",
+]
+
+[[package]]
+name = "partitioned-generic-overlap-dep2"
+version = "0.1.0"
+
+[[package]]
+name = "partitioned-generic-with-dep-type"
+version = "0.1.0"
+dependencies = [
+ "partitioned-generic-with-dep-type-struct",
+ "partitioned-generic-with-dep-type-wrapper",
+]
+
+[[package]]
+name = "partitioned-generic-with-dep-type-struct"
+version = "0.1.0"
+
+[[package]]
+name = "partitioned-generic-with-dep-type-wrapper"
+version = "0.1.0"
+
+[[package]]
+name = "partitioned-mixed-usage"
+version = "0.1.0"
+dependencies = [
+ "partitioned-mixed-usage-dep",
+]
+
+[[package]]
+name = "partitioned-mixed-usage-dep"
+version = "0.1.0"
+
+[[package]]
+name = "partitioned-opaque-unchanged"
+version = "0.1.0"
+dependencies = [
+ "partitioned-opaque-unchanged-dep",
+]
+
+[[package]]
+name = "partitioned-opaque-unchanged-dep"
+version = "0.1.0"
+
+[[package]]
+name = "partitioned-pointer-only"
+version = "0.1.0"
+dependencies = [
+ "partitioned-pointer-only-dep",
+]
+
+[[package]]
+name = "partitioned-pointer-only-dep"
+version = "0.1.0"
+
+[[package]]
+name = "partitioned-rename"
+version = "0.1.0"
+dependencies = [
+ "partitioned-rename-dep",
+]
+
+[[package]]
+name = "partitioned-rename-dep"
+version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
+
+[[package]]
+name = "partitioned-rename-pointer"
+version = "0.1.0"
+dependencies = [
+ "partitioned-rename-pointer-dep",
+]
+
+[[package]]
+name = "partitioned-rename-pointer-dep"
+version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
+
+[[package]]
+name = "partitioned-skip-type"
+version = "0.1.0"
+dependencies = [
+ "partitioned-skip-type-dep",
+]
+
+[[package]]
+name = "partitioned-skip-type-dep"
+version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
+
+[[package]]
+name = "partitioned-tagged-union-fwd"
+version = "0.1.0"
+dependencies = [
+ "partitioned-tagged-union-fwd-dep",
+]
+
+[[package]]
+name = "partitioned-tagged-union-fwd-dep"
+version = "0.1.0"
+
+[[package]]
+name = "partitioned-transitive"
+version = "0.1.0"
+dependencies = [
+ "partitioned-transitive-dep",
+]
+
+[[package]]
+name = "partitioned-transitive-dep"
+version = "0.1.0"
+dependencies = [
+ "partitioned-transitive-dep2",
+]
+
+[[package]]
+name = "partitioned-transitive-dep2"
+version = "0.1.0"
+
+[[package]]
 name = "plain_union"
 version = "0.1.0"
 

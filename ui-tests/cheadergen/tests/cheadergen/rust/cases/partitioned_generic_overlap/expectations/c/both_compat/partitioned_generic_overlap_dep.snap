@@ -1,0 +1,21 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 294
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+#ifndef WRAPPER_I32_DEFINED
+#define WRAPPER_I32_DEFINED
+typedef struct Wrapper_i32 {
+  int32_t value;
+} Wrapper_i32;
+#endif /* WRAPPER_I32_DEFINED */
+
+typedef struct BStruct {
+  struct Wrapper_i32 wrapped;
+  int32_t extra;
+} BStruct;

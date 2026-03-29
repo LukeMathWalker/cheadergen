@@ -1,0 +1,6 @@
+package = "partitioned-rename-pointer"
+
+"cpp/plain" = "exclude"
+"cython/plain" = "exclude"
+"cython/tag" = "exclude"
+"symbol" = "exclude"

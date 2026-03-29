@@ -35,31 +35,32 @@ struct TypeMeta {
     rename: Option<String>,
 }
 
+fn build_type_meta_entry(def: &CTypeDefinition) -> TypeMeta {
+    let tag = match &def.kind {
+        CTypeKind::OpaqueStruct | CTypeKind::Struct(_) => CTypeTag::Struct,
+        CTypeKind::OpaqueUnion | CTypeKind::Union(_) => CTypeTag::Union,
+        CTypeKind::FieldlessEnum(e) => match &e.repr {
+            CEnumRepr::C => CTypeTag::Enum,
+            CEnumRepr::Int { .. } => CTypeTag::IntTypedef,
+        },
+        CTypeKind::Typedef(_) => CTypeTag::IntTypedef,
+        CTypeKind::TaggedUnion(t) => {
+            if t.repr.is_repr_c() {
+                CTypeTag::Struct
+            } else {
+                CTypeTag::Union
+            }
+        }
+    };
+    let rename = def.original_name.as_ref().map(|_| def.name.clone());
+    TypeMeta { tag, rename }
+}
+
 fn build_type_meta_map(type_defs: &[CTypeDefinition]) -> HashMap<String, TypeMeta> {
     let mut map = HashMap::new();
     for def in type_defs {
-        let tag = match &def.kind {
-            CTypeKind::OpaqueStruct | CTypeKind::Struct(_) => CTypeTag::Struct,
-            CTypeKind::OpaqueUnion | CTypeKind::Union(_) => CTypeTag::Union,
-            CTypeKind::FieldlessEnum(e) => match &e.repr {
-                CEnumRepr::C => CTypeTag::Enum,
-                CEnumRepr::Int { .. } => CTypeTag::IntTypedef,
-            },
-            CTypeKind::Typedef(_) => CTypeTag::IntTypedef,
-            CTypeKind::TaggedUnion(t) => {
-                if t.repr.is_repr_c() {
-                    CTypeTag::Struct
-                } else {
-                    CTypeTag::Union
-                }
-            }
-        };
-
-        // Key by original name (for function signature lookups) if renamed,
-        // otherwise by the type name itself.
         let key = def.original_name.as_ref().unwrap_or(&def.name).clone();
-        let rename = def.original_name.as_ref().map(|_| def.name.clone());
-        map.insert(key, TypeMeta { tag, rename });
+        map.insert(key, build_type_meta_entry(def));
     }
     map
 }
@@ -78,6 +79,9 @@ pub fn generate_c_header(
     assoc_constants: &[(String, Vec<ConstantItem>)],
     functions: &[FreeFunction],
     statics: &[StaticItem],
+    dep_includes: &[String],
+    type_hints: &[CTypeDefinition],
+    partitioned: bool,
     collection: &Collection,
     out: &mut String,
 ) {
@@ -122,6 +126,11 @@ pub fn generate_c_header(
         writeln!(out, "#include \"{inc}\"").unwrap();
     }
 
+    // Dependency crate includes (auto-generated for partitioned headers).
+    for inc in dep_includes {
+        writeln!(out, "#include \"{inc}\"").unwrap();
+    }
+
     // After includes (verbatim text).
     if let Some(ref after) = common.after_includes {
         out.push_str(after);
@@ -129,7 +138,13 @@ pub fn generate_c_header(
     }
 
     // Build type metadata map for correct type references in declarations.
-    let type_meta = build_type_meta_map(type_defs);
+    // Include type_hints from included deps so renames and type tags propagate.
+    let mut type_meta = build_type_meta_map(type_defs);
+    for hint in type_hints {
+        let entry = build_type_meta_entry(hint);
+        let key = hint.original_name.as_ref().unwrap_or(&hint.name).clone();
+        type_meta.entry(key).or_insert(entry);
+    }
 
     // Type forward declarations.
     if !type_defs.is_empty() {
@@ -141,6 +156,7 @@ pub fn generate_c_header(
             assoc_constants,
             &config.style,
             config.cpp_compat,
+            partitioned,
             &type_meta,
             common,
             collection,
@@ -537,6 +553,7 @@ fn write_c_type_definitions(
     assoc_constants: &[(String, Vec<ConstantItem>)],
     style: &Style,
     cpp_compat: bool,
+    partitioned: bool,
     type_meta: &HashMap<String, TypeMeta>,
     config: &CommonConfig,
     collection: &Collection,
@@ -648,6 +665,18 @@ fn write_c_type_definitions(
         HashSet::new()
     };
     for (i, def) in compound_defs.iter().enumerate() {
+        // In partitioned mode, generic instantiations are wrapped in #ifndef
+        // guards to prevent redefinition errors when the same instantiation
+        // appears in multiple headers. In bundle mode, guards are unnecessary.
+        let guard_name = if partitioned && def.is_generic_instantiation {
+            Some(type_include_guard_name(&def.name))
+        } else {
+            None
+        };
+        if let Some(ref guard) = guard_name {
+            writeln!(out, "#ifndef {guard}").unwrap();
+            writeln!(out, "#define {guard}").unwrap();
+        }
         let docs = lookup_docs(def.rustdoc_id.as_ref(), collection);
         write_doc_comment(docs.as_deref(), config, out);
         let has_fwd_decl = forward_declared.contains(def.name.as_str());
@@ -682,6 +711,9 @@ fn write_c_type_definitions(
             _ => unreachable!(),
         }
         write_assoc_constants_for_type(&def.name, &assoc_map, collection, config, out);
+        if let Some(ref guard) = guard_name {
+            writeln!(out, "#endif /* {guard} */").unwrap();
+        }
         if i + 1 < compound_defs.len() {
             out.push('\n');
         }
@@ -1134,6 +1166,23 @@ fn write_tagged_union_repr_int(
         (Style::Type, true) | (Style::Tag, _) => writeln!(out, "}};").unwrap(),
         _ => writeln!(out, "}} {name};").unwrap(),
     }
+}
+
+/// Compute the `#ifndef` guard name for a generic instantiation.
+///
+/// Uppercases the C type name and replaces non-alphanumeric characters with `_`,
+/// then appends `_DEFINED`. For example, `Wrapper_i32` becomes `WRAPPER_I32_DEFINED`.
+fn type_include_guard_name(c_name: &str) -> String {
+    let mut guard = String::with_capacity(c_name.len() + "_DEFINED".len());
+    for ch in c_name.chars() {
+        if ch.is_ascii_alphanumeric() {
+            guard.push(ch.to_ascii_uppercase());
+        } else {
+            guard.push('_');
+        }
+    }
+    guard.push_str("_DEFINED");
+    guard
 }
 
 /// Determine which compound types need a forward `typedef` declaration

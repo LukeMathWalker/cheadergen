@@ -1,0 +1,10 @@
+[package]
+name = "partitioned-generic-in-dep-struct-dep"
+version = "0.1.0"
+edition.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+partitioned-generic-in-dep-struct-dep2 = { path = "../dep2" }

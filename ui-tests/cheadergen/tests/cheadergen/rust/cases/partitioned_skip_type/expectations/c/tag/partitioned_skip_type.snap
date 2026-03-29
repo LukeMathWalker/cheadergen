@@ -1,0 +1,14 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 294
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include "partitioned_skip_type_dep.h"
+
+int32_t use_visible(struct Visible v);
+
+const struct Hidden *use_hidden(const struct Hidden *ptr);

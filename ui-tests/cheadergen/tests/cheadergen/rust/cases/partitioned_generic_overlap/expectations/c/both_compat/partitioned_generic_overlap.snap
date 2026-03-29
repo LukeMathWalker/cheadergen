@@ -1,0 +1,29 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 294
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include "partitioned_generic_overlap_dep.h"
+
+#ifndef WRAPPER_I32_DEFINED
+#define WRAPPER_I32_DEFINED
+typedef struct Wrapper_i32 {
+  int32_t value;
+} Wrapper_i32;
+#endif /* WRAPPER_I32_DEFINED */
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+int32_t use_b(struct BStruct s);
+
+int32_t use_wrapper(struct Wrapper_i32 w);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus
