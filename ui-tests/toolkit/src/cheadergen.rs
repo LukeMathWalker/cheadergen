@@ -85,7 +85,11 @@ pub fn run_cheadergen(
 
     command.arg("generate");
     command.arg("--quiet");
-    command.env("NO_COLOR", "1");
+    command
+        .env("NO_COLOR", "1")
+        // Ensure consistent output for CLI errors
+        .env("RUST_BACKTRACE", "0")
+        .env("RUST_LIB_BACKTRACE", "0");
     command.arg("--metadata").arg(metadata);
 
     match language {
