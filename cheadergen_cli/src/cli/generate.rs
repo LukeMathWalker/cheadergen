@@ -182,7 +182,7 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
     };
 
     // Validate config against the selected language.
-    let config = raw_config.into_config(&cli.lang, &overrides)?;
+    let config_set = raw_config.into_config(&cli.lang, &overrides)?;
 
     let metadata_dir = resolved_input
         .as_ref()
@@ -216,8 +216,22 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
     let debug = std::env::var("CHEADERGEN_DEBUG").is_ok_and(|v| v == "true" || v == "1");
     let mut diagnostics = DiagnosticSink::new(ws_root, debug);
 
+    // Warn for [header.<name>] sections that don't match any selected package.
+    let package_names: std::collections::HashSet<&str> =
+        packages.iter().map(|(_, name)| name.as_str()).collect();
+    for header_name in config_set.header_names() {
+        if !package_names.contains(header_name) {
+            diagnostics
+                .warning(format!(
+                    "`[header.\"{header_name}\"]` in config does not match any selected package"
+                ))
+                .emit();
+        }
+    }
+
     // Resolve per-package overrides against the dependency graph.
-    let package_configs = match &config {
+    // Package overrides are global (not per-header), so resolve once.
+    let package_configs = match &config_set.default {
         config::Config::C(c) => &c.common.package_configs,
         config::Config::Cxx(c) => &c.common.package_configs,
     };
@@ -228,10 +242,12 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
             eprintln!("Generating header for `{package_name}`...");
         }
 
+        let config = config_set.for_crate(package_name);
+
         match generate_one_crate(
             package_id,
             package_name,
-            &config,
+            config,
             &collection,
             cli,
             &type_overrides,

@@ -1,0 +1,77 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 256
+expression: output
+---
+#if 0
+''' '
+#endif
+
+// FIXME: Mis-generated in C mode with enum.prefix_with_name = false, and in
+// C++ mode with it set to true...
+#if defined(__cplusplus) && !defined(CBINDGEN_CPP_COMPAT)
+
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+/**
+ * A three-bit value that represents the axis in which position-area operates on.
+ * Represented as 3 bits: axis type (physical or logical), direction type (physical or logical),
+ * axis value.
+ */
+enum PositionAreaAxis {
+  Horizontal = 0b000,
+  Vertical = 0b001,
+  X = 0b010,
+  Y = 0b011,
+  Inline = 0b110,
+  Block = 0b111,
+};
+typedef uint8_t PositionAreaAxis;
+
+/**
+ * Specifies which tracks(s) on the axis that the position-area span occupies.
+ * Represented as 3 bits: start, center, end track.
+ */
+enum PositionAreaTrack {
+  Start = 0b001,
+  SpanStart = 0b011,
+  End = 0b100,
+  SpanEnd = 0b110,
+  Center = 0b010,
+  SpanAll = 0b111,
+};
+typedef uint8_t PositionAreaTrack;
+
+/**
+ * Possible values for the `position-area` property's keywords.
+ * Represented by [0z xxx yyy], where z means "self wm resolution", xxx is the type (as in
+ * PositionAreaAxis and yyy is the PositionAreaTrack
+ * https://drafts.csswg.org/css-anchor-position-1/#propdef-position-area
+ */
+enum PositionAreaKeyword {
+  None = 0,
+  Center = { _ },
+  SpanAll = { _ },
+  Start = { _ },
+  End = { _ },
+  SpanStart = { _ },
+  SpanEnd = { _ },
+  Top = { _ },
+  Bottom = { _ },
+};
+typedef uint8_t PositionAreaKeyword;
+
+#define AXIS_SHIFT 3
+
+#define SELF_WM_SHIFT 6
+
+#define SELF_WM 64
+
+void root(PositionAreaKeyword _, PositionAreaTrack _, PositionAreaAxis _);
+#endif
+#if 0
+' '''
+#endif

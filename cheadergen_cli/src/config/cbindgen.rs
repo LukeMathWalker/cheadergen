@@ -229,9 +229,8 @@ fn translate_config(cb: &CbindgenConfig) -> (RawConfig, Vec<String>) {
     });
 
     let mut config = RawConfig {
-        header: cb.header.clone(),
+        preamble: cb.header.clone(),
         trailer: cb.trailer.clone(),
-        include_guard: cb.include_guard.clone(),
         pragma_once,
         no_includes,
         after_includes: cb.after_includes.clone(),
@@ -247,9 +246,16 @@ fn translate_config(cb: &CbindgenConfig) -> (RawConfig, Vec<String>) {
         constant_: None,
         enum_: enum_section,
         package: HashMap::new(),
+        header: HashMap::new(),
         c: None,
         cxx: None,
     };
+
+    // include_guard is now per-header only; the translator cannot place it
+    // without knowing the crate name, so skip it with a comment.
+    if cb.include_guard.is_some() {
+        skipped.push("include_guard".into());
+    }
 
     if is_cxx {
         // For C++ language, create a [cxx] section (no style/cpp_compat).
@@ -476,10 +482,9 @@ cpp_compat = true
 "##,
         );
         insta::assert_snapshot!(output, @r##"
-        header = "/* License */"
+        preamble = "/* License */"
         trailer = "/* End */"
         autogen_warning = "// DO NOT EDIT"
-        include_guard = "MY_H"
         pragma_once = true
         sys_includes = ["stdint.h"]
         includes = ["foo.h"]
@@ -489,6 +494,8 @@ cpp_compat = true
         [c]
         style = "Tag"
         cpp_compat = true
+
+        # `include_guard` was skipped: not supported by cheadergen
         "##);
     }
 
@@ -514,7 +521,7 @@ header = "/* C++ */"
 "#,
         );
         insta::assert_snapshot!(output, @r#"
-        header = "/* C++ */"
+        preamble = "/* C++ */"
 
         [cxx]
         "#);
@@ -559,14 +566,15 @@ cpp_compat = true
         let _: RawConfig = toml::from_str(&output).unwrap();
 
         insta::assert_snapshot!(output, @r#"
-        header = "/* License */"
-        include_guard = "MY_H"
+        preamble = "/* License */"
         sys_includes = ["stdint.h"]
         includes = ["foo.h"]
 
         [c]
         style = "Tag"
         cpp_compat = true
+
+        # `include_guard` was skipped: not supported by cheadergen
         "#);
     }
 
@@ -599,7 +607,7 @@ include = ["Foo"]
 "#,
         );
         insta::assert_snapshot!(output, @r#"
-        header = "/* License */"
+        preamble = "/* License */"
 
         # `braces` was skipped: not supported by cheadergen
         # `line_length` was skipped: not supported by cheadergen
@@ -642,8 +650,9 @@ after_includes = "#define VERSION 1"
 
         let output = fs_err::read_to_string(&output_path).unwrap();
         insta::assert_snapshot!(output, @r##"
-        include_guard = "TEST_H"
         after_includes = "#define VERSION 1"
+
+        # `include_guard` was skipped: not supported by cheadergen
         "##);
     }
 
@@ -669,10 +678,9 @@ include = ["Foo"]
 
         let output = fs_err::read_to_string(&output_path).unwrap();
         insta::assert_snapshot!(output, @r#"
-        include_guard = "TEST_H"
-
         # `braces` was skipped: not supported by cheadergen
         # `export.include` was skipped: not supported by cheadergen
+        # `include_guard` was skipped: not supported by cheadergen
         "#);
     }
 }

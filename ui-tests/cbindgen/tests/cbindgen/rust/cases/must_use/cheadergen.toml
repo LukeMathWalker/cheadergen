@@ -1,4 +1,4 @@
-header = """
+preamble = """
 #define MUST_USE_FUNC __attribute__((warn_unused_result))
 #define MUST_USE_STRUCT __attribute__((warn_unused))
 #define MUST_USE_ENUM /* nothing */

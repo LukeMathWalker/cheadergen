@@ -1,0 +1,29 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 256
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+struct Bar {
+  int32_t a;
+};
+
+struct Foo {
+  int32_t a;
+  uint32_t b;
+  struct Bar bar;
+};
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+void root(struct Foo x);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

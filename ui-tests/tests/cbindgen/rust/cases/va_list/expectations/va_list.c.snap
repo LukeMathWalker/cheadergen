@@ -1,0 +1,30 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 256
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct {
+  int32_t (*fn1)(int32_t, VaList);
+} Interface_Option_fn;
+
+/**
+ * A variable argument list, equivalent to `va_list` in C.
+ */
+typedef struct {
+
+} VaList;
+
+typedef struct {
+  int32_t (*fn1)(int32_t);
+} Interface_Option_fn;
+
+int32_t va_list_test(int32_t count, VaList ap);
+
+int32_t va_list_test2(int32_t count, ...);
+
+void va_list_fn_ptrs(int32_t (*fn1)(int32_t count, VaList), int32_t (*fn2)(int32_t count), int32_t (*fn3)(int32_t count, VaList), int32_t (*fn4)(int32_t count), Interface_Option_fn fn5, Interface_Option_fn fn6);

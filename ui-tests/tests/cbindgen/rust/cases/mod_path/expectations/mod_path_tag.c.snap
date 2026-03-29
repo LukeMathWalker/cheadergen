@@ -1,0 +1,15 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 256
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+struct ExportMe;
+
+#define EXPORT_ME_TOO 42
+
+void export_me(struct ExportMe *val);

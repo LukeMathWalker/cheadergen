@@ -1,0 +1,21 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 256
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct Foo {
+  int32_t x[10];
+} Foo;
+
+#define FOO 10
+
+#define BAR "hello world"
+
+#define ZOM 3.1400001
+
+void root(struct Foo x);

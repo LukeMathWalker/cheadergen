@@ -1,0 +1,9 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 117
+expression: symbol_content
+---
+{
+cond;
+global_array_with_different_sizes;
+};

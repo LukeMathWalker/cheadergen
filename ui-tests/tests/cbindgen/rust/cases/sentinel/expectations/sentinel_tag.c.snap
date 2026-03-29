@@ -1,0 +1,44 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 256
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+enum A {
+  A1,
+  A2,
+  A3,
+};
+typedef uint8_t A;
+
+enum B {
+  B1,
+  B2,
+  B3,
+};
+typedef uint8_t B;
+
+enum C_Tag {
+  C1,
+  C2,
+  C3,
+};
+typedef uint8_t C_Tag;
+
+union C {
+  C_Tag tag;
+  struct {
+    C_Tag c1_tag;
+    uint32_t c1;
+  };
+  struct {
+    C_Tag c2_tag;
+    uint32_t c2;
+  };
+};
+
+void root(A a, B b, union C c);

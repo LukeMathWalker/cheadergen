@@ -1,0 +1,41 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 256
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+enum UE
+#ifdef __cplusplus
+  : uintptr_t
+#endif // __cplusplus
+ {
+  UV,
+};
+#ifndef __cplusplus
+typedef uintptr_t UE;
+#endif // __cplusplus
+
+enum IE
+#ifdef __cplusplus
+  : intptr_t
+#endif // __cplusplus
+ {
+  IV,
+};
+#ifndef __cplusplus
+typedef intptr_t IE;
+#endif // __cplusplus
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+void root(uintptr_t _, intptr_t _, UE _, IE _);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

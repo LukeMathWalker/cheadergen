@@ -1,2 +1,4 @@
-include_guard = "INCLUDE_GUARD_H"
 no_includes = true
+
+[header.include_guard]
+include_guard = "INCLUDE_GUARD_H"

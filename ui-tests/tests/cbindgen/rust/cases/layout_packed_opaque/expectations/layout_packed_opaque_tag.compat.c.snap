@@ -1,0 +1,12 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 256
+expression: output
+---
+#define CBINDGEN_PACKED        __attribute__ ((packed))
+#define CBINDGEN_ALIGNED(n)    __attribute__ ((aligned(n)))
+
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>

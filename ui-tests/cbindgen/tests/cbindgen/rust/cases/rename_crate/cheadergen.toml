@@ -1,4 +1,4 @@
-header = """
+preamble = """
 #if 0
 DEF DEFINE_FREEBSD = 0
 #endif

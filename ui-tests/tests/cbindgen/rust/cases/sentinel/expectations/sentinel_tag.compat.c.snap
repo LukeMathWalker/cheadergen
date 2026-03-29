@@ -1,0 +1,70 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 256
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+enum A
+#ifdef __cplusplus
+  : uint8_t
+#endif // __cplusplus
+ {
+  A1,
+  A2,
+  A3,
+};
+#ifndef __cplusplus
+typedef uint8_t A;
+#endif // __cplusplus
+
+enum B
+#ifdef __cplusplus
+  : uint8_t
+#endif // __cplusplus
+ {
+  B1,
+  B2,
+  B3,
+};
+#ifndef __cplusplus
+typedef uint8_t B;
+#endif // __cplusplus
+
+enum C_Tag
+#ifdef __cplusplus
+  : uint8_t
+#endif // __cplusplus
+ {
+  C1,
+  C2,
+  C3,
+};
+#ifndef __cplusplus
+typedef uint8_t C_Tag;
+#endif // __cplusplus
+
+union C {
+  C_Tag tag;
+  struct {
+    C_Tag c1_tag;
+    uint32_t c1;
+  };
+  struct {
+    C_Tag c2_tag;
+    uint32_t c2;
+  };
+};
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+void root(A a, B b, union C c);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

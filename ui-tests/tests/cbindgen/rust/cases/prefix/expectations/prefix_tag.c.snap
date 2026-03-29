@@ -1,0 +1,36 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 256
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef int32_t NamedLenArray[22];
+
+typedef int32_t ValuedLenArray[22];
+
+enum AbsoluteFontWeight_Tag {
+  Weight,
+  Normal,
+  Bold,
+};
+typedef uint8_t AbsoluteFontWeight_Tag;
+
+union AbsoluteFontWeight {
+  AbsoluteFontWeight_Tag tag;
+  struct {
+    AbsoluteFontWeight_Tag weight_tag;
+    float weight;
+  };
+};
+
+#define LEN 22
+
+#define X 92274688
+
+#define Y 184549376
+
+void root(NamedLenArray x, ValuedLenArray y, union AbsoluteFontWeight z);

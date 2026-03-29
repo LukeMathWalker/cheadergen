@@ -1,0 +1,29 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 256
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+struct ExportMe;
+
+struct ExportMe2;
+
+#define EXPORT_ME_TOO 42
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+void from_really_nested_mod(void);
+
+void export_me_2(struct ExportMe2 *_);
+
+void export_me(struct ExportMe *val);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

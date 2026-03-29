@@ -1,0 +1,23 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 256
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct E E;
+
+#define FOUR 4
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+void root(const E *_);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

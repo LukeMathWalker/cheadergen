@@ -1,0 +1,23 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 256
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+struct Foo_u8 {
+  uint8_t a[4];
+};
+
+typedef struct Foo_u8 Boo;
+
+struct Foo_u8 {
+  uint8_t *a;
+};
+
+void root(Boo x);
+
+void my_function(struct Foo_u8 x);

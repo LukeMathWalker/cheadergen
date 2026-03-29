@@ -1,0 +1,38 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 256
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+/**
+ * cbindgen:ignore
+ */
+#define IGNORE_CONST 0
+
+#define NO_IGNORE_CONST 0
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+/**
+ * cbindgen:ignore
+ */
+void root(void);
+
+/**
+ * cbindgen:ignore
+ *
+ * Something else.
+ */
+void another_root(void);
+
+void no_ignore_root(void);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

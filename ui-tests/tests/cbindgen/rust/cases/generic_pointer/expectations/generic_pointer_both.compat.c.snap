@@ -1,0 +1,31 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 256
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct Foo_u8 {
+  uint8_t *a;
+} Foo_u8;
+
+typedef struct Foo_u8 Boo;
+
+typedef struct Foo_u8 {
+  uint8_t a[4];
+} Foo_u8;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+void root(Boo x);
+
+void my_function(struct Foo_u8 x);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

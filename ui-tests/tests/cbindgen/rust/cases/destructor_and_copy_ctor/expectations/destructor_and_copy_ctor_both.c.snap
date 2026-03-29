@@ -1,0 +1,56 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 256
+expression: output
+---
+#define NOINLINE __attribute__((noinline))
+#define NODISCARD [[nodiscard]]
+
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct Foo_u32 Foo_u32;
+
+typedef struct Baz_i32 Baz_i32;
+
+typedef struct Taz Taz;
+
+/**
+ * cbindgen:derive-tagged-enum-copy-assignment=false
+ */
+typedef struct Tazzz Tazzz;
+
+typedef struct Tazzzz Tazzzz;
+
+/**
+ * cbindgen:derive-eq=true
+ * cbindgen:derive-neq=true
+ * cbindgen:neq-attributes=NODISCARD
+ * cbindgen:eq-attributes=NODISCARD
+ * cbindgen:destructor-attributes=NOINLINE
+ * cbindgen:copy-constructor-attributes=NOINLINE
+ * cbindgen:copy-assignment-attributes=NOINLINE
+ */
+typedef struct Qux Qux;
+
+/**
+ * cbindgen:derive-tagged-enum-destructor=false
+ * cbindgen:derive-tagged-enum-copy-constructor=false
+ */
+enum Tazz_Tag {
+  Bar4,
+  Taz2,
+};
+typedef uint8_t Tazz_Tag;
+
+typedef union Tazz {
+  Tazz_Tag tag;
+  struct {
+    Tazz_Tag taz2_tag;
+    int32_t taz2;
+  };
+} Tazz;
+
+void root(const struct Foo_u32 *a, const struct Baz_i32 *b, const struct Taz *c, union Tazz d, const struct Tazzz *e, const struct Tazzzz *f, const struct Qux *g);

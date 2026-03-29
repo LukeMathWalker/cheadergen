@@ -1,0 +1,40 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 256
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct Opaque Opaque;
+
+/**
+ * The `Option` type. See [the module level documentation](self) for more.
+ */
+typedef struct Option_Opaque Option_Opaque;
+
+typedef struct {
+  const Opaque *x;
+  Opaque *y;
+  void (*z)(void);
+  void (**zz)(void);
+} Foo;
+
+typedef union {
+  const Opaque *x;
+  Opaque *y;
+  void (*z)(void);
+  void (**zz)(void);
+} Bar;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+void root(const Opaque *a, Opaque *b, Foo c, Bar d, Option_Opaque *e, void (*f)(const Opaque *));
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

@@ -1,0 +1,19 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 256
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+struct Foo_i32;
+
+struct Bar_i32;
+
+struct Baz;
+
+struct Taz;
+
+void foo(const struct Foo_i32 *foo, const struct Bar_i32 *bar, const struct Baz *baz, const struct Taz *taz);

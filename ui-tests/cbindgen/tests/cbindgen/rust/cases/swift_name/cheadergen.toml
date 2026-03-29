@@ -1,3 +1,3 @@
-header = "#define CF_SWIFT_NAME(_name) __attribute__((swift_name(#_name)))"
+preamble = "#define CF_SWIFT_NAME(_name) __attribute__((swift_name(#_name)))"
 
 # `fn.swift_name_macro` was skipped: not supported by cheadergen

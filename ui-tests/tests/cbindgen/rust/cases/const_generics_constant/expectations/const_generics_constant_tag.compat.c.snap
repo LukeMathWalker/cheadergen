@@ -1,0 +1,31 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 256
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+struct FixedPoint_FONT_WEIGHT_FRACTION_BITS {
+  uint16_t value;
+};
+
+typedef struct FixedPoint_FONT_WEIGHT_FRACTION_BITS FontWeightFixedPoint;
+
+struct FontWeight {
+  FontWeightFixedPoint m0;
+};
+
+#define FONT_WEIGHT_FRACTION_BITS 6
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+void root(struct FontWeight w);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

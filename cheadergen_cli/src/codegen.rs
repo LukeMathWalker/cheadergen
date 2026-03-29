@@ -83,9 +83,9 @@ pub fn generate_c_header(
 ) {
     let common = &config.common;
 
-    // Header (verbatim text at top of file).
-    if let Some(ref header) = common.header {
-        out.push_str(header);
+    // Preamble (verbatim text at top of file).
+    if let Some(ref preamble) = common.preamble {
+        out.push_str(preamble);
         out.push('\n');
     }
 

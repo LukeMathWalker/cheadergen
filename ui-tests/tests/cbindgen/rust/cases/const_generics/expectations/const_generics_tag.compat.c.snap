@@ -1,0 +1,23 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 256
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+struct Book;
+
+#define TITLE_SIZE 80
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+void root(struct Book *a);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

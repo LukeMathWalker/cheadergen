@@ -1,4 +1,4 @@
-header = """
+preamble = """
 #define CBINDGEN_PACKED        __attribute__ ((packed))
 #define CBINDGEN_ALIGNED(n)    __attribute__ ((aligned(n)))
 """

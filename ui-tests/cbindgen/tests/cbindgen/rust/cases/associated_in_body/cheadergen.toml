@@ -1,4 +1,4 @@
-header = """
+preamble = """
 #if 0
 DEF PLATFORM_UNIX = 0
 DEF PLATFORM_WIN = 0

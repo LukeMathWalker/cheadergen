@@ -1,0 +1,18 @@
+---
+source: ui-tests/src/generate/mod.rs
+assertion_line: 256
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct Bar Bar;
+
+typedef struct Foo {
+  int32_t a;
+  uint32_t b;
+} Foo;
+
+void root(struct Foo x, struct Bar bar);

@@ -1,6 +1,6 @@
 ---
 source: ui-tests/cbindgen/src/lib.rs
-assertion_line: 166
+assertion_line: 191
 expression: actual
 ---
 #include <stdarg.h>
@@ -9,23 +9,23 @@ expression: actual
 #include <stdlib.h>
 
 enum A {
-  A1,
-  A2,
-  A3,
+  A_A1,
+  A_A2,
+  A_A3,
 };
 typedef uint8_t A;
 
 enum B {
-  B1,
-  B2,
-  B3,
+  B_B1,
+  B_B2,
+  B_B3,
 };
 typedef uint8_t B;
 
 enum C_Tag {
-  C1,
-  C2,
-  C3,
+  C_C1,
+  C_C2,
+  C_C3,
 };
 typedef uint8_t C_Tag;
 

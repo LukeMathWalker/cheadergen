@@ -1,4 +1,4 @@
-header = """
+preamble = """
 #ifdef __clang__
 #define CBINDGEN_NONNULL _Nonnull
 #else
