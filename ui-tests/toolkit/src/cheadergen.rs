@@ -78,6 +78,7 @@ pub fn run_cheadergen(
     style: Option<Style>,
     output_dir: &Path,
     metadata: &Path,
+    package: Option<&str>,
 ) -> std::process::Output {
     let cheadergen = env::var("CARGO_BIN_EXE_cheadergen")
         .expect("CARGO_BIN_EXE_cheadergen not set — add cheadergen as a dev-dependency");
@@ -106,6 +107,10 @@ pub fn run_cheadergen(
         command.arg("--style").arg(style_str(style));
     }
 
+    if let Some(pkg) = package {
+        command.arg("--package").arg(pkg);
+    }
+
     command.arg("--output-dir").arg(output_dir);
 
     let config = path.join("cheadergen.toml");
@@ -113,7 +118,12 @@ pub fn run_cheadergen(
         command.arg("--config").arg(config);
     }
 
-    command.arg(path);
+    // When a specific package is selected, don't pass the directory as
+    // a positional arg — it would add all crates under it to the selection.
+    // Instead, pass no input so cheadergen uses the workspace root from metadata.
+    if package.is_none() {
+        command.arg(path);
+    }
 
     println!("Running: {command:?}");
     command

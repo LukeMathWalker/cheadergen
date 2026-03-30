@@ -133,9 +133,14 @@ fn cmd_cbindgen_report(variant: &str) {
             .to_string_lossy()
             .into_owned();
         let toml_path = case_path.join("test.toml");
-        let test_toml = read_test_manifest(&toml_path).unwrap_or_default();
-
-        let status = test_toml.get(variant).copied();
+        let test_manifest = match read_test_manifest(&toml_path) {
+            Ok(m) => m,
+            Err(e) => {
+                eprintln!("warning: {e}");
+                continue;
+            }
+        };
+        let status = test_manifest.variants.get(variant).copied();
 
         match status {
             Some(VariantStatus::HeaderDiff | VariantStatus::GenerationFails) => {

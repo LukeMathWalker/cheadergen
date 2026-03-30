@@ -1,5 +1,5 @@
 [package]
-name = "skip_dependency"
+name = "opaque_dependency"
 version = "0.1.0"
 edition.workspace = true
 
@@ -7,4 +7,4 @@ edition.workspace = true
 workspace = true
 
 [dependencies]
-skip-dep = { path = "../skip_dependency_dep" }
+opaque-dep = { path = "../dep" }

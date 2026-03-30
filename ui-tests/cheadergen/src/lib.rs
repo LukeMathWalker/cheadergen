@@ -78,6 +78,7 @@ fn invoke_cheadergen(
     style: Option<Style>,
     cpp_compat: bool,
     output_dir: &Path,
+    package: Option<&str>,
 ) -> std::process::Output {
     run_cheadergen(
         path,
@@ -86,6 +87,7 @@ fn invoke_cheadergen(
         style,
         output_dir,
         &CHEADERGEN_CASES_METADATA,
+        package,
     )
 }
 
@@ -95,9 +97,10 @@ pub fn run_generate_test(
     language: Language,
     style: Option<Style>,
     cpp_compat: bool,
+    package: Option<&str>,
 ) {
     let output_dir = tempfile::tempdir().expect("failed to create temp dir");
-    let output = invoke_cheadergen(name, path, language, style, cpp_compat, output_dir.path());
+    let output = invoke_cheadergen(name, path, language, style, cpp_compat, output_dir.path(), package);
     assert!(
         output.status.success(),
         "cheadergen failed for {path:?} with error: {}",
@@ -151,9 +154,10 @@ pub fn run_generation_fails_test(
     language: Language,
     style: Option<Style>,
     cpp_compat: bool,
+    package: Option<&str>,
 ) {
     let output_dir = tempfile::tempdir().expect("failed to create temp dir");
-    let output = invoke_cheadergen(name, path, language, style, cpp_compat, output_dir.path());
+    let output = invoke_cheadergen(name, path, language, style, cpp_compat, output_dir.path(), package);
     if output.status.success() {
         panic!(
             "generation_fails test `{name} {variant_path}` expected cheadergen to fail, \

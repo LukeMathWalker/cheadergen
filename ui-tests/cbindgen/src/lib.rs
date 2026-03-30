@@ -85,6 +85,7 @@ fn invoke_cheadergen(
     style: Option<Style>,
     cpp_compat: bool,
     output_dir: &Path,
+    package: Option<&str>,
 ) -> std::process::Output {
     let path_str = path.to_str().unwrap();
     let metadata = if path_str.contains("/cases/") {
@@ -92,7 +93,7 @@ fn invoke_cheadergen(
     } else {
         &*CBINDGEN_WORKSPACE_METADATA
     };
-    run_cheadergen(path, language, cpp_compat, style, output_dir, metadata)
+    run_cheadergen(path, language, cpp_compat, style, output_dir, metadata, package)
 }
 
 pub fn run_generate_test(
@@ -101,9 +102,10 @@ pub fn run_generate_test(
     language: Language,
     style: Option<Style>,
     cpp_compat: bool,
+    package: Option<&str>,
 ) {
     let output_dir = tempfile::tempdir().expect("failed to create temp dir");
-    let output = invoke_cheadergen(name, path, language, style, cpp_compat, output_dir.path());
+    let output = invoke_cheadergen(name, path, language, style, cpp_compat, output_dir.path(), package);
     assert!(
         output.status.success(),
         "cheadergen failed for {path:?} with error: {}",
@@ -156,9 +158,10 @@ pub fn run_header_diff_test(
     language: Language,
     style: Option<Style>,
     cpp_compat: bool,
+    package: Option<&str>,
 ) {
     let output_dir = tempfile::tempdir().expect("failed to create temp dir");
-    let output = invoke_cheadergen(name, path, language, style, cpp_compat, output_dir.path());
+    let output = invoke_cheadergen(name, path, language, style, cpp_compat, output_dir.path(), package);
     assert!(
         output.status.success(),
         "header_diff test `{name} {variant_path}` expected cheadergen to succeed, \
@@ -201,9 +204,10 @@ pub fn run_generation_fails_test(
     language: Language,
     style: Option<Style>,
     cpp_compat: bool,
+    package: Option<&str>,
 ) {
     let output_dir = tempfile::tempdir().expect("failed to create temp dir");
-    let output = invoke_cheadergen(name, path, language, style, cpp_compat, output_dir.path());
+    let output = invoke_cheadergen(name, path, language, style, cpp_compat, output_dir.path(), package);
     if output.status.success() {
         panic!(
             "generation_fails test `{name} {variant_path}` expected cheadergen to fail, \

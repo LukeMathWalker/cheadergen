@@ -2,23 +2,42 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
+use serde::Deserialize;
+
 use crate::variant::variant_path_strings;
 use crate::variant_status::VariantStatus;
 
-/// Read and parse a `test.toml` manifest, returning a map of variant path to status.
+/// Parsed `test.toml` manifest.
 ///
-/// Only entries with explicit status overrides are included in the returned map;
-/// variants not mentioned in the file are implicitly `Normal`.
+/// Supports variant status overrides (as a flat map) and an optional
+/// `package` field for multi-crate test cases.
+#[derive(Deserialize)]
+pub struct TestManifest {
+    /// Optional package name to pass as `-p <package>` to cheadergen.
+    ///
+    /// Used for multi-crate test cases where the case directory contains
+    /// multiple crates and only one should be selected for header generation.
+    #[serde(default)]
+    pub package: Option<String>,
+    /// Map of variant path to status override.
+    #[serde(flatten)]
+    pub variants: HashMap<String, VariantStatus>,
+}
+
+/// Read and parse a `test.toml` manifest.
+///
+/// Returns a [`TestManifest`] with variant status overrides and an optional
+/// `package` field. Variants not mentioned in the file are implicitly `Normal`.
 ///
 /// Returns an error if the file cannot be read, parsed, or contains unknown variant keys.
 pub fn read_test_manifest(
     toml_path: &Path,
-) -> Result<HashMap<String, VariantStatus>, TestManifestError> {
+) -> Result<TestManifest, TestManifestError> {
     let content = fs::read_to_string(toml_path).map_err(|e| TestManifestError::Io {
         path: toml_path.display().to_string(),
         source: e,
     })?;
-    let manifest: HashMap<String, VariantStatus> =
+    let manifest: TestManifest =
         toml::from_str(&content).map_err(|e| TestManifestError::Parse {
             path: toml_path.display().to_string(),
             source: e,
@@ -26,6 +45,7 @@ pub fn read_test_manifest(
 
     let valid = variant_path_strings();
     let mut unknown: Vec<String> = manifest
+        .variants
         .keys()
         .filter(|k| !valid.iter().any(|v| v == k.as_str()))
         .cloned()

@@ -170,13 +170,13 @@ fn collect_variants(
 
     let toml_path = case_path.join("test.toml");
     println!("cargo:rerun-if-changed={}", toml_path.display());
-    let manifest = read_test_manifest(&toml_path).unwrap_or_else(|e| panic!("{e}"));
+    let test_manifest = read_test_manifest(&toml_path).unwrap_or_else(|e| panic!("{e}"));
 
     for variant in variants {
         let expectation_file = variant.file_pattern.replace("{name}", base_name);
         let variant_path = variant.module_path.join("/");
 
-        let status = manifest.get(&variant_path).copied();
+        let status = test_manifest.variants.get(&variant_path).copied();
 
         if status == Some(VariantStatus::Exclude) {
             continue;
@@ -208,8 +208,12 @@ fn collect_variants(
         // tests (which always run, even without a pre-existing expectation).
         let has_status = status.is_some();
         if resolved_path.is_some() || (emit_generate_without_snap && !is_linestyle) || has_status {
+            let package_arg = match &test_manifest.package {
+                Some(name) => format!("Some({name:?})"),
+                None => "None::<&str>".to_string(),
+            };
             let gen_line = format!(
-                "generate_variant!({status_token}r#{}, {:?}, {:?}, {:?}, {}, {}, {});",
+                "generate_variant!({status_token}r#{}, {:?}, {:?}, {:?}, {}, {}, {}, {});",
                 identifier_base,
                 path_segment,
                 variant_path,
@@ -217,6 +221,7 @@ fn collect_variants(
                 variant.lang,
                 variant.style,
                 variant.cpp_compat,
+                package_arg,
             );
             let mut gen_path: Vec<&str> = vec![suite, "generate"];
             gen_path.extend_from_slice(variant.module_path);
@@ -266,7 +271,7 @@ fn collect_variants(
     };
 
     if sym_path.is_some() {
-        let symbol_status = manifest.get("symbol").copied();
+        let symbol_status = test_manifest.variants.get("symbol").copied();
 
         if symbol_status != Some(VariantStatus::Exclude) {
             let symbol_status_token = match symbol_status {

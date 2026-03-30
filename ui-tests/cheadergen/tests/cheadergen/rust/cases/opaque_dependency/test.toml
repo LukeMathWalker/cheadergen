@@ -1,3 +1,5 @@
+package = "opaque_dependency"
+
 "cpp/plain" = "generation_fails"
 "cython/plain" = "generation_fails"
 "cython/tag" = "generation_fails"

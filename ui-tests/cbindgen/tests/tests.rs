@@ -28,14 +28,14 @@ macro_rules! generate_variant {
             generate_variant!(@body $($rest)*);
         }
     };
-    (@body $name:expr, $variant_path:expr, $file:tt, $lang:expr, $style:expr, $cpp_compat:expr) => {
-        run_generate_test($name, Path::new($file), $lang, $style, $cpp_compat)
+    (@body $name:expr, $variant_path:expr, $file:tt, $lang:expr, $style:expr, $cpp_compat:expr, $package:expr) => {
+        run_generate_test($name, Path::new($file), $lang, $style, $cpp_compat, $package)
     };
-    (@header_diff_body $name:expr, $variant_path:expr, $file:tt, $lang:expr, $style:expr, $cpp_compat:expr) => {
-        run_header_diff_test($name, $variant_path, Path::new($file), $lang, $style, $cpp_compat)
+    (@header_diff_body $name:expr, $variant_path:expr, $file:tt, $lang:expr, $style:expr, $cpp_compat:expr, $package:expr) => {
+        run_header_diff_test($name, $variant_path, Path::new($file), $lang, $style, $cpp_compat, $package)
     };
-    (@generation_fails_body $name:expr, $variant_path:expr, $file:tt, $lang:expr, $style:expr, $cpp_compat:expr) => {
-        run_generation_fails_test($name, $variant_path, Path::new($file), $lang, $style, $cpp_compat)
+    (@generation_fails_body $name:expr, $variant_path:expr, $file:tt, $lang:expr, $style:expr, $cpp_compat:expr, $package:expr) => {
+        run_generation_fails_test($name, $variant_path, Path::new($file), $lang, $style, $cpp_compat, $package)
     };
 }
 
