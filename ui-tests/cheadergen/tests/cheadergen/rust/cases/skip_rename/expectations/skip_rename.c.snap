@@ -1,14 +1,13 @@
 ---
 source: ui-tests/cheadergen/src/lib.rs
-assertion_line: 294
+assertion_line: 332
 expression: output
 ---
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include "partitioned_skip_type_dep.h"
+typedef unsigned long foo_t;
 
-int32_t use_visible(struct Visible v);
 
-const Hidden *use_hidden(const Hidden *ptr);
+foo_t id(foo_t x);

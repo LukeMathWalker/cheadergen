@@ -1,0 +1,10 @@
+[package]
+name = "skip_alias_preserves_name"
+version = "0.1.0"
+edition.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+alias-dep = { path = "../dep" }

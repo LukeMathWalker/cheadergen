@@ -1,4 +1,4 @@
-package = "skip_dependency"
+package = "skip_bindgen_ffi"
 
 "cpp/plain" = "generation_fails"
 "cython/plain" = "generation_fails"

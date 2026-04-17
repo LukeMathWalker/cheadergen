@@ -1,4 +1,4 @@
-package = "skip_dependency"
+package = "skip_alias_preserves_name"
 
 "cpp/plain" = "generation_fails"
 "cython/plain" = "generation_fails"

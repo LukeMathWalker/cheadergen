@@ -1,0 +1,6 @@
+after_includes = """
+typedef unsigned long size_t;
+"""
+
+[package.alias-dep]
+types = "skip"

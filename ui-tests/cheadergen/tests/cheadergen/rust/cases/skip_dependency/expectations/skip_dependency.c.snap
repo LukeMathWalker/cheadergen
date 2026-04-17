@@ -1,12 +1,14 @@
 ---
 source: ui-tests/cheadergen/src/lib.rs
-assertion_line: 277
+assertion_line: 332
 expression: output
 ---
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+typedef struct SkipStructTag SkipStruct;
+
 
 typedef struct {
   int32_t a;

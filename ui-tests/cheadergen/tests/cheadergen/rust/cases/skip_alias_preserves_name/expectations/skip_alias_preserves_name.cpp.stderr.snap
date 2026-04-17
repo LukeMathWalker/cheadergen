@@ -1,0 +1,6 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 271
+expression: stderr_str
+---
+Error: C++ output is not yet supported

@@ -7,21 +7,16 @@ expression: output
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
-typedef struct SkipStructTag SkipStruct;
+typedef unsigned long size_t;
+typedef struct sockaddr_tag { unsigned short family; unsigned char data[14]; } sockaddr;
+typedef enum log_level_tag { LOG_DEBUG = 0, LOG_INFO = 1, LOG_WARN = 2, LOG_ERROR = 3 } log_level;
 
-
-typedef struct LocalStruct {
-  int32_t a;
-  int32_t b;
-} LocalStruct;
 
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
 
-const SkipStruct *use_skip_dep(const SkipStruct *ptr);
-
-struct LocalStruct use_local(struct LocalStruct s);
+size_t io(const sockaddr *addr, log_level lvl);
 
 #ifdef __cplusplus
 }  // extern "C"

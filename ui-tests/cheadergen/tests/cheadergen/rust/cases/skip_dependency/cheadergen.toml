@@ -1,2 +1,9 @@
+# Stand in for the header that a real consumer would include to provide
+# the definition of `SkipStruct`. The test asserts that bare `SkipStruct`
+# references compile once such a typedef is in scope.
+after_includes = """
+typedef struct SkipStructTag SkipStruct;
+"""
+
 [package.skip-dep]
 types = "skip"

@@ -15,7 +15,7 @@ extern "C" {
 
 int32_t use_visible(struct Visible v);
 
-const struct Hidden *use_hidden(const struct Hidden *ptr);
+const Hidden *use_hidden(const Hidden *ptr);
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -1,0 +1,10 @@
+[package]
+name = "skip_bindgen_ffi"
+version = "0.1.0"
+edition.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+ffi-dep = { path = "../dep" }

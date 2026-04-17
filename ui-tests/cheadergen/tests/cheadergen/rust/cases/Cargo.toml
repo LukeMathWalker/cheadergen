@@ -49,6 +49,10 @@ members = [
     "partitioned_transitive/entrypoint",
     "partitioned_transitive/dep",
     "partitioned_transitive/dep2",
+    "skip_alias_preserves_name/entrypoint",
+    "skip_alias_preserves_name/dep",
+    "skip_bindgen_ffi/entrypoint",
+    "skip_bindgen_ffi/dep",
     "skip_dependency/entrypoint",
     "skip_dependency/dep",
 ]
@@ -74,6 +78,8 @@ exclude = [
     "partitioned_skip_type",
     "partitioned_tagged_union_fwd",
     "partitioned_transitive",
+    "skip_alias_preserves_name",
+    "skip_bindgen_ffi",
     "skip_dependency",
 ]
 resolver = "3"

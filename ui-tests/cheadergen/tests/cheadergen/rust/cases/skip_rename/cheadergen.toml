@@ -1,0 +1,6 @@
+# Stand in for the consumer header that provides `foo_t`. The test asserts
+# that cheadergen emits the renamed name bare, expecting the typedef to
+# come from elsewhere.
+after_includes = """
+typedef unsigned long foo_t;
+"""

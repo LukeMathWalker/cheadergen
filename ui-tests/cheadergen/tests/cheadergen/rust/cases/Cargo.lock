@@ -3,6 +3,10 @@
 version = 4
 
 [[package]]
+name = "alias-dep"
+version = "0.1.0"
+
+[[package]]
 name = "associated_constants"
 version = "0.1.0"
 
@@ -85,6 +89,10 @@ version = "0.1.0"
 dependencies = [
  "cheadergen",
 ]
+
+[[package]]
+name = "ffi-dep"
+version = "0.1.0"
 
 [[package]]
 name = "ffi_primitives"
@@ -513,6 +521,20 @@ name = "skip-dep"
 version = "0.1.0"
 
 [[package]]
+name = "skip_alias_preserves_name"
+version = "0.1.0"
+dependencies = [
+ "alias-dep",
+]
+
+[[package]]
+name = "skip_bindgen_ffi"
+version = "0.1.0"
+dependencies = [
+ "ffi-dep",
+]
+
+[[package]]
 name = "skip_dependency"
 version = "0.1.0"
 dependencies = [
@@ -521,6 +543,13 @@ dependencies = [
 
 [[package]]
 name = "skip_function"
+version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
+
+[[package]]
+name = "skip_rename"
 version = "0.1.0"
 dependencies = [
  "cheadergen",

@@ -1,18 +1,20 @@
 ---
 source: ui-tests/cheadergen/src/lib.rs
-assertion_line: 277
+assertion_line: 332
 expression: output
 ---
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+typedef struct SkipStructTag SkipStruct;
+
 
 struct LocalStruct {
   int32_t a;
   int32_t b;
 };
 
-const struct SkipStruct *use_skip_dep(const struct SkipStruct *ptr);
+const SkipStruct *use_skip_dep(const SkipStruct *ptr);
 
 struct LocalStruct use_local(struct LocalStruct s);

@@ -9,7 +9,8 @@ use crate::analysis::{
 use crate::config::{CConfig, CommonConfig, DocumentationLength, DocumentationStyle, Style};
 use crate::constant_item::ConstantItem;
 use crate::static_item::StaticItem;
-use rustdoc_ir::{FreeFunction, FunctionPointer, ScalarPrimitive, Type};
+use guppy::PackageId;
+use rustdoc_ir::{FreeFunction, FunctionPointer, PathType, ScalarPrimitive, Type};
 use rustdoc_processor::GlobalItemId;
 
 use crate::Collection;
@@ -21,6 +22,46 @@ enum CTypeTag {
     Enum,
     /// No tag prefix — the type name is typedef'd to an integer type.
     IntTypedef,
+}
+
+/// Context threaded through the C writer functions: the type-lookup map,
+/// the set of packages configured with `types = "skip"`, and the [`Collection`]
+/// used to look up per-item annotations (e.g. `#[cheadergen::config(skip)]`).
+/// Types skipped at the package or item level are emitted as bare names with
+/// no tag prefix, trusting the consumer's header.
+struct TypeEmitCtx<'a> {
+    meta: &'a HashMap<String, TypeMeta>,
+    skipped: &'a HashSet<PackageId>,
+    collection: &'a Collection,
+}
+
+impl TypeEmitCtx<'_> {
+    /// Returns `true` if `path` refers to a type the user has asked cheadergen
+    /// not to introspect — either via `[package.*] types = "skip"` or via an
+    /// item-level `#[cheadergen::config(skip)]` annotation.
+    fn is_bare_reference(&self, path: &PathType) -> bool {
+        if self.skipped.contains(&path.package_id) {
+            return true;
+        }
+        let Some(id) = &path.rustdoc_id else {
+            return false;
+        };
+        self.collection
+            .get_annotated_items(&path.package_id)
+            .and_then(|ann| ann.get(id))
+            .is_some_and(|a| a.skip)
+    }
+
+    /// Returns the `#[cheadergen::config(rename = "...")]` override attached
+    /// to `path`'s item, if any. Used to spell bare references with their
+    /// renamed C name instead of the last Rust path segment.
+    fn bare_rename(&self, path: &PathType) -> Option<&str> {
+        let id = path.rustdoc_id.as_ref()?;
+        self.collection
+            .get_annotated_items(&path.package_id)
+            .and_then(|ann| ann.get(id))
+            .and_then(|a| a.rename.as_deref())
+    }
 }
 
 /// Type metadata map: `c_type_name` → tag + optional renamed name.
@@ -81,6 +122,7 @@ pub fn generate_c_header(
     statics: &[StaticItem],
     dep_includes: &[String],
     type_hints: &[CTypeDefinition],
+    skipped_packages: &HashSet<PackageId>,
     partitioned: bool,
     collection: &Collection,
     out: &mut String,
@@ -144,12 +186,18 @@ pub fn generate_c_header(
 
     // Build type metadata map for correct type references in declarations.
     // Include type_hints from included deps so renames and type tags propagate.
-    let mut type_meta = build_type_meta_map(type_defs);
+    let mut meta_map = build_type_meta_map(type_defs);
     for hint in type_hints {
         let entry = build_type_meta_entry(hint);
         let key = hint.original_name.as_ref().unwrap_or(&hint.name).clone();
-        type_meta.entry(key).or_insert(entry);
+        meta_map.entry(key).or_insert(entry);
     }
+
+    let ctx = TypeEmitCtx {
+        meta: &meta_map,
+        skipped: skipped_packages,
+        collection,
+    };
 
     // Type forward declarations.
     if !type_defs.is_empty() {
@@ -162,7 +210,7 @@ pub fn generate_c_header(
             &config.style,
             config.cpp_compat,
             partitioned,
-            &type_meta,
+            &ctx,
             common,
             collection,
             out,
@@ -198,7 +246,7 @@ pub fn generate_c_header(
         }
         let docs = lookup_docs(Some(&s.rustdoc_id), collection);
         write_doc_comment(docs.as_deref(), common, out);
-        write_c_static_decl(s, &config.style, &type_meta, out);
+        write_c_static_decl(s, &config.style, &ctx, out);
         out.push('\n');
     }
 
@@ -209,7 +257,7 @@ pub fn generate_c_header(
         }
         let docs = lookup_docs(func.source_coordinates.as_ref(), collection);
         write_doc_comment(docs.as_deref(), common, out);
-        write_c_function_decl(func, &config.style, &type_meta, out);
+        write_c_function_decl(func, &config.style, &ctx, out);
         out.push('\n');
     }
 
@@ -308,14 +356,14 @@ fn exported_static_name(s: &StaticItem) -> &str {
 fn write_c_static_decl(
     s: &StaticItem,
     style: &Style,
-    type_meta: &HashMap<String, TypeMeta>,
+    ctx: &TypeEmitCtx<'_>,
     out: &mut String,
 ) {
     out.push_str("extern ");
     if !s.is_mutable && !is_const_pointer(&s.type_) {
         out.push_str("const ");
     }
-    write_c_decl(&s.type_, exported_static_name(s), style, type_meta, out);
+    write_c_decl(&s.type_, exported_static_name(s), style, ctx, out);
     out.push(';');
 }
 
@@ -325,18 +373,18 @@ fn write_c_decl(
     ty: &Type,
     name: &str,
     style: &Style,
-    type_meta: &HashMap<String, TypeMeta>,
+    ctx: &TypeEmitCtx<'_>,
     out: &mut String,
 ) {
     if let Type::Array(a) = ty {
-        write_c_type(&a.element_type, style, type_meta, out);
+        write_c_type(&a.element_type, style, ctx, out);
         write!(out, " {name}[{}]", a.len).unwrap();
     } else if let Some((fp, depth)) = fn_ptr_through_pointers(ty) {
         let declarator = format!("{}{name}", "*".repeat(depth));
-        write_fn_ptr_decl(fp, &declarator, style, type_meta, out);
+        write_fn_ptr_decl(fp, &declarator, style, ctx, out);
     } else {
         let mut type_buf = String::new();
-        write_c_type(ty, style, type_meta, &mut type_buf);
+        write_c_type(ty, style, ctx, &mut type_buf);
         if type_buf.ends_with('*') {
             write!(out, "{type_buf}{name}").unwrap();
         } else {
@@ -349,11 +397,11 @@ fn write_c_decl(
 fn write_c_field_line(
     field: &crate::analysis::CStructField,
     style: &Style,
-    type_meta: &HashMap<String, TypeMeta>,
+    ctx: &TypeEmitCtx<'_>,
     out: &mut String,
 ) {
     out.push_str("  ");
-    write_c_decl(&field.type_, field.name.as_str(), style, type_meta, out);
+    write_c_decl(&field.type_, field.name.as_str(), style, ctx, out);
     if let Some(width) = field.bitfield_width {
         write!(out, " : {width}").unwrap();
     }
@@ -368,7 +416,7 @@ fn is_const_pointer(ty: &Type) -> bool {
 fn write_c_function_decl(
     func: &FreeFunction,
     style: &Style,
-    type_meta: &HashMap<String, TypeMeta>,
+    ctx: &TypeEmitCtx<'_>,
     out: &mut String,
 ) {
     let name = func
@@ -382,7 +430,7 @@ fn write_c_function_decl(
     match &func.header.output {
         None => ret_buf.push_str("void"),
         Some(ty) if is_void(ty) => ret_buf.push_str("void"),
-        Some(ty) => write_c_type(ty, style, type_meta, &mut ret_buf),
+        Some(ty) => write_c_type(ty, style, ctx, &mut ret_buf),
     }
     if ret_buf.ends_with('*') {
         write!(out, "{ret_buf}{name}(").unwrap();
@@ -398,7 +446,7 @@ fn write_c_function_decl(
             if i > 0 {
                 out.push_str(", ");
             }
-            write_c_param(&input.type_, input.name.as_str(), style, type_meta, out);
+            write_c_param(&input.type_, input.name.as_str(), style, ctx, out);
         }
         if func.header.is_c_variadic {
             if !func.header.inputs.is_empty() {
@@ -415,15 +463,15 @@ fn write_c_param(
     ty: &Type,
     name: &str,
     style: &Style,
-    type_meta: &HashMap<String, TypeMeta>,
+    ctx: &TypeEmitCtx<'_>,
     out: &mut String,
 ) {
     if let Some((fp, depth)) = fn_ptr_through_pointers(ty) {
         let declarator = format!("{}{name}", "*".repeat(depth));
-        write_fn_ptr_decl(fp, &declarator, style, type_meta, out);
+        write_fn_ptr_decl(fp, &declarator, style, ctx, out);
     } else {
         let mut type_buf = String::new();
-        write_c_type(ty, style, type_meta, &mut type_buf);
+        write_c_type(ty, style, ctx, &mut type_buf);
         if type_buf.ends_with('*') {
             write!(out, "{type_buf}{name}").unwrap();
         } else {
@@ -432,39 +480,39 @@ fn write_c_param(
     }
 }
 
-fn write_c_type(ty: &Type, style: &Style, type_meta: &HashMap<String, TypeMeta>, out: &mut String) {
+fn write_c_type(ty: &Type, style: &Style, ctx: &TypeEmitCtx<'_>, out: &mut String) {
     match ty {
         Type::ScalarPrimitive(p) => out.push_str(scalar_to_c(p)),
         Type::RawPointer(ptr) => {
             if let Some((fp, depth)) = fn_ptr_through_pointers(&ptr.inner) {
                 let declarator = "*".repeat(depth + 1);
-                write_fn_ptr_decl(fp, &declarator, style, type_meta, out);
+                write_fn_ptr_decl(fp, &declarator, style, ctx, out);
             } else if ptr.is_mutable {
-                write_c_type(&ptr.inner, style, type_meta, out);
+                write_c_type(&ptr.inner, style, ctx, out);
                 out.push_str(" *");
             } else {
                 out.push_str("const ");
-                write_c_type(&ptr.inner, style, type_meta, out);
+                write_c_type(&ptr.inner, style, ctx, out);
                 out.push_str(" *");
             }
         }
         Type::Tuple(t) if t.elements.is_empty() => out.push_str("void"),
         Type::Array(a) => {
-            write_c_type(&a.element_type, style, type_meta, out);
+            write_c_type(&a.element_type, style, ctx, out);
             write!(out, "[{}]", a.len).unwrap();
         }
         Type::Reference(r) => {
             if r.is_mutable {
-                write_c_type(&r.inner, style, type_meta, out);
+                write_c_type(&r.inner, style, ctx, out);
                 out.push_str(" *");
             } else {
                 out.push_str("const ");
-                write_c_type(&r.inner, style, type_meta, out);
+                write_c_type(&r.inner, style, ctx, out);
                 out.push_str(" *");
             }
         }
         Type::FunctionPointer(fp) => {
-            write_fn_ptr_decl(fp, "", style, type_meta, out);
+            write_fn_ptr_decl(fp, "", style, ctx, out);
         }
         Type::Path(p) | Type::TypeAlias(p) => {
             if let Some(c_name) = ffi_primitive_to_c(p) {
@@ -472,7 +520,17 @@ fn write_c_type(ty: &Type, style: &Style, type_meta: &HashMap<String, TypeMeta>,
                 return;
             }
             let original_name = c_type_name(ty);
-            let meta = type_meta.get(&original_name);
+            // Skipped types (either via `[package.*] types = "skip"` or an
+            // item-level `#[cheadergen::config(skip)]` annotation): cheadergen
+            // has no introspection into their C kind, so emit the bare name
+            // and trust the consumer's header — no tag prefix in any style.
+            // Honor `rename` if the item carries one.
+            if ctx.is_bare_reference(p) {
+                let name = ctx.bare_rename(p).unwrap_or(&original_name);
+                out.push_str(name);
+                return;
+            }
+            let meta = ctx.meta.get(&original_name);
             // Apply rename if this type was renamed via annotation.
             let name = meta
                 .and_then(|m| m.rename.as_deref())
@@ -517,7 +575,7 @@ fn write_fn_ptr_decl(
     fp: &FunctionPointer,
     declarator: &str,
     style: &Style,
-    type_meta: &HashMap<String, TypeMeta>,
+    ctx: &TypeEmitCtx<'_>,
     out: &mut String,
 ) {
     // Return type.
@@ -525,7 +583,7 @@ fn write_fn_ptr_decl(
     match &fp.output {
         None => ret_buf.push_str("void"),
         Some(ty) if is_void(ty) => ret_buf.push_str("void"),
-        Some(ty) => write_c_type(ty, style, type_meta, &mut ret_buf),
+        Some(ty) => write_c_type(ty, style, ctx, &mut ret_buf),
     }
 
     if ret_buf.ends_with('*') {
@@ -543,9 +601,9 @@ fn write_fn_ptr_decl(
                 out.push_str(", ");
             }
             if let Some(name) = &input.name {
-                write_c_param(&input.type_, name, style, type_meta, out);
+                write_c_param(&input.type_, name, style, ctx, out);
             } else {
-                write_c_type(&input.type_, style, type_meta, out);
+                write_c_type(&input.type_, style, ctx, out);
             }
         }
     }
@@ -559,7 +617,7 @@ fn write_c_type_definitions(
     style: &Style,
     cpp_compat: bool,
     partitioned: bool,
-    type_meta: &HashMap<String, TypeMeta>,
+    ctx: &TypeEmitCtx<'_>,
     config: &CommonConfig,
     collection: &Collection,
     out: &mut String,
@@ -692,12 +750,12 @@ fn write_c_type_definitions(
                     struct_def,
                     style,
                     has_fwd_decl,
-                    type_meta,
+                    ctx,
                     out,
                 );
             }
             CTypeKind::Union(union_def) => {
-                write_c_union_definition(&def.name, union_def, style, has_fwd_decl, type_meta, out);
+                write_c_union_definition(&def.name, union_def, style, has_fwd_decl, ctx, out);
             }
             CTypeKind::TaggedUnion(tagged_def) => {
                 write_c_tagged_union(
@@ -706,12 +764,12 @@ fn write_c_type_definitions(
                     style,
                     has_fwd_decl,
                     cpp_compat,
-                    type_meta,
+                    ctx,
                     out,
                 );
             }
             CTypeKind::Typedef(typedef_def) => {
-                write_c_typedef(&def.name, typedef_def, style, type_meta, out);
+                write_c_typedef(&def.name, typedef_def, style, ctx, out);
             }
             _ => unreachable!(),
         }
@@ -748,7 +806,7 @@ fn write_c_struct_definition(
     def: &CStructDef,
     style: &Style,
     has_fwd_decl: bool,
-    type_meta: &HashMap<String, TypeMeta>,
+    ctx: &TypeEmitCtx<'_>,
     out: &mut String,
 ) {
     let write_fields = |style: &Style, out: &mut String| {
@@ -756,7 +814,7 @@ fn write_c_struct_definition(
             writeln!(out).unwrap();
         } else {
             for field in &def.fields {
-                write_c_field_line(field, style, type_meta, out);
+                write_c_field_line(field, style, ctx, out);
             }
         }
     };
@@ -791,7 +849,7 @@ fn write_c_union_definition(
     def: &CUnionDef,
     style: &Style,
     has_fwd_decl: bool,
-    type_meta: &HashMap<String, TypeMeta>,
+    ctx: &TypeEmitCtx<'_>,
     out: &mut String,
 ) {
     let write_fields = |style: &Style, out: &mut String| {
@@ -799,7 +857,7 @@ fn write_c_union_definition(
             writeln!(out).unwrap();
         } else {
             for field in &def.fields {
-                write_c_field_line(field, style, type_meta, out);
+                write_c_field_line(field, style, ctx, out);
             }
         }
     };
@@ -916,7 +974,7 @@ fn write_c_tagged_union(
     style: &Style,
     has_fwd_decl: bool,
     cpp_compat: bool,
-    type_meta: &HashMap<String, TypeMeta>,
+    ctx: &TypeEmitCtx<'_>,
     out: &mut String,
 ) {
     let tag_name = format!("{name}_Tag");
@@ -990,7 +1048,7 @@ fn write_c_tagged_union(
                 }
                 for field in &body.fields {
                     out.push_str("  ");
-                    write_c_decl(&field.type_, field.name.as_str(), style, type_meta, out);
+                    write_c_decl(&field.type_, field.name.as_str(), style, ctx, out);
                     writeln!(out, ";").unwrap();
                 }
                 writeln!(out, "}} {body_name};").unwrap();
@@ -1006,7 +1064,7 @@ fn write_c_tagged_union(
                         &field.type_,
                         field.name.as_str(),
                         &Style::Tag,
-                        type_meta,
+                        ctx,
                         out,
                     );
                     writeln!(out, ";").unwrap();
@@ -1020,7 +1078,7 @@ fn write_c_tagged_union(
                 }
                 for field in &body.fields {
                     out.push_str("  ");
-                    write_c_decl(&field.type_, field.name.as_str(), style, type_meta, out);
+                    write_c_decl(&field.type_, field.name.as_str(), style, ctx, out);
                     writeln!(out, ";").unwrap();
                 }
                 writeln!(out, "}} {body_name};").unwrap();
@@ -1037,7 +1095,7 @@ fn write_c_tagged_union(
             def,
             style,
             has_fwd_decl,
-            type_meta,
+            ctx,
             &tag_type_str,
             out,
         );
@@ -1048,7 +1106,7 @@ fn write_c_tagged_union(
             def,
             style,
             has_fwd_decl,
-            type_meta,
+            ctx,
             &tag_type_str,
             out,
         );
@@ -1061,7 +1119,7 @@ fn write_tagged_union_repr_c(
     def: &CTaggedUnionDef,
     style: &Style,
     has_fwd_decl: bool,
-    type_meta: &HashMap<String, TypeMeta>,
+    ctx: &TypeEmitCtx<'_>,
     tag_type_str: &str,
     out: &mut String,
 ) {
@@ -1094,7 +1152,7 @@ fn write_tagged_union_repr_c(
                 writeln!(out, "    struct {{").unwrap();
                 let field = &body.fields[0];
                 out.push_str("      ");
-                write_c_decl(&field.type_, field_name.as_str(), style, type_meta, out);
+                write_c_decl(&field.type_, field_name.as_str(), style, ctx, out);
                 writeln!(out, ";").unwrap();
                 writeln!(out, "    }};").unwrap();
             } else {
@@ -1123,7 +1181,7 @@ fn write_tagged_union_repr_int(
     def: &CTaggedUnionDef,
     style: &Style,
     has_fwd_decl: bool,
-    type_meta: &HashMap<String, TypeMeta>,
+    ctx: &TypeEmitCtx<'_>,
     tag_type_str: &str,
     out: &mut String,
 ) {
@@ -1152,7 +1210,7 @@ fn write_tagged_union_repr_int(
             writeln!(out, "  struct {{").unwrap();
             writeln!(out, "    {tag_type_str} {field_name}_tag;").unwrap();
             out.push_str("    ");
-            write_c_decl(&field.type_, field_name.as_str(), style, type_meta, out);
+            write_c_decl(&field.type_, field_name.as_str(), style, ctx, out);
             writeln!(out, ";").unwrap();
             writeln!(out, "  }};").unwrap();
         } else {
@@ -1283,11 +1341,11 @@ fn write_c_typedef(
     name: &str,
     def: &CTypedefDef,
     style: &Style,
-    type_meta: &HashMap<String, TypeMeta>,
+    ctx: &TypeEmitCtx<'_>,
     out: &mut String,
 ) {
     out.push_str("typedef ");
-    write_c_decl(&def.inner, name, style, type_meta, out);
+    write_c_decl(&def.inner, name, style, ctx, out);
     writeln!(out, ";").unwrap();
 }
 

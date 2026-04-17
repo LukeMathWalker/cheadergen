@@ -7,21 +7,14 @@ expression: output
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
-typedef struct SkipStructTag SkipStruct;
+typedef unsigned long foo_t;
 
-
-typedef struct LocalStruct {
-  int32_t a;
-  int32_t b;
-} LocalStruct;
 
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
 
-const SkipStruct *use_skip_dep(const SkipStruct *ptr);
-
-struct LocalStruct use_local(struct LocalStruct s);
+foo_t id(foo_t x);
 
 #ifdef __cplusplus
 }  // extern "C"

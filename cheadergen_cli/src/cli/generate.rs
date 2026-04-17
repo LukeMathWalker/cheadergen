@@ -168,6 +168,16 @@ fn resolve_package_overrides(
         }
     }
 
+    for id in opaque.intersection(&skipped) {
+        diagnostics
+            .error(format!(
+                "package `{}` is configured with both `types = \"opaque\"` and `types = \"skip\"`; \
+                 pick one",
+                id.repr()
+            ))
+            .emit();
+    }
+
     Ok(PackageTypeOverrides { opaque, skipped })
 }
 
@@ -514,6 +524,7 @@ fn generate_partitioned(
             statics,
             dep_includes,
             type_hints,
+            &type_overrides.skipped,
             multi_header,
             collection,
             &mut header,
@@ -643,6 +654,7 @@ fn generate_one_crate(
             &extern_items.statics,
             &[],
             &[],
+            &overrides.skipped,
             false,
             collection,
             &mut header,
