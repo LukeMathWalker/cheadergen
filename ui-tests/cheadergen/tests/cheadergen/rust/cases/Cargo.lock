@@ -84,6 +84,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "export_annotation_alias"
+version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
+
+[[package]]
 name = "export_opaque"
 version = "0.1.0"
 dependencies = [

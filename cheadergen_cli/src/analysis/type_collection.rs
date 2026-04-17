@@ -561,7 +561,7 @@ pub(super) fn collect_paths_from_type(
                 overrides.opaque.contains(&p.package_id)
                     || annotation.as_ref().and_then(|ann| ann.export) == Some(ExportMode::Opaque);
 
-            let canonical = Type::Path(p.clone()).canonicalize();
+            let canonical = ty.canonicalize();
             let entry = seen.entry(canonical).or_insert(TypeUsage::BehindPointer);
             if usage == TypeUsage::ByValue && !must_stay_opaque {
                 *entry = TypeUsage::ByValue;
@@ -684,17 +684,17 @@ fn resolve_all_type_definitions(
     // by value — before we emit any opaques.
     let mut resolved: HashMap<CanonicalType, CTypeDefinition> = HashMap::new();
     loop {
-        let direct: Vec<PathType> = seen
+        let direct: Vec<(CanonicalType, PathType)> = seen
             .iter()
-            .filter(|(pt, usage)| **usage == TypeUsage::ByValue && !resolved.contains_key(*pt))
-            .map(|(pt, _)| canonical_type_to_path(pt))
+            .filter(|(ct, usage)| **usage == TypeUsage::ByValue && !resolved.contains_key(*ct))
+            .map(|(ct, _)| (ct.clone(), canonical_type_to_path(ct)))
             .collect();
 
         if direct.is_empty() {
             break;
         }
 
-        for path_type in direct {
+        for (canonical, path_type) in direct {
             let per_type_prefix =
                 annotation_prefix_with_name(collection, &path_type, enum_prefix_with_name);
 
@@ -740,7 +740,7 @@ fn resolve_all_type_definitions(
 
             let is_generic_instantiation = has_concrete_generic_args(&path_type);
             resolved.insert(
-                Type::Path(path_type.clone()).canonicalize(),
+                canonical,
                 CTypeDefinition {
                     name,
                     original_name,
@@ -756,12 +756,12 @@ fn resolve_all_type_definitions(
     }
 
     // Phase 2: emit remaining pointer-only types as opaque forward declarations.
-    let opaque: Vec<PathType> = seen
-        .keys()
-        .filter(|pt| !resolved.contains_key(*pt))
-        .map(canonical_type_to_path)
+    let opaque: Vec<(CanonicalType, PathType)> = seen
+        .iter()
+        .filter(|(ct, _)| !resolved.contains_key(*ct))
+        .map(|(ct, _)| (ct.clone(), canonical_type_to_path(ct)))
         .collect();
-    for path_type in opaque {
+    for (canonical, path_type) in opaque {
         let default_name = c_type_name(&Type::Path(path_type.clone()));
         let renamed = annotation_rename(collection, &path_type);
         let original_name = renamed.as_ref().map(|_| default_name.clone());
@@ -781,7 +781,7 @@ fn resolve_all_type_definitions(
         };
         let is_generic_instantiation = has_concrete_generic_args(&path_type);
         resolved.insert(
-            Type::Path(path_type.clone()).canonicalize(),
+            canonical,
             CTypeDefinition {
                 name,
                 original_name,
