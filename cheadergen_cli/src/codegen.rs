@@ -121,9 +121,14 @@ pub fn generate_c_header(
         writeln!(out, "#include <{inc}>").unwrap();
     }
 
-    // Additional user includes.
+    // Additional user includes. An entry already wrapped in `<...>` is
+    // treated as a system include and emitted verbatim.
     for inc in &common.includes {
-        writeln!(out, "#include \"{inc}\"").unwrap();
+        if inc.starts_with('<') && inc.ends_with('>') {
+            writeln!(out, "#include {inc}").unwrap();
+        } else {
+            writeln!(out, "#include \"{inc}\"").unwrap();
+        }
     }
 
     // Dependency crate includes (auto-generated for partitioned headers).
