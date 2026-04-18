@@ -149,6 +149,10 @@ name = "generic_union_default"
 version = "0.1.0"
 
 [[package]]
+name = "generic_via_type_alias"
+version = "0.1.0"
+
+[[package]]
 name = "lifetime_enum"
 version = "0.1.0"
 

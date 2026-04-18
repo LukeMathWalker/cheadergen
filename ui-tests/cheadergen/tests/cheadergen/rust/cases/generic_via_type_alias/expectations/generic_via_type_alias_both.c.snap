@@ -1,0 +1,26 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 332
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct Foo Foo;
+
+typedef struct Vec2_Foo__8 {
+  struct Foo *data;
+  uint16_t len;
+  uint16_t cap;
+} Vec2_Foo__8;
+
+typedef struct Vec2_Foo__8 SmallVec_Foo;
+
+typedef struct Holder {
+  SmallVec_Foo items;
+  uint32_t count;
+} Holder;
+
+void take_holder(struct Holder _h);

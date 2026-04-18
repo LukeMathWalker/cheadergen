@@ -213,12 +213,12 @@ pub fn partition_types(
     // Generics used by-value get full definitions; those only used behind
     // pointers get opaque forward declarations.
     let by_value_generics: HashSet<usize> = {
-        // The original by-value assignment loop already populated generic_assignments
-        // for by-value uses. We need to distinguish: was this generic assigned from
-        // a by-value scan or a pointer scan?
-        // Re-scan: a generic is by-value if any non-generic type has it as a by-value
-        // field, or any extern function uses it by-value in its signature.
-        let mut by_val = HashSet::new();
+        // A generic is by-value if any non-generic type has it as a by-value
+        // field, any extern function uses it by-value in its signature, or it
+        // is reached transitively through another by-value generic (e.g. a
+        // typedef generic `SmallVec<Foo> = Vec2<Foo, 8>` pulls `Vec2<Foo, 8>`
+        // in by value).
+        let mut by_val: HashSet<usize> = HashSet::new();
         for defs in per_crate.values() {
             for def in defs {
                 let names = collect_by_value_type_names(def);
@@ -235,6 +235,28 @@ pub fn partition_types(
                 if let Some(indices) = generic_by_name.get(name.as_str()) {
                     by_val.extend(indices);
                 }
+            }
+        }
+        // Transitive closure: a by-value generic's own by-value fields may
+        // reference other generics that must themselves be emitted with full
+        // definitions.
+        loop {
+            let mut added = false;
+            let snapshot: Vec<usize> = by_val.iter().copied().collect();
+            for idx in snapshot {
+                let names = collect_by_value_type_names(&generics[idx]);
+                for name in &names {
+                    if let Some(indices) = generic_by_name.get(name.as_str()) {
+                        for &i in indices {
+                            if by_val.insert(i) {
+                                added = true;
+                            }
+                        }
+                    }
+                }
+            }
+            if !added {
+                break;
             }
         }
         by_val
