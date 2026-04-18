@@ -346,6 +346,48 @@ name = "partitioned-generic-with-dep-type-wrapper"
 version = "0.1.0"
 
 [[package]]
+name = "partitioned-header-rename"
+version = "0.1.0"
+dependencies = [
+ "partitioned-header-rename-dep",
+]
+
+[[package]]
+name = "partitioned-header-rename-bundle"
+version = "0.1.0"
+
+[[package]]
+name = "partitioned-header-rename-collision"
+version = "0.1.0"
+dependencies = [
+ "partitioned-header-rename-collision-dep",
+ "partitioned-header-rename-collision-dep2",
+]
+
+[[package]]
+name = "partitioned-header-rename-collision-dep"
+version = "0.1.0"
+
+[[package]]
+name = "partitioned-header-rename-collision-dep2"
+version = "0.1.0"
+
+[[package]]
+name = "partitioned-header-rename-dep"
+version = "0.1.0"
+
+[[package]]
+name = "partitioned-header-rename-invalid"
+version = "0.1.0"
+dependencies = [
+ "partitioned-header-rename-invalid-dep",
+]
+
+[[package]]
+name = "partitioned-header-rename-invalid-dep"
+version = "0.1.0"
+
+[[package]]
 name = "partitioned-mixed-usage"
 version = "0.1.0"
 dependencies = [

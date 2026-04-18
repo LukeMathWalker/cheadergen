@@ -1,0 +1,5 @@
+[package.partitioned-header-rename-collision-dep]
+header_name = "shared"
+
+[package.partitioned-header-rename-collision-dep2]
+header_name = "shared"

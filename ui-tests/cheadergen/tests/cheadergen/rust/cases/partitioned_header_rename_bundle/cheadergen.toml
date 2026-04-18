@@ -1,0 +1,4 @@
+bundle = true
+
+[package.partitioned-header-rename-bundle]
+header_name = "custom"

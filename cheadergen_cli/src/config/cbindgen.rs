@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 
 use serde::Deserialize;
@@ -246,7 +246,7 @@ fn translate_config(cb: &CbindgenConfig) -> (RawConfig, Vec<String>) {
         constant_: None,
         enum_: enum_section,
         bundle: None,
-        package: HashMap::new(),
+        package: BTreeMap::new(),
         header: HashMap::new(),
         c: None,
         cxx: None,

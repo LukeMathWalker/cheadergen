@@ -1,0 +1,11 @@
+[package]
+name = "partitioned-header-rename-collision"
+version = "0.1.0"
+edition.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+partitioned-header-rename-collision-dep = { path = "../dep" }
+partitioned-header-rename-collision-dep2 = { path = "../dep2" }

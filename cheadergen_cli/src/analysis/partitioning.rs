@@ -514,30 +514,65 @@ pub fn compute_header_deps(
 /// packages share the same library name, the version is appended for
 /// disambiguation (e.g. `libc_0_2`), using the minimum number of semver
 /// components needed.
+///
+/// Per-package `header_name` renames from config are applied up front and
+/// bypass version disambiguation entirely.
 pub struct HeaderFilenames {
     names: HashMap<PackageId, String>,
 }
 
-impl HeaderFilenames {
-    /// Build the filename map for the given set of package IDs.
-    pub fn new(package_ids: &[&PackageId], graph: &PackageGraph) -> Self {
-        // Step 1: resolve each package ID to its library target name.
-        let base_names: Vec<(&PackageId, String, Version)> = package_ids
-            .iter()
-            .filter_map(|&id| {
-                let meta = graph.metadata(id).ok()?;
-                let lib_name = meta
-                    .build_targets()
-                    .find(|t| matches!(t.id(), BuildTargetId::Library))
-                    .map(|t| t.name().to_owned())
-                    .unwrap_or_else(|| meta.name().replace('-', "_"));
-                Some((id, lib_name, meta.version().clone()))
-            })
-            .collect();
+/// Compute the default header base name for a package: library target name if
+/// present, otherwise the package name with dashes replaced by underscores.
+pub fn default_header_base_name(
+    graph: &PackageGraph,
+    pkg_id: &PackageId,
+) -> Option<String> {
+    let meta = graph.metadata(pkg_id).ok()?;
+    let name = meta
+        .build_targets()
+        .find(|t| matches!(t.id(), BuildTargetId::Library))
+        .map(|t| t.name().to_owned())
+        .unwrap_or_else(|| meta.name().replace('-', "_"));
+    Some(name)
+}
 
-        // Step 2: find duplicates and disambiguate with version.
+impl HeaderFilenames {
+    /// Build the filename map for the given set of package IDs, applying any
+    /// rename overrides.
+    ///
+    /// Returns an error if two packages end up with the same base name (either
+    /// via colliding renames, or a rename colliding with another package's
+    /// default name that cannot be disambiguated).
+    pub fn new(
+        package_ids: &[&PackageId],
+        graph: &PackageGraph,
+        renames: &HashMap<PackageId, String>,
+    ) -> Result<Self, String> {
+        // Step 1: resolve each package ID to its base name. Renamed packages
+        // use their override directly and skip version disambiguation; the
+        // rest use the library target name (falling back to the package name
+        // with dashes replaced by underscores).
+        let mut renamed: HashMap<PackageId, String> = HashMap::new();
+        let mut defaults: Vec<(&PackageId, String, Version)> = Vec::new();
+        for &id in package_ids {
+            if let Some(rename) = renames.get(id) {
+                renamed.insert(id.clone(), rename.clone());
+                continue;
+            }
+            let Some(meta) = graph.metadata(id).ok() else {
+                continue;
+            };
+            let lib_name = meta
+                .build_targets()
+                .find(|t| matches!(t.id(), BuildTargetId::Library))
+                .map(|t| t.name().to_owned())
+                .unwrap_or_else(|| meta.name().replace('-', "_"));
+            defaults.push((id, lib_name, meta.version().clone()));
+        }
+
+        // Step 2: find duplicates among defaults and disambiguate with version.
         let mut name_counts: HashMap<&str, Vec<usize>> = HashMap::new();
-        for (i, (_, name, _)) in base_names.iter().enumerate() {
+        for (i, (_, name, _)) in defaults.iter().enumerate() {
             name_counts.entry(name.as_str()).or_default().push(i);
         }
 
@@ -546,14 +581,14 @@ impl HeaderFilenames {
             if indices.len() == 1 {
                 // Unique name — no disambiguation needed.
                 let i = indices[0];
-                let (id, ref name, _) = base_names[i];
+                let (id, ref name, _) = defaults[i];
                 names.insert(id.clone(), name.clone());
             } else {
                 // Multiple packages with the same lib name — disambiguate.
                 let entries: Vec<_> = indices
                     .iter()
                     .map(|&i| {
-                        let (id, ref name, ref version) = base_names[i];
+                        let (id, ref name, ref version) = defaults[i];
                         (id, name.clone(), version.clone())
                     })
                     .collect();
@@ -588,7 +623,26 @@ impl HeaderFilenames {
             }
         }
 
-        Self { names }
+        // Step 3: merge renames in. Renames never collide with each other
+        // (validated upstream), but a rename may collide with a default name;
+        // detect and report that here.
+        for (id, rename) in renamed {
+            if let Some((other_id, _)) = names.iter().find(|(_, n)| **n == rename) {
+                let (renamed_label, other_label) = (
+                    graph.metadata(&id).map(|m| format!("{}@{}", m.name(), m.version()))
+                        .unwrap_or_else(|_| id.repr().to_owned()),
+                    graph.metadata(other_id).map(|m| format!("{}@{}", m.name(), m.version()))
+                        .unwrap_or_else(|_| other_id.repr().to_owned()),
+                );
+                return Err(format!(
+                    "`header_name = \"{rename}\"` on `{renamed_label}` collides with \
+                     the default header name for `{other_label}`; rename one of them"
+                ));
+            }
+            names.insert(id, rename);
+        }
+
+        Ok(Self { names })
     }
 
     /// Get the header filename (with extension) for a package.

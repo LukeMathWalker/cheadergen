@@ -5,8 +5,10 @@ use clap::{ArgAction, Parser};
 use guppy::PackageId;
 use guppy::graph::DependencyDirection;
 
+use std::collections::HashMap;
+
 use crate::analysis::ExternItemCoordinates;
-use crate::analysis::partitioning::{self, HeaderFilenames};
+use crate::analysis::partitioning::{self, HeaderFilenames, default_header_base_name};
 use crate::config::{Language, PackageConfig, PackageTypeMode, Style};
 use crate::diagnostic::{DiagnosticSink, render_diagnostics};
 use crate::{analysis, codegen, config, metadata, topological_sort};
@@ -103,7 +105,7 @@ fn parse_package_key(key: &str) -> Result<(&str, Option<guppy::VersionReq>), con
 /// Returns a [`PackageTypeOverrides`] containing the resolved package IDs,
 /// or an error if any package name is unknown or ambiguous.
 fn resolve_package_overrides(
-    package_configs: &std::collections::HashMap<String, PackageConfig>,
+    package_configs: &HashMap<String, PackageConfig>,
     collection: &Collection,
     diagnostics: &mut DiagnosticSink,
 ) -> Result<PackageTypeOverrides, anyhow::Error> {
@@ -181,6 +183,87 @@ fn resolve_package_overrides(
     Ok(PackageTypeOverrides { opaque, skipped })
 }
 
+/// Resolve `[package.<name>] header_name = ...` entries against the dependency
+/// graph, producing a `PackageId`-keyed map suitable for [`HeaderFilenames`].
+fn resolve_header_renames(
+    renames: &HashMap<String, String>,
+    collection: &Collection,
+    diagnostics: &mut DiagnosticSink,
+) -> Result<HashMap<PackageId, String>, anyhow::Error> {
+    let graph = collection.package_graph();
+    let mut resolved = HashMap::new();
+
+    for (key, header_name) in renames {
+        let (name, version_req) = parse_package_key(key)?;
+        let package_set = graph.resolve_package_name(name);
+
+        if package_set.is_empty() {
+            diagnostics
+                .error(format!(
+                    "package `{name}` (from `header_name` rename) not found in the \
+                     dependency graph"
+                ))
+                .emit();
+            continue;
+        }
+
+        let matching: Vec<_> = package_set
+            .packages(DependencyDirection::Forward)
+            .filter(|pkg| match &version_req {
+                Some(req) => req.matches(pkg.version()),
+                None => true,
+            })
+            .collect();
+
+        if matching.is_empty() {
+            diagnostics
+                .error(format!(
+                    "no version of `{name}` matches requirement `{}` (from `header_name` rename)",
+                    version_req.as_ref().unwrap()
+                ))
+                .emit();
+            continue;
+        }
+
+        if version_req.is_none() && matching.len() > 1 {
+            let versions: Vec<_> = matching
+                .iter()
+                .map(|p| format!("v{}", p.version()))
+                .collect();
+            diagnostics
+                .error(format!(
+                    "package name `{name}` is ambiguous for `header_name` rename: matches {}; \
+                     use [package.\"{name}@<version>\"] to disambiguate",
+                    versions.join(" and ")
+                ))
+                .emit();
+            continue;
+        }
+
+        for pkg in &matching {
+            resolved.insert(pkg.id().clone(), header_name.clone());
+        }
+    }
+
+    Ok(resolved)
+}
+
+/// Final on-disk base name for a target header (before version disambiguation,
+/// which only affects deps in practice). Returns the rename override if set,
+/// otherwise the default base name.
+fn target_base_name(
+    graph: &guppy::graph::PackageGraph,
+    pkg_id: &PackageId,
+    fallback_name: &str,
+    renames: &HashMap<PackageId, String>,
+) -> String {
+    renames
+        .get(pkg_id)
+        .cloned()
+        .or_else(|| default_header_base_name(graph, pkg_id))
+        .unwrap_or_else(|| fallback_name.replace('-', "_"))
+}
+
 /// Entry point for the `generate` subcommand — validates CLI args, loads
 /// config and cargo metadata, then iterates over the selected crates.
 pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
@@ -250,19 +333,6 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
     let debug = std::env::var("CHEADERGEN_DEBUG").is_ok_and(|v| v == "true" || v == "1");
     let mut diagnostics = DiagnosticSink::new(ws_root, debug);
 
-    // Warn for [header.<name>] sections that don't match any selected package.
-    let package_names: std::collections::HashSet<&str> =
-        packages.iter().map(|(_, name)| name.as_str()).collect();
-    for header_name in config_set.header_names() {
-        if !package_names.contains(header_name) {
-            diagnostics
-                .warning(format!(
-                    "`[header.\"{header_name}\"]` in config does not match any selected package"
-                ))
-                .emit();
-        }
-    }
-
     // Resolve per-package overrides against the dependency graph.
     // Package overrides are global (not per-header), so resolve once.
     let package_configs = match &config_set.default {
@@ -270,6 +340,25 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
         config::Config::Cxx(c) => &c.common.package_configs,
     };
     let type_overrides = resolve_package_overrides(package_configs, &collection, &mut diagnostics)?;
+    let header_renames =
+        resolve_header_renames(&config_set.header_renames, &collection, &mut diagnostics)?;
+
+    // Warn for [header.<name>] sections whose key doesn't match any selected
+    // package's final base header name.
+    let package_base_names: std::collections::HashSet<String> = packages
+        .iter()
+        .map(|(id, name)| target_base_name(collection.package_graph(), id, name, &header_renames))
+        .collect();
+    for header_name in config_set.header_names() {
+        if !package_base_names.contains(header_name) {
+            diagnostics
+                .warning(format!(
+                    "`[header.\"{header_name}\"]` in config does not match any selected \
+                     package's generated header name"
+                ))
+                .emit();
+        }
+    }
 
     if config_set.bundle {
         // Bundle mode: standalone headers.
@@ -278,7 +367,13 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
                 eprintln!("Generating header for `{package_name}`...");
             }
 
-            let config = config_set.for_crate(package_name);
+            let base_name = target_base_name(
+                collection.package_graph(),
+                package_id,
+                package_name,
+                &header_renames,
+            );
+            let config = config_set.for_header(&base_name);
 
             match generate_one_crate(
                 package_id,
@@ -305,6 +400,7 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
         match generate_partitioned(
             &packages,
             &config_set,
+            &header_renames,
             &collection,
             cli,
             &type_overrides,
@@ -358,12 +454,14 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
 fn generate_partitioned(
     packages: &[(PackageId, String)],
     config_set: &config::ConfigSet,
+    header_renames: &HashMap<PackageId, String>,
     collection: &Collection,
     cli: &GenerateArgs,
     type_overrides: &PackageTypeOverrides,
     diagnostics: &mut DiagnosticSink,
 ) -> anyhow::Result<BTreeSet<String>> {
     let mut all_symbols = BTreeSet::new();
+    let graph = collection.package_graph();
 
     // Step 1: Collect and resolve extern items for each target.
     let mut target_extern_items: Vec<(PackageId, analysis::extern_items::ExternItems)> = Vec::new();
@@ -392,7 +490,8 @@ fn generate_partitioned(
             all_symbols.extend(analysis::collect_symbols(&coordinates, krate));
         }
 
-        let config = config_set.for_crate(package_name);
+        let base_name = target_base_name(graph, package_id, package_name, header_renames);
+        let config = config_set.for_header(&base_name);
         let c_config = match config {
             config::Config::C(c) => c,
             _ => anyhow::bail!("Only C output is currently supported"),
@@ -418,7 +517,9 @@ fn generate_partitioned(
 
     // Step 2: Get a common C config (for enum_prefix_with_name and other shared settings).
     // Use the first target's config as the baseline for type collection settings.
-    let first_config = config_set.for_crate(&packages[0].1);
+    let first_base_name =
+        target_base_name(graph, &packages[0].0, &packages[0].1, header_renames);
+    let first_config = config_set.for_header(&first_base_name);
     let c_config = match first_config {
         config::Config::C(c) => c,
         _ => anyhow::bail!("Only C output is currently supported"),
@@ -446,8 +547,8 @@ fn generate_partitioned(
 
     // Step 5: Build header filename map from the package graph.
     let all_header_pkg_ids: Vec<&PackageId> = partitioned.per_crate.keys().collect();
-    let graph = collection.package_graph();
-    let filenames = HeaderFilenames::new(&all_header_pkg_ids, graph);
+    let filenames = HeaderFilenames::new(&all_header_pkg_ids, graph, header_renames)
+        .map_err(|e| anyhow::anyhow!(e))?;
 
     // Step 6: Compute include graph.
     let header_deps = partitioning::compute_header_deps(
@@ -468,13 +569,8 @@ fn generate_partitioned(
     for (pkg_id, mut type_defs) in partitioned.per_crate {
         let is_target = target_ids.contains(&pkg_id);
 
-        // Determine the config for this header.
-        // Use the package name from the graph for config lookup.
-        let pkg_name = graph
-            .metadata(&pkg_id)
-            .map(|m| m.name().to_owned())
-            .unwrap_or_else(|_| filenames.base_name(&pkg_id).to_owned());
-        let config = config_set.for_crate(&pkg_name);
+        // Determine the config for this header by its final on-disk base name.
+        let config = config_set.for_header(filenames.base_name(&pkg_id));
         let c_cfg = match config {
             config::Config::C(c) => c,
             _ => continue,
@@ -660,11 +756,9 @@ fn generate_one_crate(
             &mut header,
         );
 
-        let filename = format!(
-            "{}.{}",
-            package_name.replace('-', "_"),
-            cli.lang.extension()
-        );
+        let base = default_header_base_name(collection.package_graph(), package_id)
+            .unwrap_or_else(|| package_name.replace('-', "_"));
+        let filename = format!("{}.{}", base, cli.lang.extension());
         fs_err::create_dir_all(&cli.output_dir)?;
         fs_err::write(cli.output_dir.join(filename), &header)?;
     }

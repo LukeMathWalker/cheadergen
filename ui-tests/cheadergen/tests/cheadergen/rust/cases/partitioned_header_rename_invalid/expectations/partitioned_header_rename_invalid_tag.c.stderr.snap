@@ -1,0 +1,6 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 271
+expression: stderr_str
+---
+Error: `header_name` on `[package."partitioned-header-rename-invalid-dep"]` must not contain path separators: `sub/custom`

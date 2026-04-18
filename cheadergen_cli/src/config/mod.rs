@@ -1,6 +1,6 @@
 pub mod cbindgen;
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 
 use clap::ValueEnum;
@@ -187,6 +187,11 @@ pub struct RawPackageConfig {
     /// How types from this package should be emitted.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub types: Option<PackageTypeMode>,
+    /// Override the on-disk base name of the generated header for this package
+    /// in partitioned mode. Must be a bare filename (no path separators, no
+    /// extension). Rejected in bundle mode.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub header_name: Option<String>,
 }
 
 /// The declaration style for C struct and enum definitions.
@@ -287,9 +292,10 @@ pub struct RawConfig {
     /// Per-dependency-package configuration.
     ///
     /// Keys are crate names (e.g. `my-dep`) or Cargo-style `name@version`
-    /// specifiers for disambiguation (e.g. `"foo@1.0"`).
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub package: HashMap<String, RawPackageConfig>,
+    /// specifiers for disambiguation (e.g. `"foo@1.0"`). Stored as a
+    /// `BTreeMap` so iteration order is deterministic (alphabetical).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub package: BTreeMap<String, RawPackageConfig>,
 
     /// Per-header configuration sections.
     ///
@@ -399,24 +405,29 @@ pub enum Config {
 
 /// A set of validated configs: one default plus optional per-header overrides.
 ///
-/// Produced by [`RawConfig::into_config`]. Use [`ConfigSet::for_crate`] to
-/// look up the config for a specific crate (falls back to the default).
+/// Produced by [`RawConfig::into_config`]. Use [`ConfigSet::for_header`] to
+/// look up the config for a specific generated header (falls back to the default).
 #[derive(Debug, Clone)]
 pub struct ConfigSet {
-    /// Config for crates without a `[header.<name>]` section.
+    /// Config for headers without a `[header.<name>]` section.
     pub default: Config,
-    /// Per-header configs, keyed by crate name.
+    /// Per-header configs, keyed by the final on-disk base name of the header
+    /// (i.e. the name produced by `HeaderFilenames::base_name`).
     pub per_header: HashMap<String, Config>,
     /// Whether to produce a single combined header per target (bundle mode).
     pub bundle: bool,
+    /// Header rename overrides, keyed by the `[package.<name>]` section key
+    /// (crate name, or `name@version` for disambiguation). Values are the
+    /// final on-disk base name (no extension, no path separators).
+    pub header_renames: HashMap<String, String>,
 }
 
 impl ConfigSet {
-    /// Look up the config for a specific crate.
+    /// Look up the config for a header by its final base name.
     ///
     /// Returns the per-header config if one exists, otherwise the default.
-    pub fn for_crate(&self, name: &str) -> &Config {
-        self.per_header.get(name).unwrap_or(&self.default)
+    pub fn for_header(&self, base_name: &str) -> &Config {
+        self.per_header.get(base_name).unwrap_or(&self.default)
     }
 
     /// Returns the names of all `[header.<name>]` sections.
@@ -717,6 +728,63 @@ impl RawConfig {
             Language::C => {}
         }
 
+        let bundle = self.bundle.unwrap_or(false);
+
+        // Extract header renames and per-package type configs from [package.<name>]
+        // sections. Iteration is over a BTreeMap, so error messages naming
+        // multiple packages stay deterministic.
+        let mut package_configs: HashMap<String, PackageConfig> = HashMap::new();
+        let mut header_renames: HashMap<String, String> = HashMap::new();
+        let mut rename_targets: HashMap<String, String> = HashMap::new();
+        for (key, raw) in self.package {
+            if let Some(types) = raw.types {
+                package_configs.insert(key.clone(), PackageConfig { types });
+            }
+            if let Some(header_name) = raw.header_name {
+                if bundle {
+                    return Err(ConfigError {
+                        message: format!(
+                            "`header_name` is not supported in bundle mode \
+                             (set on `[package.\"{key}\"]`)"
+                        ),
+                    });
+                }
+                if header_name.is_empty() {
+                    return Err(ConfigError {
+                        message: format!(
+                            "`header_name` on `[package.\"{key}\"]` must not be empty"
+                        ),
+                    });
+                }
+                if header_name.contains(['/', '\\']) {
+                    return Err(ConfigError {
+                        message: format!(
+                            "`header_name` on `[package.\"{key}\"]` must not contain \
+                             path separators: `{header_name}`"
+                        ),
+                    });
+                }
+                if header_name.contains('.') {
+                    return Err(ConfigError {
+                        message: format!(
+                            "`header_name` on `[package.\"{key}\"]` must not include \
+                             a file extension (got `{header_name}`); the language extension \
+                             is appended automatically"
+                        ),
+                    });
+                }
+                if let Some(prev_key) = rename_targets.insert(header_name.clone(), key.clone()) {
+                    return Err(ConfigError {
+                        message: format!(
+                            "`header_name = \"{header_name}\"` is set on both \
+                             `[package.\"{prev_key}\"]` and `[package.\"{key}\"]`"
+                        ),
+                    });
+                }
+                header_renames.insert(key, header_name);
+            }
+        }
+
         // Build the base CommonConfig from top-level fields.
         let base = RawCommonFields {
             preamble: self.preamble,
@@ -734,13 +802,7 @@ impl RawConfig {
             documentation: self.documentation,
             documentation_style: self.documentation_style,
             documentation_length: self.documentation_length,
-            package_configs: self
-                .package
-                .into_iter()
-                .filter_map(|(key, raw)| {
-                    raw.types.map(|types| (key, PackageConfig { types }))
-                })
-                .collect(),
+            package_configs,
         };
 
         // Build the default config (no include_guard, no per-header overrides).
@@ -808,7 +870,8 @@ impl RawConfig {
         Ok(ConfigSet {
             default,
             per_header,
-            bundle: self.bundle.unwrap_or(false),
+            bundle,
+            header_renames,
         })
     }
 
@@ -1242,7 +1305,7 @@ preamble = "/* My Lib */"
         }
 
         // Per-header config has include_guard and overridden preamble.
-        match config_set.for_crate("my-lib") {
+        match config_set.for_header("my-lib") {
             Config::C(c) => {
                 assert_eq!(c.common.include_guard.as_deref(), Some("MY_LIB_H"));
                 assert_eq!(c.common.preamble.as_deref(), Some("/* My Lib */"));
@@ -1251,7 +1314,7 @@ preamble = "/* My Lib */"
         }
 
         // Unknown crate falls back to default.
-        match config_set.for_crate("unknown") {
+        match config_set.for_header("unknown") {
             Config::C(c) => {
                 assert!(c.common.include_guard.is_none());
                 assert_eq!(c.common.preamble.as_deref(), Some("/* Global */"));
@@ -1276,7 +1339,7 @@ include_guard = "MY_LIB_H"
             .unwrap();
 
         // Per-header config inherits global [c] settings.
-        match config_set.for_crate("my-lib") {
+        match config_set.for_header("my-lib") {
             Config::C(c) => {
                 assert!(matches!(c.style, Style::Tag));
                 assert!(c.cpp_compat);
@@ -1315,7 +1378,7 @@ style = "Type"
         }
 
         // Per-header config overrides global [c] settings.
-        match config_set.for_crate("my-lib") {
+        match config_set.for_header("my-lib") {
             Config::C(c) => {
                 assert!(matches!(c.style, Style::Type));
                 assert!(c.cpp_compat);
@@ -1347,7 +1410,7 @@ documentation = true
             _ => panic!("expected Config::C"),
         }
 
-        match config_set.for_crate("my-lib") {
+        match config_set.for_header("my-lib") {
             Config::C(c) => {
                 assert!(!c.common.pragma_once);
                 assert!(c.common.documentation);
@@ -1389,7 +1452,7 @@ preamble = "/* header-c */"
         }
 
         // Per-header: [header.my-lib.c] > [header.my-lib] > [c] > top-level
-        match config_set.for_crate("my-lib") {
+        match config_set.for_header("my-lib") {
             Config::C(c) => {
                 assert_eq!(c.common.preamble.as_deref(), Some("/* header-c */"));
                 // documentation comes from [header.my-lib] common (not overridden in [header.my-lib.c])
@@ -1439,7 +1502,7 @@ include_guard = "LIB_B_H"
             .into_config(&Language::C, &CliOverrides::default())
             .unwrap();
 
-        match config_set.for_crate("lib-a") {
+        match config_set.for_header("lib-a") {
             Config::C(c) => {
                 assert_eq!(c.common.include_guard.as_deref(), Some("LIB_A_H"));
                 assert_eq!(c.common.preamble.as_deref(), Some("/* Lib A */"));
@@ -1447,7 +1510,7 @@ include_guard = "LIB_B_H"
             _ => panic!("expected Config::C"),
         }
 
-        match config_set.for_crate("lib-b") {
+        match config_set.for_header("lib-b") {
             Config::C(c) => {
                 assert_eq!(c.common.include_guard.as_deref(), Some("LIB_B_H"));
                 // Inherits global preamble since not overridden.

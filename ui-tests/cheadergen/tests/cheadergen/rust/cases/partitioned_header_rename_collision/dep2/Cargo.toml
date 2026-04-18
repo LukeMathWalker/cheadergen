@@ -1,0 +1,7 @@
+[package]
+name = "partitioned-header-rename-collision-dep2"
+version = "0.1.0"
+edition.workspace = true
+
+[lints]
+workspace = true

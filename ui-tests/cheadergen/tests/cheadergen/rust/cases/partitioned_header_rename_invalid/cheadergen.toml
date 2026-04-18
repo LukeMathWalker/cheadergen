@@ -1,0 +1,2 @@
+[package.partitioned-header-rename-invalid-dep]
+header_name = "sub/custom"

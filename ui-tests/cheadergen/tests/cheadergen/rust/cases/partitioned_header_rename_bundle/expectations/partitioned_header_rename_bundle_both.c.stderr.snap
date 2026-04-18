@@ -1,0 +1,6 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 271
+expression: stderr_str
+---
+Error: `header_name` is not supported in bundle mode (set on `[package."partitioned-header-rename-bundle"]`)

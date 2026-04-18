@@ -1,0 +1,5 @@
+[package.partitioned-header-rename-dep]
+header_name = "custom_dep"
+
+[header.custom_dep]
+preamble = "/* renamed dep preamble */"
