@@ -5,6 +5,8 @@
 # no Cargo.toml at its root.
 members = [
     "*",
+    "bin_only_skipped/lib",
+    "bin_only_skipped/bin",
     "opaque_dependency/entrypoint",
     "opaque_dependency/dep",
     "partitioned_basic/entrypoint",
@@ -66,6 +68,7 @@ members = [
 ]
 exclude = [
     "target",
+    "bin_only_skipped",
     "opaque_dependency",
     "partitioned_basic",
     "partitioned_bundle",

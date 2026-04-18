@@ -1,6 +1,8 @@
 use std::collections::{BTreeSet, HashSet};
 use std::path::PathBuf;
 
+use crate::diagnostic::Severity;
+
 use clap::{ArgAction, Parser};
 use guppy::PackageId;
 use guppy::graph::DependencyDirection;
@@ -13,7 +15,7 @@ use crate::config::{Language, PackageConfig, PackageTypeMode, Style};
 use crate::diagnostic::{DiagnosticSink, render_diagnostics};
 use crate::{analysis, codegen, config, metadata, topological_sort};
 
-use super::input::{PackageSelection, resolve_input, select_packages};
+use super::input::{PackageSelection, filter_library_targets, resolve_input, select_packages};
 use crate::Collection;
 
 #[derive(Debug, Parser)]
@@ -305,6 +307,22 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
         &package_graph.workspace(),
     )?;
 
+    let ws_root: PathBuf = package_graph.workspace().root().to_path_buf().into();
+    let debug = std::env::var("CHEADERGEN_DEBUG").is_ok_and(|v| v == "true" || v == "1");
+    let mut diagnostics = DiagnosticSink::new(ws_root, debug);
+
+    // Drop packages without a library target. Explicit `-p` selections
+    // produce an error; implicit ones (directory / workspace defaults) are
+    // skipped with a warning so bin-only siblings don't block the real libs.
+    let explicit_names: HashSet<String> =
+        cli.package_selection.packages.iter().cloned().collect();
+    let packages =
+        filter_library_targets(packages, &package_graph, &explicit_names, &mut diagnostics);
+
+    if packages.is_empty() {
+        return render_diagnostics_or_bail(&mut diagnostics, debug);
+    }
+
     if config_set.bundle && packages.len() > 1 {
         anyhow::bail!(
             "--bundle is only valid with a single target package, but {} were selected",
@@ -324,14 +342,6 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
     let collection = metadata::create_collection(package_graph)?;
 
     let mut all_symbols = BTreeSet::new();
-    let ws_root: PathBuf = collection
-        .package_graph()
-        .workspace()
-        .root()
-        .to_path_buf()
-        .into();
-    let debug = std::env::var("CHEADERGEN_DEBUG").is_ok_and(|v| v == "true" || v == "1");
-    let mut diagnostics = DiagnosticSink::new(ws_root, debug);
 
     // Resolve per-package overrides against the dependency graph.
     // Package overrides are global (not per-header), so resolve once.
@@ -423,28 +433,29 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
         codegen::write_symbol_file(&all_symbols, symbol_file)?;
     }
 
-    // Render and print diagnostics.
-    if !diagnostics.is_empty() {
-        let has_hidden_causes = diagnostics.has_hidden_causes();
-        let all = diagnostics.drain();
-        let use_color = std::env::var("NO_COLOR").is_err();
-        let rendered = render_diagnostics(&all, use_color);
-        eprint!("{rendered}");
+    render_diagnostics_or_bail(&mut diagnostics, debug)
+}
 
-        if !debug && has_hidden_causes {
-            eprintln!("note: rerun with `CHEADERGEN_DEBUG=true` for more details");
-        } else {
-            eprintln!();
-        }
+/// Print any pending diagnostics and, if any of them is an error, bail.
+fn render_diagnostics_or_bail(diagnostics: &mut DiagnosticSink, debug: bool) -> anyhow::Result<()> {
+    if diagnostics.is_empty() {
+        return Ok(());
+    }
+    let has_hidden_causes = diagnostics.has_hidden_causes();
+    let all = diagnostics.drain();
+    let use_color = std::env::var("NO_COLOR").is_err();
+    let rendered = render_diagnostics(&all, use_color);
+    eprint!("{rendered}");
 
-        if all
-            .iter()
-            .any(|d| d.severity == crate::diagnostic::Severity::Error)
-        {
-            anyhow::bail!("aborting due to previous error(s)");
-        }
+    if !debug && has_hidden_causes {
+        eprintln!("note: rerun with `CHEADERGEN_DEBUG=true` for more details");
+    } else {
+        eprintln!();
     }
 
+    if all.iter().any(|d| d.severity == Severity::Error) {
+        anyhow::bail!("aborting due to previous error(s)");
+    }
     Ok(())
 }
 

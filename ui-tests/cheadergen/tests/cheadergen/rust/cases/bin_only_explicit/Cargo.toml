@@ -1,0 +1,11 @@
+[package]
+name = "bin_only_explicit"
+version = "0.1.0"
+edition.workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "bin_only_explicit"
+path = "src/main.rs"

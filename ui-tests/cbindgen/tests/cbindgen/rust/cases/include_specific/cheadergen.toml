@@ -1,2 +1,2 @@
-sys_includes = ["math.h"]
+includes = ["<math.h>"]
 no_includes = true

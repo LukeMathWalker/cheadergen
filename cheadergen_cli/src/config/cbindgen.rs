@@ -228,14 +228,26 @@ fn translate_config(cb: &CbindgenConfig) -> (RawConfig, Vec<String>) {
         })
     });
 
+    // cbindgen keeps `includes` and `sys_includes` as separate fields; cheadergen
+    // exposes a single `includes` list where system headers are written as
+    // `<foo.h>`. Merge the two, keeping system includes first to preserve the
+    // historical emission order.
+    let mut includes: Vec<String> = cb
+        .sys_includes
+        .clone()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|h| format!("<{h}>"))
+        .collect();
+    includes.extend(cb.includes.clone().unwrap_or_default());
+
     let mut config = RawConfig {
         preamble: cb.header.clone(),
         trailer: cb.trailer.clone(),
         pragma_once,
         no_includes,
         after_includes: cb.after_includes.clone(),
-        includes: cb.includes.clone().unwrap_or_default(),
-        sys_includes: cb.sys_includes.clone().unwrap_or_default(),
+        includes,
         autogen_warning: cb.autogen_warning.clone(),
         documentation,
         documentation_style,
@@ -487,8 +499,10 @@ cpp_compat = true
         trailer = "/* End */"
         autogen_warning = "// DO NOT EDIT"
         pragma_once = true
-        sys_includes = ["stdint.h"]
-        includes = ["foo.h"]
+        includes = [
+            "<stdint.h>",
+            "foo.h",
+        ]
         no_includes = true
         after_includes = "#define FOO 1"
 
@@ -568,8 +582,10 @@ cpp_compat = true
 
         insta::assert_snapshot!(output, @r#"
         preamble = "/* License */"
-        sys_includes = ["stdint.h"]
-        includes = ["foo.h"]
+        includes = [
+            "<stdint.h>",
+            "foo.h",
+        ]
 
         [c]
         style = "Tag"

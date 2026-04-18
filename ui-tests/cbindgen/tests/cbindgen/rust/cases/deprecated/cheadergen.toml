@@ -13,7 +13,7 @@ preamble = """
 # `fn.deprecated_with_note` was skipped: not supported by cheadergen
 # `struct.deprecated` was skipped: not supported by cheadergen
 # `struct.deprecated_with_note` was skipped: not supported by cheadergen
-# `enum.deprecated` was skipped: not supported by cheadergen
-# `enum.deprecated_variant` was skipped: not supported by cheadergen
-# `enum.deprecated_with_note` was skipped: not supported by cheadergen
 # `enum.deprecated_variant_with_note` was skipped: not supported by cheadergen
+# `enum.deprecated` was skipped: not supported by cheadergen
+# `enum.deprecated_with_note` was skipped: not supported by cheadergen
+# `enum.deprecated_variant` was skipped: not supported by cheadergen

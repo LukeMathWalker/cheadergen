@@ -129,8 +129,6 @@ pub struct RawHeaderSection {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pragma_once: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub sys_includes: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub includes: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub no_includes: Option<bool>,
@@ -240,10 +238,11 @@ pub struct RawConfig {
     /// Defaults to `false`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pragma_once: Option<bool>,
-    /// System headers to emit as `#include <…>`.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub sys_includes: Vec<String>,
-    /// User headers to emit as `#include "…"`.
+    /// Extra headers to include in the generated output.
+    ///
+    /// An entry wrapped in angle brackets (e.g. `"<stdint.h>"`) is emitted
+    /// verbatim as a system include (`#include <stdint.h>`). Any other entry
+    /// is rendered with double quotes (`#include "my_types.h"`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub includes: Vec<String>,
     /// Suppress the default language-specific includes (e.g. `<stdint.h>` for C).
@@ -341,8 +340,6 @@ pub struct RawCSection {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pragma_once: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub sys_includes: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub includes: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub no_includes: Option<bool>,
@@ -374,8 +371,6 @@ pub struct RawCxxSection {
     pub autogen_warning: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pragma_once: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub sys_includes: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub includes: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -453,8 +448,6 @@ pub struct CommonConfig {
     pub include_guard: Option<String>,
     /// See [`RawConfig::pragma_once`]. Defaults to `false`.
     pub pragma_once: bool,
-    /// See [`RawConfig::sys_includes`].
-    pub sys_includes: Vec<String>,
     /// See [`RawConfig::includes`].
     pub includes: Vec<String>,
     /// See [`RawConfig::no_includes`]. Defaults to `false`.
@@ -536,7 +529,6 @@ struct RawCommonFields {
     trailer: Option<String>,
     autogen_warning: Option<String>,
     pragma_once: Option<bool>,
-    sys_includes: Vec<String>,
     includes: Vec<String>,
     no_includes: Option<bool>,
     after_includes: Option<String>,
@@ -557,7 +549,6 @@ struct RawCommonOverrides {
     trailer: Option<String>,
     autogen_warning: Option<String>,
     pragma_once: Option<bool>,
-    sys_includes: Option<Vec<String>>,
     includes: Option<Vec<String>>,
     no_includes: Option<bool>,
     after_includes: Option<String>,
@@ -574,7 +565,6 @@ impl RawCommonOverrides {
             trailer: other.trailer.or(self.trailer),
             autogen_warning: other.autogen_warning.or(self.autogen_warning),
             pragma_once: other.pragma_once.or(self.pragma_once),
-            sys_includes: other.sys_includes.or(self.sys_includes),
             includes: other.includes.or(self.includes),
             no_includes: other.no_includes.or(self.no_includes),
             after_includes: other.after_includes.or(self.after_includes),
@@ -599,7 +589,6 @@ impl RawCommonFields {
             autogen_warning: overrides.autogen_warning.or(self.autogen_warning),
             include_guard,
             pragma_once: overrides.pragma_once.or(self.pragma_once).unwrap_or(false),
-            sys_includes: overrides.sys_includes.unwrap_or(self.sys_includes),
             includes: overrides.includes.unwrap_or(self.includes),
             no_includes: overrides.no_includes.or(self.no_includes).unwrap_or(false),
             after_includes: overrides.after_includes.or(self.after_includes),
@@ -635,7 +624,6 @@ impl IntoCommonOverrides for RawCSection {
             trailer: self.trailer,
             autogen_warning: self.autogen_warning,
             pragma_once: self.pragma_once,
-            sys_includes: self.sys_includes,
             includes: self.includes,
             no_includes: self.no_includes,
             after_includes: self.after_includes,
@@ -653,7 +641,6 @@ impl IntoCommonOverrides for RawCxxSection {
             trailer: self.trailer,
             autogen_warning: self.autogen_warning,
             pragma_once: self.pragma_once,
-            sys_includes: self.sys_includes,
             includes: self.includes,
             no_includes: self.no_includes,
             after_includes: self.after_includes,
@@ -671,7 +658,6 @@ impl IntoCommonOverrides for RawHeaderSection {
             trailer: self.trailer,
             autogen_warning: self.autogen_warning,
             pragma_once: self.pragma_once,
-            sys_includes: self.sys_includes,
             includes: self.includes,
             no_includes: self.no_includes,
             after_includes: self.after_includes,
@@ -791,7 +777,6 @@ impl RawConfig {
             trailer: self.trailer,
             autogen_warning: self.autogen_warning,
             pragma_once: self.pragma_once,
-            sys_includes: self.sys_includes,
             includes: self.includes,
             no_includes: self.no_includes,
             after_includes: self.after_includes,
@@ -979,8 +964,7 @@ preamble = "/* License */"
 trailer = "/* End */"
 autogen_warning = "// Auto-generated"
 pragma_once = false
-sys_includes = ["stdint.h", "stdbool.h"]
-includes = ["my_types.h"]
+includes = ["<stdint.h>", "<stdbool.h>", "my_types.h"]
 no_includes = false
 after_includes = "/* after includes */"
 
@@ -1004,8 +988,10 @@ cpp_compat = true
                 );
                 assert!(c.common.include_guard.is_none());
                 assert!(!c.common.pragma_once);
-                assert_eq!(c.common.sys_includes, vec!["stdint.h", "stdbool.h"]);
-                assert_eq!(c.common.includes, vec!["my_types.h"]);
+                assert_eq!(
+                    c.common.includes,
+                    vec!["<stdint.h>", "<stdbool.h>", "my_types.h"]
+                );
                 assert!(!c.common.no_includes);
                 assert_eq!(
                     c.common.after_includes.as_deref(),

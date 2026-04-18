@@ -1,0 +1,7 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 271
+expression: stderr_str
+---
+error: package `bin_only_explicit` has no library target; cheadergen can only generate headers from library crates
+Error: aborting due to previous error(s)

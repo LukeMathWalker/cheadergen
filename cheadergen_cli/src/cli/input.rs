@@ -1,7 +1,10 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use guppy::PackageId;
+use guppy::graph::{BuildTargetId, PackageGraph};
+
+use crate::diagnostic::DiagnosticSink;
 
 #[derive(Debug, Clone, Default, clap::Args)]
 pub(super) struct PackageSelection {
@@ -127,4 +130,52 @@ pub(super) fn select_packages(
     );
 
     Ok(selected.into_iter().collect())
+}
+
+/// Returns `true` if `package_id` has a library build target.
+fn has_library_target(graph: &PackageGraph, package_id: &PackageId) -> bool {
+    graph
+        .metadata(package_id)
+        .map(|meta| {
+            meta.build_targets()
+                .any(|t| matches!(t.id(), BuildTargetId::Library))
+        })
+        .unwrap_or(false)
+}
+
+/// Filter out packages that have no library target.
+///
+/// cheadergen can only generate headers from library crates, so binary-only
+/// packages (e.g. CLI crates in a workspace) must be dropped before rustdoc
+/// is invoked.
+///
+/// Packages listed in `explicit_names` are assumed to have been named by the
+/// user (`-p`/`--package`); dropping them produces an error diagnostic because
+/// the user asked for something that cannot be done. Packages picked up
+/// implicitly (via a directory argument or workspace defaults) produce a
+/// warning and are silently skipped.
+pub(super) fn filter_library_targets(
+    packages: Vec<(PackageId, String)>,
+    graph: &PackageGraph,
+    explicit_names: &HashSet<String>,
+    diagnostics: &mut DiagnosticSink,
+) -> Vec<(PackageId, String)> {
+    packages
+        .into_iter()
+        .filter(|(id, name)| {
+            if has_library_target(graph, id) {
+                return true;
+            }
+            let msg = format!(
+                "package `{name}` has no library target; cheadergen can only generate \
+                 headers from library crates"
+            );
+            if explicit_names.contains(name) {
+                diagnostics.error(msg).emit();
+            } else {
+                diagnostics.warning(format!("{msg}; skipping")).emit();
+            }
+            false
+        })
+        .collect()
 }

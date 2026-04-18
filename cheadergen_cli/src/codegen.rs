@@ -158,13 +158,8 @@ pub fn generate_c_header(
         out.push_str("#include <stdlib.h>\n");
     }
 
-    // Additional system includes.
-    for inc in &common.sys_includes {
-        writeln!(out, "#include <{inc}>").unwrap();
-    }
-
-    // Additional user includes. An entry already wrapped in `<...>` is
-    // treated as a system include and emitted verbatim.
+    // Additional includes. An entry wrapped in `<...>` is emitted verbatim
+    // as a system include; any other entry is rendered with double quotes.
     for inc in &common.includes {
         if inc.starts_with('<') && inc.ends_with('>') {
             writeln!(out, "#include {inc}").unwrap();
