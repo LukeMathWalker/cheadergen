@@ -561,7 +561,7 @@ pub(super) fn collect_paths_from_type(
                 overrides.opaque.contains(&p.package_id)
                     || annotation.as_ref().and_then(|ann| ann.export) == Some(ExportMode::Opaque);
 
-            let canonical = ty.canonicalize();
+            let canonical = ty.canonicalize(collection);
             let entry = seen.entry(canonical).or_insert(TypeUsage::BehindPointer);
             if usage == TypeUsage::ByValue && !must_stay_opaque {
                 *entry = TypeUsage::ByValue;

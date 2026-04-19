@@ -1,0 +1,31 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 332
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct {
+  double x;
+  double y;
+} Point;
+
+typedef struct {
+  Point a;
+  Point b;
+} Pair;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+Point point_origin(void);
+
+Pair pair_new(Point a, Point b);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

@@ -91,7 +91,7 @@ pub fn exported_via_annotations(
                     continue;
                 }
             };
-        let canonical = ty.canonicalize();
+        let canonical = ty.canonicalize(collection);
 
         match export_mode {
             ExportMode::Full => full.insert(canonical),
