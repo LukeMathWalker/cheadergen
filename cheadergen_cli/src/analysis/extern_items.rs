@@ -55,7 +55,9 @@ impl ExternItemCoordinates {
             }
 
             match &item.inner {
-                ItemEnum::Function(func) if matches!(func.header.abi, Abi::C { .. }) => {
+                ItemEnum::Function(func)
+                    if matches!(func.header.abi, Abi::C { .. }) && func.has_body =>
+                {
                     fn_ids.push(*id);
                 }
                 ItemEnum::Static(_) if has_export_attr(&item.attrs) => {

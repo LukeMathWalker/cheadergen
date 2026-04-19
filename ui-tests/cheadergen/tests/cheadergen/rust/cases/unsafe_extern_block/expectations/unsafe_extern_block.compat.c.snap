@@ -1,0 +1,19 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 332
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+int32_t exported_fn(int32_t x);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

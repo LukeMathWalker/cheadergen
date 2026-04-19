@@ -1,20 +1,9 @@
 ---
 source: ui-tests/cbindgen/src/lib.rs
-assertion_line: 166
+assertion_line: 194
 expression: actual
 ---
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
-
-typedef struct {
-  int32_t x;
-  float y;
-} Normal;
-
-int32_t foo(void);
-
-void bar(Normal a);
-
-int32_t baz(void);
