@@ -1,12 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
-use guppy::{PackageId, Version};
 use guppy::graph::{BuildTargetId, PackageGraph};
+use guppy::{PackageId, Version};
 use rustdoc_ir::{FreeFunction, Type};
 
-use super::type_collection::{
-    CTypeDefinition, CTypeKind, c_type_name,
-};
+use super::type_collection::{CTypeDefinition, CTypeKind, c_type_name};
 use crate::analysis::extern_items::ExternItems;
 use crate::cli::generate::PackageTypeOverrides;
 use crate::static_item::StaticItem;
@@ -279,23 +277,29 @@ pub fn partition_types(
                 };
 
                 if i + 1 < pkgs_vec.len() {
-                    per_crate.entry(pkg.clone()).or_default().push(CTypeDefinition {
-                        name: def.name.clone(),
-                        original_name: def.original_name.clone(),
-                        kind,
-                        rustdoc_id: def.rustdoc_id.clone(),
-                        defining_package: def.defining_package.clone(),
-                        is_generic_instantiation: is_by_value,
-                    });
+                    per_crate
+                        .entry(pkg.clone())
+                        .or_default()
+                        .push(CTypeDefinition {
+                            name: def.name.clone(),
+                            original_name: def.original_name.clone(),
+                            kind,
+                            rustdoc_id: def.rustdoc_id.clone(),
+                            defining_package: def.defining_package.clone(),
+                            is_generic_instantiation: is_by_value,
+                        });
                 } else {
-                    per_crate.entry(pkg.clone()).or_default().push(CTypeDefinition {
-                        name: def.name.clone(),
-                        original_name: def.original_name.clone(),
-                        kind,
-                        rustdoc_id: def.rustdoc_id.clone(),
-                        defining_package: def.defining_package.clone(),
-                        is_generic_instantiation: is_by_value,
-                    });
+                    per_crate
+                        .entry(pkg.clone())
+                        .or_default()
+                        .push(CTypeDefinition {
+                            name: def.name.clone(),
+                            original_name: def.original_name.clone(),
+                            kind,
+                            rustdoc_id: def.rustdoc_id.clone(),
+                            defining_package: def.defining_package.clone(),
+                            is_generic_instantiation: is_by_value,
+                        });
                     break;
                 }
             }
@@ -356,10 +360,8 @@ pub fn compute_header_deps(
         }
     }
 
-    let _target_packages: HashSet<&PackageId> = target_extern_items
-        .iter()
-        .map(|(id, _)| id)
-        .collect();
+    let _target_packages: HashSet<&PackageId> =
+        target_extern_items.iter().map(|(id, _)| id).collect();
 
     let mut result: HashMap<PackageId, HeaderDeps> = HashMap::new();
 
@@ -392,10 +394,7 @@ pub fn compute_header_deps(
         }
 
         // Scan extern functions/statics if this is a target package.
-        if let Some((_, extern_items)) = target_extern_items
-            .iter()
-            .find(|(id, _)| id == pkg_id)
-        {
+        if let Some((_, extern_items)) = target_extern_items.iter().find(|(id, _)| id == pkg_id) {
             let fn_type_names = collect_fn_type_names(&extern_items.fns, &extern_items.statics);
             for name in &fn_type_names {
                 if let Some(&dep_pkg) = type_to_package.get(name.as_str())
@@ -412,9 +411,7 @@ pub fn compute_header_deps(
         // Build includes (only for packages that actually have headers).
         let mut includes: Vec<String> = by_value_from
             .iter()
-            .filter(|p| {
-                packages_with_headers.contains(*p) && !overrides.opaque.contains(*p)
-            })
+            .filter(|p| packages_with_headers.contains(*p) && !overrides.opaque.contains(*p))
             .map(|p| filenames.filename(p, lang_extension))
             .collect();
         includes.sort();
@@ -428,7 +425,10 @@ pub fn compute_header_deps(
             .flat_map(collect_all_referenced_type_names)
             .collect();
         if let Some((_, extern_items)) = target_extern_items.iter().find(|(id, _)| id == pkg_id) {
-            all_referenced.extend(collect_fn_type_names(&extern_items.fns, &extern_items.statics));
+            all_referenced.extend(collect_fn_type_names(
+                &extern_items.fns,
+                &extern_items.statics,
+            ));
             for func in &extern_items.fns {
                 for input in &func.header.inputs {
                     let mut ptr_names = Vec::new();
@@ -545,10 +545,7 @@ pub struct HeaderFilenames {
 
 /// Compute the default header base name for a package: library target name if
 /// present, otherwise the package name with dashes replaced by underscores.
-pub fn default_header_base_name(
-    graph: &PackageGraph,
-    pkg_id: &PackageId,
-) -> Option<String> {
+pub fn default_header_base_name(graph: &PackageGraph, pkg_id: &PackageId) -> Option<String> {
     let meta = graph.metadata(pkg_id).ok()?;
     let name = meta
         .build_targets()
@@ -626,18 +623,14 @@ impl HeaderFilenames {
                         format!("_{}", version.major)
                     } else {
                         let minor_unique = {
-                            let minor_keys: HashSet<_> = entries
-                                .iter()
-                                .map(|(_, _, v)| (v.major, v.minor))
-                                .collect();
+                            let minor_keys: HashSet<_> =
+                                entries.iter().map(|(_, _, v)| (v.major, v.minor)).collect();
                             minor_keys.len() == entries.len()
                         };
                         if minor_unique {
                             format!("_{}_{}", version.major, version.minor)
                         } else {
-                            format!(
-                                "_{}_{}_{}", version.major, version.minor, version.patch
-                            )
+                            format!("_{}_{}_{}", version.major, version.minor, version.patch)
                         }
                     };
                     names.insert((*id).clone(), format!("{name}{suffix}"));
@@ -651,9 +644,13 @@ impl HeaderFilenames {
         for (id, rename) in renamed {
             if let Some((other_id, _)) = names.iter().find(|(_, n)| **n == rename) {
                 let (renamed_label, other_label) = (
-                    graph.metadata(&id).map(|m| format!("{}@{}", m.name(), m.version()))
+                    graph
+                        .metadata(&id)
+                        .map(|m| format!("{}@{}", m.name(), m.version()))
                         .unwrap_or_else(|_| id.repr().to_owned()),
-                    graph.metadata(other_id).map(|m| format!("{}@{}", m.name(), m.version()))
+                    graph
+                        .metadata(other_id)
+                        .map(|m| format!("{}@{}", m.name(), m.version()))
                         .unwrap_or_else(|_| other_id.repr().to_owned()),
                 );
                 return Err(format!(

@@ -151,7 +151,7 @@ impl fmt::Display for CIdentifier {
 }
 
 /// A user-defined type that needs a C declaration in the header.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CTypeDefinition {
     /// The C name for this type (last path segment from PathType::base_type),
     /// or a custom name provided via `#[cheadergen::config(rename = "...")]`.
@@ -175,7 +175,7 @@ pub struct CTypeDefinition {
 }
 
 /// The kind of C type definition to emit.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum CTypeKind {
     /// Emit only a forward declaration (`struct Foo;` / `typedef struct Foo Foo;`).
     OpaqueStruct,
@@ -199,28 +199,28 @@ pub enum CTypeKind {
 ///
 /// Produced from `#[repr(transparent)]` structs (single non-ZST field)
 /// and Rust `type` aliases.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CTypedefDef {
     /// The resolved inner type that the typedef aliases.
     pub inner: Type,
 }
 
 /// A resolved `#[repr(C)]` struct with its fields.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CStructDef {
     /// The fields of the struct, in declaration order.
     pub fields: Vec<CStructField>,
 }
 
 /// A resolved `#[repr(C)]` union with its fields.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CUnionDef {
     /// The fields of the union, in declaration order.
     pub fields: Vec<CStructField>,
 }
 
 /// A single field of a C struct.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CStructField {
     /// The C field name (Rust name for plain structs, `m0`/`m1`/... for tuple structs).
     pub name: CIdentifier,
@@ -231,7 +231,7 @@ pub struct CStructField {
 }
 
 /// A C-like enum (all variants are fieldless).
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CFieldlessEnumDef {
     pub repr: CEnumRepr,
     pub variants: Vec<CEnumVariant>,
@@ -240,7 +240,7 @@ pub struct CFieldlessEnumDef {
 }
 
 /// A single variant of a fieldless enum.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CEnumVariant {
     pub name: CIdentifier,
     pub discriminant: Option<String>,
@@ -304,7 +304,7 @@ impl ReprIntType {
 }
 
 /// How the enum's discriminant is represented in C.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum CEnumRepr {
     /// `#[repr(C)]` only — use a plain C enum.
     C,
@@ -325,7 +325,7 @@ impl CEnumRepr {
 }
 
 /// A tagged union (enum with data variants).
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CTaggedUnionDef {
     pub repr: CEnumRepr,
     /// When true, variant names in the tag enum are prefixed with the enum name.
@@ -334,14 +334,14 @@ pub struct CTaggedUnionDef {
 }
 
 /// A single variant of a tagged union.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CTaggedVariant {
     pub name: String,
     pub body: Option<CTaggedVariantBody>,
 }
 
 /// The body (fields) of a tagged union variant.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CTaggedVariantBody {
     pub fields: Vec<CStructField>,
 }
@@ -389,19 +389,37 @@ pub fn collect_type_definitions(
     // Do a first pass over extern items to collect paths from their input/output types.
     for func in &extern_items.fns {
         for input in &func.header.inputs {
-            collect_paths_from_type(&input.type_, TypeUsage::ByValue, &mut seen, collection, overrides);
+            collect_paths_from_type(
+                &input.type_,
+                TypeUsage::ByValue,
+                &mut seen,
+                collection,
+                overrides,
+            );
         }
         if let Some(output) = &func.header.output {
             collect_paths_from_type(output, TypeUsage::ByValue, &mut seen, collection, overrides);
         }
     }
     for s in &extern_items.statics {
-        collect_paths_from_type(&s.type_, TypeUsage::ByValue, &mut seen, collection, overrides);
+        collect_paths_from_type(
+            &s.type_,
+            TypeUsage::ByValue,
+            &mut seen,
+            collection,
+            overrides,
+        );
     }
 
     // Resolve struct/enum/union fields for directly-used types. This may discover new
     // transitive types that also need definitions.
-    resolve_all_type_definitions(&mut seen, collection, enum_prefix_with_name, overrides, diagnostics)
+    resolve_all_type_definitions(
+        &mut seen,
+        collection,
+        enum_prefix_with_name,
+        overrides,
+        diagnostics,
+    )
 }
 
 /// Walk all types across **multiple** targets' extern items, collecting the union of
@@ -444,15 +462,33 @@ pub fn collect_type_definitions_multi(
                 );
             }
             if let Some(output) = &func.header.output {
-                collect_paths_from_type(output, TypeUsage::ByValue, &mut seen, collection, overrides);
+                collect_paths_from_type(
+                    output,
+                    TypeUsage::ByValue,
+                    &mut seen,
+                    collection,
+                    overrides,
+                );
             }
         }
         for s in &extern_items.statics {
-            collect_paths_from_type(&s.type_, TypeUsage::ByValue, &mut seen, collection, overrides);
+            collect_paths_from_type(
+                &s.type_,
+                TypeUsage::ByValue,
+                &mut seen,
+                collection,
+                overrides,
+            );
         }
     }
 
-    resolve_all_type_definitions(&mut seen, collection, enum_prefix_with_name, overrides, diagnostics)
+    resolve_all_type_definitions(
+        &mut seen,
+        collection,
+        enum_prefix_with_name,
+        overrides,
+        diagnostics,
+    )
 }
 
 /// Compute the cbindgen-style monomorphized C name for a type.
@@ -557,9 +593,8 @@ pub(super) fn collect_paths_from_type(
 
             // Package-level opaque: never upgrade to ByValue,
             // same as annotation-level `#[cheadergen::export(opaque)]`.
-            let must_stay_opaque =
-                overrides.opaque.contains(&p.package_id)
-                    || annotation.as_ref().and_then(|ann| ann.export) == Some(ExportMode::Opaque);
+            let must_stay_opaque = overrides.opaque.contains(&p.package_id)
+                || annotation.as_ref().and_then(|ann| ann.export) == Some(ExportMode::Opaque);
 
             let canonical = ty.canonicalize(collection);
             let entry = seen.entry(canonical).or_insert(TypeUsage::BehindPointer);
@@ -567,25 +602,49 @@ pub(super) fn collect_paths_from_type(
                 *entry = TypeUsage::ByValue;
             }
         }
-        Type::Reference(r) => {
-            collect_paths_from_type(&r.inner, TypeUsage::BehindPointer, seen, collection, overrides)
-        }
-        Type::RawPointer(r) => {
-            collect_paths_from_type(&r.inner, TypeUsage::BehindPointer, seen, collection, overrides)
-        }
+        Type::Reference(r) => collect_paths_from_type(
+            &r.inner,
+            TypeUsage::BehindPointer,
+            seen,
+            collection,
+            overrides,
+        ),
+        Type::RawPointer(r) => collect_paths_from_type(
+            &r.inner,
+            TypeUsage::BehindPointer,
+            seen,
+            collection,
+            overrides,
+        ),
         Type::Tuple(t) => {
             for element in &t.elements {
                 collect_paths_from_type(element, usage, seen, collection, overrides);
             }
         }
-        Type::Slice(s) => collect_paths_from_type(&s.element_type, usage, seen, collection, overrides),
-        Type::Array(a) => collect_paths_from_type(&a.element_type, usage, seen, collection, overrides),
+        Type::Slice(s) => {
+            collect_paths_from_type(&s.element_type, usage, seen, collection, overrides)
+        }
+        Type::Array(a) => {
+            collect_paths_from_type(&a.element_type, usage, seen, collection, overrides)
+        }
         Type::FunctionPointer(fp) => {
             for input in &fp.inputs {
-                collect_paths_from_type(&input.type_, TypeUsage::BehindPointer, seen, collection, overrides);
+                collect_paths_from_type(
+                    &input.type_,
+                    TypeUsage::BehindPointer,
+                    seen,
+                    collection,
+                    overrides,
+                );
             }
             if let Some(output) = &fp.output {
-                collect_paths_from_type(output, TypeUsage::BehindPointer, seen, collection, overrides);
+                collect_paths_from_type(
+                    output,
+                    TypeUsage::BehindPointer,
+                    seen,
+                    collection,
+                    overrides,
+                );
             }
         }
         Type::ScalarPrimitive(_) | Type::Generic(_) => {}
@@ -709,12 +768,24 @@ fn resolve_all_type_definitions(
             match &kind {
                 CTypeKind::Struct(def) => {
                     for field in &def.fields {
-                        collect_paths_from_type(&field.type_, TypeUsage::ByValue, seen, collection, overrides);
+                        collect_paths_from_type(
+                            &field.type_,
+                            TypeUsage::ByValue,
+                            seen,
+                            collection,
+                            overrides,
+                        );
                     }
                 }
                 CTypeKind::Union(def) => {
                     for field in &def.fields {
-                        collect_paths_from_type(&field.type_, TypeUsage::ByValue, seen, collection, overrides);
+                        collect_paths_from_type(
+                            &field.type_,
+                            TypeUsage::ByValue,
+                            seen,
+                            collection,
+                            overrides,
+                        );
                     }
                 }
                 CTypeKind::TaggedUnion(def) => {
@@ -733,7 +804,13 @@ fn resolve_all_type_definitions(
                     }
                 }
                 CTypeKind::Typedef(def) => {
-                    collect_paths_from_type(&def.inner, TypeUsage::ByValue, seen, collection, overrides);
+                    collect_paths_from_type(
+                        &def.inner,
+                        TypeUsage::ByValue,
+                        seen,
+                        collection,
+                        overrides,
+                    );
                 }
                 CTypeKind::OpaqueStruct | CTypeKind::OpaqueUnion | CTypeKind::FieldlessEnum(_) => {}
             }
