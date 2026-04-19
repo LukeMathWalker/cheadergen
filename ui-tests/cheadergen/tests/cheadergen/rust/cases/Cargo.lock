@@ -157,6 +157,10 @@ name = "lifetime_enum"
 version = "0.1.0"
 
 [[package]]
+name = "lifetime_static_vs_borrowed"
+version = "0.1.0"
+
+[[package]]
 name = "lifetime_struct"
 version = "0.1.0"
 

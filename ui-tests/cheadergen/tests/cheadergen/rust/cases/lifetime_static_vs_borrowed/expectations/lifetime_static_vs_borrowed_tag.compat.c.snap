@@ -1,0 +1,25 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 332
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+struct Foo {
+  const int32_t *data;
+};
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+struct Foo use_foo_static(struct Foo f);
+
+struct Foo use_foo_borrowed(struct Foo f);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

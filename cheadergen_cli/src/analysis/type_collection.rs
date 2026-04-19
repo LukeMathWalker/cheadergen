@@ -2,11 +2,12 @@ use std::collections::HashMap;
 use std::fmt;
 
 use guppy::PackageId;
-use rustdoc_ir::{CanonicalType, GenericArgument, PathType, ScalarPrimitive, Type};
+use rustdoc_ir::{GenericArgument, PathType, ScalarPrimitive, Type};
 use rustdoc_processor::{CORE_PACKAGE_ID_REPR, GlobalItemId, STD_PACKAGE_ID_REPR};
 
 use super::type_resolution::resolve_type_kind;
 use crate::Collection;
+use crate::analysis::CCanonicalType;
 use crate::analysis::exported_via_annotations;
 use crate::analysis::extern_items::ExternItems;
 use crate::cli::generate::PackageTypeOverrides;
@@ -374,7 +375,7 @@ pub fn collect_type_definitions(
     let exports = exported_via_annotations(&extern_items.package_id, collection, diagnostics)
         .map_err(|e| anyhow::anyhow!(e))?;
 
-    let mut seen: HashMap<CanonicalType, TypeUsage> = HashMap::new();
+    let mut seen: HashMap<CCanonicalType, TypeUsage> = HashMap::new();
 
     // Seed the queue with types that were annotated using `#[cheadergen::export]`.
     for ct in &exports.full {
@@ -435,7 +436,7 @@ pub fn collect_type_definitions_multi(
     overrides: &PackageTypeOverrides,
     diagnostics: &mut DiagnosticSink,
 ) -> anyhow::Result<Vec<CTypeDefinition>> {
-    let mut seen: HashMap<CanonicalType, TypeUsage> = HashMap::new();
+    let mut seen: HashMap<CCanonicalType, TypeUsage> = HashMap::new();
 
     for (package_id, extern_items) in target_extern_items {
         // Seed annotated exports for each target.
@@ -550,10 +551,10 @@ fn has_concrete_generic_args(path_type: &PathType) -> bool {
     })
 }
 
-/// Extract the inner `PathType` from a `CanonicalType`.
+/// Extract the inner `PathType` from a `CCanonicalType`.
 ///
 /// Panics if the canonical type is not a `Type::Path` or `Type::TypeAlias`.
-fn canonical_type_to_path(ct: &CanonicalType) -> PathType {
+fn canonical_type_to_path(ct: &CCanonicalType) -> PathType {
     match ct.inner() {
         Type::Path(p) | Type::TypeAlias(p) => p.clone(),
         _ => unreachable!("AnnotatedExports should only contain path types"),
@@ -564,7 +565,7 @@ fn canonical_type_to_path(ct: &CanonicalType) -> PathType {
 pub(super) fn collect_paths_from_type(
     ty: &Type,
     usage: TypeUsage,
-    seen: &mut HashMap<CanonicalType, TypeUsage>,
+    seen: &mut HashMap<CCanonicalType, TypeUsage>,
     collection: &Collection,
     overrides: &PackageTypeOverrides,
 ) {
@@ -596,7 +597,7 @@ pub(super) fn collect_paths_from_type(
             let must_stay_opaque = overrides.opaque.contains(&p.package_id)
                 || annotation.as_ref().and_then(|ann| ann.export) == Some(ExportMode::Opaque);
 
-            let canonical = ty.canonicalize(collection);
+            let canonical = CCanonicalType::new(ty.canonicalize(collection));
             let entry = seen.entry(canonical).or_insert(TypeUsage::BehindPointer);
             if usage == TypeUsage::ByValue && !must_stay_opaque {
                 *entry = TypeUsage::ByValue;
@@ -731,7 +732,7 @@ fn annotation_prefix_with_name(
 /// Resolve all collected types into `CTypeDefinition`s, iterating to a fixed
 /// point to discover transitive field types.
 fn resolve_all_type_definitions(
-    seen: &mut HashMap<CanonicalType, TypeUsage>,
+    seen: &mut HashMap<CCanonicalType, TypeUsage>,
     collection: &Collection,
     enum_prefix_with_name: bool,
     overrides: &PackageTypeOverrides,
@@ -741,9 +742,9 @@ fn resolve_all_type_definitions(
     // By resolving all direct uses first, we ensure that a type initially seen
     // behind a pointer gets upgraded to direct when a struct field references it
     // by value — before we emit any opaques.
-    let mut resolved: HashMap<CanonicalType, CTypeDefinition> = HashMap::new();
+    let mut resolved: HashMap<CCanonicalType, CTypeDefinition> = HashMap::new();
     loop {
-        let direct: Vec<(CanonicalType, PathType)> = seen
+        let direct: Vec<(CCanonicalType, PathType)> = seen
             .iter()
             .filter(|(ct, usage)| **usage == TypeUsage::ByValue && !resolved.contains_key(*ct))
             .map(|(ct, _)| (ct.clone(), canonical_type_to_path(ct)))
@@ -833,7 +834,7 @@ fn resolve_all_type_definitions(
     }
 
     // Phase 2: emit remaining pointer-only types as opaque forward declarations.
-    let opaque: Vec<(CanonicalType, PathType)> = seen
+    let opaque: Vec<(CCanonicalType, PathType)> = seen
         .iter()
         .filter(|(ct, _)| !resolved.contains_key(*ct))
         .map(|(ct, _)| (ct.clone(), canonical_type_to_path(ct)))

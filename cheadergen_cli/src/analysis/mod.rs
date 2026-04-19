@@ -1,4 +1,5 @@
 mod annotation_types;
+mod c_canonical_type;
 pub(crate) mod extern_items;
 pub(crate) mod partitioning;
 mod type_collection;
@@ -6,6 +7,7 @@ mod type_resolution;
 mod type_transform;
 
 pub use annotation_types::exported_via_annotations;
+pub use c_canonical_type::CCanonicalType;
 pub use extern_items::{ExternItemCoordinates, collect_symbols, find_assoc_constants};
 use rustdoc_processor::GlobalItemId;
 use rustdoc_processor::queries::Crate;

@@ -1,0 +1,17 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 332
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct {
+  const int32_t *data;
+} Foo;
+
+Foo use_foo_static(Foo f);
+
+Foo use_foo_borrowed(Foo f);

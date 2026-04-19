@@ -1,12 +1,12 @@
 use std::collections::HashSet;
 
 use guppy::PackageId;
-use rustdoc_ir::CanonicalType;
 use rustdoc_processor::compute::CannotGetCrateData;
 use rustdoc_resolver::{TypeAliasResolution, rustdoc_item_def2type};
 use rustdoc_types::ItemEnum;
 
 use crate::Collection;
+use crate::analysis::CCanonicalType;
 use crate::diagnostic::DiagnosticSink;
 use crate::indexing::ExportMode;
 
@@ -14,19 +14,19 @@ use crate::indexing::ExportMode;
 /// `#[cheadergen::config(export(opaque))]` in a given crate,
 /// split by export mode.
 ///
-/// Types are stored in canonical form so that "contains" checks are robust
-/// against lifetime/generic parameter differences.
+/// Types are stored in lifetime-erased canonical form so that "contains"
+/// checks are robust against lifetime and unassigned-generic differences.
 pub struct AnnotatedExports {
     #[expect(unused)]
     /// The package ID of the crate that these types belong to.
     pub package_id: PackageId,
     /// Types to include with their full definition.
-    pub full: HashSet<CanonicalType>,
+    pub full: HashSet<CCanonicalType>,
     /// Types to include as opaque forward declarations only.
-    pub opaque: HashSet<CanonicalType>,
+    pub opaque: HashSet<CCanonicalType>,
 }
 
-/// Build [`CanonicalType`]s for items annotated with `#[cheadergen::export]`.
+/// Build [`CCanonicalType`]s for items annotated with `#[cheadergen::export]`.
 ///
 /// Looks up each annotated ID in the crate's import index to determine its
 /// path. Items that aren't structs, enums, unions, or type aliases are
@@ -91,7 +91,7 @@ pub fn exported_via_annotations(
                     continue;
                 }
             };
-        let canonical = ty.canonicalize(collection);
+        let canonical = CCanonicalType::new(ty.canonicalize(collection));
 
         match export_mode {
             ExportMode::Full => full.insert(canonical),
