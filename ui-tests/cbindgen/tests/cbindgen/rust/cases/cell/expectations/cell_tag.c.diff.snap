@@ -1,6 +1,6 @@
 ---
 source: ui-tests/cbindgen/src/lib.rs
-assertion_line: 166
+assertion_line: 194
 expression: actual
 ---
 #include <stdarg.h>
@@ -10,6 +10,8 @@ expression: actual
 
 struct MyStruct;
 
-struct Foo;
+struct NotReprC_RefCell_i32;
 
-void root(const struct Foo *a, const struct MyStruct *with_cell);
+typedef struct NotReprC_RefCell_i32 Foo;
+
+void root(const Foo *a, const struct MyStruct *with_cell);

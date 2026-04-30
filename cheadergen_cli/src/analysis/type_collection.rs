@@ -13,7 +13,6 @@ use crate::analysis::extern_items::ExternItems;
 use crate::cli::generate::PackageTypeOverrides;
 use crate::diagnostic::DiagnosticSink;
 use crate::indexing::ExportMode;
-use rustdoc_types::ItemEnum;
 
 /// C and C++ reserved keywords that cannot be used as identifiers.
 ///
@@ -833,42 +832,74 @@ fn resolve_all_type_definitions(
         }
     }
 
-    // Phase 2: emit remaining pointer-only types as opaque forward declarations.
-    let opaque: Vec<(CCanonicalType, PathType)> = seen
-        .iter()
-        .filter(|(ct, _)| !resolved.contains_key(*ct))
-        .map(|(ct, _)| (ct.clone(), canonical_type_to_path(ct)))
-        .collect();
-    for (canonical, path_type) in opaque {
-        let default_name = c_type_name(&Type::Path(path_type.clone()));
-        let renamed = annotation_rename(collection, &path_type);
-        let original_name = renamed.as_ref().map(|_| default_name.clone());
-        let name = renamed.unwrap_or(default_name);
-        let rustdoc_id = path_type
-            .rustdoc_id
-            .map(|id| GlobalItemId::new(id, path_type.package_id.clone()));
-        // Determine if the underlying item is a union so we emit the correct tag.
-        let is_union = rustdoc_id
-            .as_ref()
-            .map(|gid| collection.get_item_by_global_type_id(gid))
-            .is_some_and(|item| matches!(item.inner, ItemEnum::Union(_)));
-        let kind = if is_union {
-            CTypeKind::OpaqueUnion
-        } else {
-            CTypeKind::OpaqueStruct
-        };
-        let is_generic_instantiation = has_concrete_generic_args(&path_type);
-        resolved.insert(
-            canonical,
-            CTypeDefinition {
-                name,
-                original_name,
-                kind,
-                rustdoc_id,
-                defining_package: path_type.package_id.clone(),
-                is_generic_instantiation,
-            },
-        );
+    // Phase 2: pointer-only types — fixed-point loop that resolves each type's
+    // real kind, preserves typedefs (aliases and `repr(transparent)` wrappers)
+    // verbatim, and downgrades genuine compound types to opaque forward
+    // declarations. A typedef enqueues its inner type for pointer-only
+    // resolution in a subsequent iteration so transitive references stay in the
+    // collection.
+    loop {
+        let unresolved: Vec<(CCanonicalType, PathType)> = seen
+            .iter()
+            .filter(|(ct, _)| !resolved.contains_key(*ct))
+            .map(|(ct, _)| (ct.clone(), canonical_type_to_path(ct)))
+            .collect();
+
+        if unresolved.is_empty() {
+            break;
+        }
+
+        for (canonical, path_type) in unresolved {
+            let per_type_prefix =
+                annotation_prefix_with_name(collection, &path_type, enum_prefix_with_name);
+
+            let default_name = c_type_name(&Type::Path(path_type.clone()));
+            let renamed = annotation_rename(collection, &path_type);
+            let original_name = renamed.as_ref().map(|_| default_name.clone());
+            let name = renamed.unwrap_or(default_name);
+            let rustdoc_id = path_type
+                .rustdoc_id
+                .map(|id| GlobalItemId::new(id, path_type.package_id.clone()));
+
+            let resolved_kind = resolve_type_kind(
+                &name,
+                &path_type,
+                collection,
+                per_type_prefix,
+                diagnostics,
+            )?;
+
+            let kind = match resolved_kind {
+                CTypeKind::Typedef(def) => {
+                    collect_paths_from_type(
+                        &def.inner,
+                        TypeUsage::BehindPointer,
+                        seen,
+                        collection,
+                        overrides,
+                    );
+                    CTypeKind::Typedef(def)
+                }
+                CTypeKind::Union(_) | CTypeKind::OpaqueUnion => CTypeKind::OpaqueUnion,
+                CTypeKind::Struct(_)
+                | CTypeKind::TaggedUnion(_)
+                | CTypeKind::FieldlessEnum(_)
+                | CTypeKind::OpaqueStruct => CTypeKind::OpaqueStruct,
+            };
+
+            let is_generic_instantiation = has_concrete_generic_args(&path_type);
+            resolved.insert(
+                canonical,
+                CTypeDefinition {
+                    name,
+                    original_name,
+                    kind,
+                    rustdoc_id,
+                    defining_package: path_type.package_id.clone(),
+                    is_generic_instantiation,
+                },
+            );
+        }
     }
 
     let defs: Vec<CTypeDefinition> = resolved.into_values().collect();

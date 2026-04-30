@@ -48,6 +48,12 @@ pub type Size = Length;
 /// Alias to an alias to a struct.
 pub type Coordinate = Position;
 
+// --- `repr(transparent)` wrapper — also emitted as a `typedef` in C ---
+
+/// `repr(transparent)` wrapper around a `repr(C)` struct.
+#[repr(transparent)]
+pub struct WrappedPoint(pub Point);
+
 // --- Usage in a struct field ---
 
 #[repr(C)]
@@ -68,5 +74,19 @@ pub extern "C" fn use_aliases(
     _size: Size,
     _coord: Coordinate,
     _rect: Rect,
+) {
+}
+
+/// Aliases and transparent wrappers used behind pointers — exercises that the
+/// generator emits the typedef name without a `struct` tag prefix.
+#[unsafe(no_mangle)]
+pub extern "C" fn use_alias_ptrs(
+    _len: *const Length,
+    _pos: *const Position,
+    _shade: *const Shade,
+    _num: *const Number,
+    _size: *const Size,
+    _coord: *const Coordinate,
+    _wrapped: *const WrappedPoint,
 ) {
 }

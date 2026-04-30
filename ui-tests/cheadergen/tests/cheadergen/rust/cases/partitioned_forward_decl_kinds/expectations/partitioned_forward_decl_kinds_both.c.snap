@@ -14,8 +14,23 @@ typedef union MyUnion MyUnion;
 
 typedef struct MyEnum MyEnum;
 
+/**
+ * Type alias to a `repr(C)` struct — emitted as a `typedef` in C.
+ */
+typedef struct MyStruct MyAlias;
+
+/**
+ * `repr(transparent)` wrapper around a `repr(C)` struct — emitted as a
+ * `typedef` in C.
+ */
+typedef struct MyStruct MyTransparent;
+
 const struct MyStruct *use_struct_ptr(const struct MyStruct *ptr);
 
 const union MyUnion *use_union_ptr(const union MyUnion *ptr);
 
 const struct MyEnum *use_enum_ptr(const struct MyEnum *ptr);
+
+const MyAlias *use_alias_ptr(const MyAlias *ptr);
+
+const MyTransparent *use_transparent_ptr(const MyTransparent *ptr);

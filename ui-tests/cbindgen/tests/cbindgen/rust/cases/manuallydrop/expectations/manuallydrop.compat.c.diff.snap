@@ -1,6 +1,6 @@
 ---
 source: ui-tests/cbindgen/src/lib.rs
-assertion_line: 166
+assertion_line: 194
 expression: actual
 ---
 #if 0
@@ -23,12 +23,14 @@ using ManuallyDrop = T;
 
 typedef struct MyStruct MyStruct;
 
-typedef struct Foo Foo;
+typedef struct NotReprC_ManuallyDrop_Point NotReprC_ManuallyDrop_Point;
 
 typedef struct {
   int32_t x;
   int32_t y;
 } Point;
+
+typedef NotReprC_ManuallyDrop_Point Foo;
 
 #ifdef __cplusplus
 extern "C" {

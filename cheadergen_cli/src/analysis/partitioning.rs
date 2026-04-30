@@ -306,17 +306,24 @@ pub fn partition_types(
         }
     }
 
-    // Prune non-target crates that only contain opaque types (forward declarations).
-    // These don't need separate header files — their types will be forward-declared
-    // inline in consuming headers.
+    // Prune non-target crates that only contain forward-declarable types.
+    // Opaque structs/unions and typedefs (aliases, `repr(transparent)` wrappers)
+    // can all be expressed inline in consuming headers without a separate dep
+    // header — typedefs reference their inner type, which is itself forward-
+    // declared or included from elsewhere.
     let target_ids: HashSet<&PackageId> = target_extern_items.iter().map(|(id, _)| id).collect();
     let opaque_only_crates: Vec<PackageId> = per_crate
         .iter()
         .filter(|(id, defs)| {
             !target_ids.contains(id)
-                && defs
-                    .iter()
-                    .all(|d| matches!(d.kind, CTypeKind::OpaqueStruct | CTypeKind::OpaqueUnion))
+                && defs.iter().all(|d| {
+                    matches!(
+                        d.kind,
+                        CTypeKind::OpaqueStruct
+                            | CTypeKind::OpaqueUnion
+                            | CTypeKind::Typedef(_)
+                    )
+                })
         })
         .map(|(id, _)| id.clone())
         .collect();

@@ -1,6 +1,6 @@
 ---
 source: ui-tests/cbindgen/src/lib.rs
-assertion_line: 166
+assertion_line: 194
 expression: actual
 ---
 #include <stdarg.h>
@@ -12,7 +12,7 @@ typedef struct HashTable_c_char__c_char__false HashTable_c_char__c_char__false;
 
 typedef struct HashTable_c_char__u64__true HashTable_c_char__u64__true;
 
-typedef struct c_char c_char;
+typedef int8_t c_char;
 
 HashTable_c_char__c_char__false *new_set(void);
 

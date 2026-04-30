@@ -1,6 +1,6 @@
 ---
-source: ui-tests/src/generate/mod.rs
-assertion_line: 171
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 332
 expression: output
 ---
 #include <stdarg.h>
@@ -54,6 +54,11 @@ typedef uint32_t Size;
  */
 typedef struct Point Coordinate;
 
+/**
+ * `repr(transparent)` wrapper around a `repr(C)` struct.
+ */
+typedef struct Point WrappedPoint;
+
 struct Rect {
   Position origin;
   Length width;
@@ -61,3 +66,9 @@ struct Rect {
 };
 
 void use_aliases(Length _len, Position _pos, Shade _shade, Number _num, Size _size, Coordinate _coord, struct Rect _rect);
+
+/**
+ * Aliases and transparent wrappers used behind pointers — exercises that the
+ * generator emits the typedef name without a `struct` tag prefix.
+ */
+void use_alias_ptrs(const Length *_len, const Position *_pos, const Shade *_shade, const Number *_num, const Size *_size, const Coordinate *_coord, const WrappedPoint *_wrapped);
