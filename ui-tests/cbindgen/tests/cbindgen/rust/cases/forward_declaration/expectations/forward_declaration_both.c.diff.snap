@@ -1,6 +1,6 @@
 ---
 source: ui-tests/cbindgen/src/lib.rs
-assertion_line: 166
+assertion_line: 194
 expression: actual
 ---
 #if 0
@@ -19,7 +19,7 @@ expression: actual
 #include <stdlib.h>
 
 typedef struct StructInfo {
-  const const struct TypeInfo * *fields;
+  const struct TypeInfo *const *fields;
   uintptr_t num_fields;
 } StructInfo;
 

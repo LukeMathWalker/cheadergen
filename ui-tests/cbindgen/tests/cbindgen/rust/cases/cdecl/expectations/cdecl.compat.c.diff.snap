@@ -1,6 +1,6 @@
 ---
 source: ui-tests/cbindgen/src/lib.rs
-assertion_line: 166
+assertion_line: 194
 expression: actual
 ---
 #include <stdarg.h>
@@ -14,7 +14,7 @@ extern "C" {
 
 void (*)(void) O(void);
 
-void root(void (*a)(void), void (*b)(void), bool (*c)(int32_t, int32_t), bool (*)(float) (*d)(int32_t), const int32_t[16] *(*e)(void), const int32_t *f, const const int32_t * *g, const int32_t * *h, const int32_t[16] *i, double (**j)(float), int32_t[16] k, const int32_t *[16] l, bool (*)(int32_t, int32_t)[16] m, void (*)(int32_t, int32_t)[16] n, void (*p)(int32_t named1st, bool, bool named3rd, int32_t));
+void root(void (*a)(void), void (*b)(void), bool (*c)(int32_t, int32_t), bool (*)(float) (*d)(int32_t), const int32_t[16] *(*e)(void), const int32_t *f, const int32_t *const *g, int32_t *const *h, const int32_t[16] *i, double (**j)(float), int32_t[16] k, const int32_t *[16] l, bool (*)(int32_t, int32_t)[16] m, void (*)(int32_t, int32_t)[16] n, void (*p)(int32_t named1st, bool, bool named3rd, int32_t));
 
 #ifdef __cplusplus
 }  // extern "C"

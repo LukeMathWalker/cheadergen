@@ -478,33 +478,18 @@ fn write_c_param(
 fn write_c_type(ty: &Type, style: &Style, ctx: &TypeEmitCtx<'_>, out: &mut String) {
     match ty {
         Type::ScalarPrimitive(p) => out.push_str(scalar_to_c(p)),
-        Type::RawPointer(ptr) => {
-            if let Some((fp, depth)) = fn_ptr_through_pointers(&ptr.inner) {
-                let declarator = "*".repeat(depth + 1);
+        Type::RawPointer(_) | Type::Reference(_) => {
+            if let Some((fp, depth)) = fn_ptr_through_pointers(ty) {
+                let declarator = "*".repeat(depth);
                 write_fn_ptr_decl(fp, &declarator, style, ctx, out);
-            } else if ptr.is_mutable {
-                write_c_type(&ptr.inner, style, ctx, out);
-                out.push_str(" *");
-            } else {
-                out.push_str("const ");
-                write_c_type(&ptr.inner, style, ctx, out);
-                out.push_str(" *");
+                return;
             }
+            write_pointer_chain(ty, style, ctx, out);
         }
         Type::Tuple(t) if t.elements.is_empty() => out.push_str("void"),
         Type::Array(a) => {
             write_c_type(&a.element_type, style, ctx, out);
             write!(out, "[{}]", a.len).unwrap();
-        }
-        Type::Reference(r) => {
-            if r.is_mutable {
-                write_c_type(&r.inner, style, ctx, out);
-                out.push_str(" *");
-            } else {
-                out.push_str("const ");
-                write_c_type(&r.inner, style, ctx, out);
-                out.push_str(" *");
-            }
         }
         Type::FunctionPointer(fp) => {
             write_fn_ptr_decl(fp, "", style, ctx, out);
@@ -545,6 +530,54 @@ fn write_c_type(ty: &Type, style: &Style, ctx: &TypeEmitCtx<'_>, out: &mut Strin
         }
         Type::Tuple(_) | Type::Slice(_) | Type::Generic(_) => {
             unreachable!("unsupported type in C codegen: {ty:?}")
+        }
+    }
+}
+
+/// Render a chain of `*const`/`*mut` (and `&`/`&mut`) wrappers as a single C
+/// type spelling.
+///
+/// Rust raw pointers and references encode the constness of the *pointee*:
+/// `*const T` says the pointee is read-only through this view. When chained,
+/// the constness of the outer Rust pointer is a statement about the *next-inner*
+/// pointer (it's the thing being read-only), so it becomes a `const` on that
+/// inner C `*` (i.e., `*const`). The innermost pointer's constness lands as
+/// a leading `const` on the base type. The outermost C `*` (closest to the
+/// declarator name) never carries a `const` qualifier — there is no
+/// further-outer Rust pointer to source it from.
+///
+/// Examples:
+/// - `*const i32`               → `const int32_t *`
+/// - `*const *const i32`        → `const int32_t *const *`
+/// - `*const *mut i32`          → `int32_t *const *`
+/// - `*mut *const i32`          → `const int32_t * *`
+fn write_pointer_chain(ty: &Type, style: &Style, ctx: &TypeEmitCtx<'_>, out: &mut String) {
+    let mut levels: Vec<bool> = Vec::new();
+    let mut current = ty;
+    loop {
+        match current {
+            Type::RawPointer(p) => {
+                levels.push(!p.is_mutable);
+                current = &p.inner;
+            }
+            Type::Reference(r) => {
+                levels.push(!r.is_mutable);
+                current = &r.inner;
+            }
+            _ => break,
+        }
+    }
+    let innermost_const = *levels
+        .last()
+        .expect("write_pointer_chain called with no pointer/reference levels");
+    if innermost_const {
+        out.push_str("const ");
+    }
+    write_c_type(current, style, ctx, out);
+    for i in (0..levels.len()).rev() {
+        out.push_str(" *");
+        if i > 0 && levels[i - 1] {
+            out.push_str("const");
         }
     }
 }
