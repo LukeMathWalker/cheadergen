@@ -1,0 +1,8 @@
+# Both crates are targets — cheadergen scans the case directory and emits
+# one header per library crate. The entrypoint references the dep types
+# only behind pointers; the dep keeps its own header.
+
+"cpp/plain" = "exclude"
+"cython/plain" = "exclude"
+"cython/tag" = "exclude"
+"symbol" = "exclude"

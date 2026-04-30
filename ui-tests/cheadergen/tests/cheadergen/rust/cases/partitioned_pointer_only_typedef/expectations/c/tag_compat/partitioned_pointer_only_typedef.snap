@@ -9,6 +9,8 @@ expression: output
 #include <stdlib.h>
 #include "partitioned_pointer_only_typedef_dep.h"
 
+typedef uint32_t Aliased;
+
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus

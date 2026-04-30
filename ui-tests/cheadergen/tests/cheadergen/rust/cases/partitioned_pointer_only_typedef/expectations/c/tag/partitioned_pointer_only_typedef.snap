@@ -9,6 +9,8 @@ expression: output
 #include <stdlib.h>
 #include "partitioned_pointer_only_typedef_dep.h"
 
+typedef uint32_t Aliased;
+
 int32_t use_outer(struct Outer o);
 
 const Aliased *use_aliased(const Aliased *p);

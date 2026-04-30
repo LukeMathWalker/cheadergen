@@ -441,6 +441,17 @@ name = "partitioned-pointer-only-dep"
 version = "0.1.0"
 
 [[package]]
+name = "partitioned-pointer-only-kinds"
+version = "0.1.0"
+dependencies = [
+ "partitioned-pointer-only-kinds-dep",
+]
+
+[[package]]
+name = "partitioned-pointer-only-kinds-dep"
+version = "0.1.0"
+
+[[package]]
 name = "partitioned-pointer-only-typedef"
 version = "0.1.0"
 dependencies = [
@@ -458,6 +469,20 @@ dependencies = [
 [[package]]
 name = "partitioned-pointer-only-typedef-dep2"
 version = "0.1.0"
+
+[[package]]
+name = "partitioned-pointer-only-with-header"
+version = "0.1.0"
+dependencies = [
+ "partitioned-pointer-only-with-header-dep",
+]
+
+[[package]]
+name = "partitioned-pointer-only-with-header-dep"
+version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "partitioned-rename"

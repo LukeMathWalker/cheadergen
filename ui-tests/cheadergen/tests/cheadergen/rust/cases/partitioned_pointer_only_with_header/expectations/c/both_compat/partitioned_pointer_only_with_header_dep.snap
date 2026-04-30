@@ -7,7 +7,18 @@ expression: output
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include "partitioned_pointer_only_typedef_dep.h"
+
+typedef struct Anchor {
+  int32_t value;
+} Anchor;
+
+typedef struct OtherStruct {
+  uint8_t flag;
+} OtherStruct;
+
+typedef struct RenamedFoo {
+  uint64_t value;
+} RenamedFoo;
 
 typedef uint32_t Aliased;
 
@@ -15,9 +26,11 @@ typedef uint32_t Aliased;
 extern "C" {
 #endif // __cplusplus
 
-int32_t use_outer(struct Outer o);
+int32_t anchor_value(struct Anchor a);
 
-const Aliased *use_aliased(const Aliased *p);
+uint8_t other_flag(struct OtherStruct o);
+
+uint64_t foo_value(struct RenamedFoo f);
 
 #ifdef __cplusplus
 }  // extern "C"

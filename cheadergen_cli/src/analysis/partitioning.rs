@@ -270,10 +270,7 @@ pub fn partition_types(
                     def.kind.clone()
                 } else {
                     // Pointer-only: emit as opaque forward declaration.
-                    match &def.kind {
-                        CTypeKind::Union(_) | CTypeKind::OpaqueUnion => CTypeKind::OpaqueUnion,
-                        _ => CTypeKind::OpaqueStruct,
-                    }
+                    forward_decl_kind(&def.kind)
                 };
 
                 if i + 1 < pkgs_vec.len() {
@@ -427,6 +424,9 @@ pub fn compute_header_deps(
         pointer_only_from.retain(|p| !by_value_from.contains(p));
 
         // Build includes (only for packages that actually have headers).
+        // Pointer-only deps with their own header don't get auto-included —
+        // they're forward-declared inline below to keep the consumer header
+        // self-contained.
         let mut includes: Vec<String> = by_value_from
             .iter()
             .filter(|p| packages_with_headers.contains(*p) && !overrides.opaque.contains(*p))
@@ -471,14 +471,20 @@ pub fn compute_header_deps(
             }
         }
 
-        // Pointer-only deps: forward-declare types that are only used behind pointers.
-        // Skip deps that have their own header (types available via #include).
+        // Pointer-only deps with their own header: forward-declare the
+        // referenced types inline so the consumer header doesn't need to
+        // `#include` the dep header (which would drag in unrelated decls).
+        // Compound kinds are downgraded via `forward_decl_kind`; typedefs and
+        // fieldless enums are emitted in full because C has no forward-decl
+        // form for them.
+        //
+        // `pointer_only_from` is built from `type_to_package`, which only
+        // contains types from non-pruned, header-having deps — so every
+        // `dep_pkg` here is guaranteed to have an entry in
+        // `partitioned.per_crate`. Pointer-only references to *pruned*
+        // (typedef/opaque-only) deps are already covered by the
+        // `partitioned.opaque_types` matching loop above.
         for dep_pkg in &pointer_only_from {
-            if packages_with_headers.contains(dep_pkg) && !overrides.opaque.contains(*dep_pkg) {
-                continue; // Dep has a header; types available via #include.
-            }
-            // Collect pointer-referenced type names from this header's types AND
-            // from extern function signatures (for target packages).
             let mut ptr_names: HashSet<String> = HashSet::new();
             for def in defs {
                 for n in collect_pointer_type_names(def) {
@@ -490,32 +496,35 @@ pub fn compute_header_deps(
             if let Some((_, extern_items)) = target_extern_items.iter().find(|(id, _)| id == pkg_id)
             {
                 for func in &extern_items.fns {
+                    let mut names = Vec::new();
                     for input in &func.header.inputs {
-                        let mut names = Vec::new();
                         collect_pointer_names_from_type(&input.type_, &mut names);
-                        for n in names {
-                            ptr_names.insert(n);
-                        }
                     }
                     if let Some(ref output) = func.header.output {
-                        let mut names = Vec::new();
                         collect_pointer_names_from_type(output, &mut names);
-                        for n in names {
+                    }
+                    for n in names {
+                        if type_to_package.get(n.as_str()) == Some(dep_pkg) {
                             ptr_names.insert(n);
                         }
                     }
                 }
             }
-            // Find matching opaque types and create forward declarations.
-            // Match by name or original_name (for renamed types).
-            for opaque_def in &partitioned.opaque_types {
-                let matches = ptr_names.contains(&opaque_def.name)
-                    || opaque_def
+
+            let Some(dep_defs) = partitioned.per_crate.get(*dep_pkg) else {
+                continue;
+            };
+            for def in dep_defs {
+                let matches = ptr_names.contains(&def.name)
+                    || def
                         .original_name
                         .as_ref()
                         .is_some_and(|orig| ptr_names.contains(orig));
                 if matches {
-                    forward_decls.push(opaque_def.clone());
+                    forward_decls.push(CTypeDefinition {
+                        kind: forward_decl_kind(&def.kind),
+                        ..def.clone()
+                    });
                 }
             }
         }
@@ -698,6 +707,25 @@ impl HeaderFilenames {
         self.names
             .get(id)
             .expect("package not in HeaderFilenames map")
+    }
+}
+
+/// Map a [`CTypeKind`] to the kind that should be emitted when the type is
+/// referenced only behind a pointer in the consumer header.
+///
+/// Compounds collapse to opaque struct/union forward declarations, with the
+/// tag chosen to match what `codegen` would emit for the full definition (a
+/// `repr(uN)` tagged union renders as a C `union`, so its forward decl must
+/// say `union`, not `struct`). Typedefs and fieldless enums cannot be
+/// forward-declared in standard C — they're returned unchanged so the full
+/// definition is emitted inline.
+fn forward_decl_kind(kind: &CTypeKind) -> CTypeKind {
+    match kind {
+        CTypeKind::Union(_) | CTypeKind::OpaqueUnion => CTypeKind::OpaqueUnion,
+        CTypeKind::Struct(_) | CTypeKind::OpaqueStruct => CTypeKind::OpaqueStruct,
+        CTypeKind::TaggedUnion(t) if t.repr.is_repr_c() => CTypeKind::OpaqueStruct,
+        CTypeKind::TaggedUnion(_) => CTypeKind::OpaqueUnion,
+        other => other.clone(),
     }
 }
 

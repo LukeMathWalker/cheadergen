@@ -1,0 +1,29 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 294
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct Anchor {
+  int32_t value;
+} Anchor;
+
+typedef struct OtherStruct {
+  uint8_t flag;
+} OtherStruct;
+
+typedef struct RenamedFoo {
+  uint64_t value;
+} RenamedFoo;
+
+typedef uint32_t Aliased;
+
+int32_t anchor_value(struct Anchor a);
+
+uint8_t other_flag(struct OtherStruct o);
+
+uint64_t foo_value(struct RenamedFoo f);

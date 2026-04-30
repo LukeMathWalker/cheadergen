@@ -1,0 +1,36 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 294
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef enum {
+  One,
+  Two,
+} Fieldless;
+
+typedef union FooUnion FooUnion;
+
+typedef struct TaggedC TaggedC;
+
+typedef union TaggedInt TaggedInt;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+const FooUnion *use_union(const FooUnion *p);
+
+const TaggedC *use_tagged_c(const TaggedC *p);
+
+const TaggedInt *use_tagged_int(const TaggedInt *p);
+
+const Fieldless *use_fieldless(const Fieldless *p);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

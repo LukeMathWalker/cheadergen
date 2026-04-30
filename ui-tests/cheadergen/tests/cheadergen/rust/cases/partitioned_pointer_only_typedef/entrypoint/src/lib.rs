@@ -1,12 +1,10 @@
-//! Target uses `dep::Outer` by-value (so it pulls `dep`'s header in via
-//! `#include`) and uses `dep2::Aliased` only behind a pointer.
+//! Uses `dep::Outer` by-value (so the entrypoint header `#include`s `dep`)
+//! and `dep2::Aliased` only behind a pointer.
 //!
-//! Because the entrypoint never references any `dep2` type by value,
-//! `dep2` is not in `by_value_from`. `dep2` is also not pruned to opaque-only
-//! (it has `Inner`, a real struct), so `Aliased` does not land in
-//! `partitioned.opaque_types` either. The forward-declaration / type-hints
-//! pipeline currently misses it, and the entrypoint header renders the
-//! `Aliased` parameter as `struct Aliased *` under tag styles.
+//! The entrypoint header should declare `Aliased` inline as
+//! `typedef uint32_t Aliased;` — it must not `#include` `dep2`'s header
+//! directly, even though the typedef lives there. The function signature
+//! must spell the parameter as `Aliased`, not `struct Aliased`.
 
 use partitioned_pointer_only_typedef_dep::Outer;
 use partitioned_pointer_only_typedef_dep2::Aliased;

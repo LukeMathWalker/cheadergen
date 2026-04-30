@@ -1,0 +1,21 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 294
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct OtherStruct OtherStruct;
+
+typedef struct RenamedFoo RenamedFoo;
+
+typedef uint32_t Aliased;
+
+const Aliased *use_aliased(const Aliased *p);
+
+const struct OtherStruct *use_other(const struct OtherStruct *o);
+
+const struct RenamedFoo *use_foo(const struct RenamedFoo *f);

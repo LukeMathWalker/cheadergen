@@ -1,0 +1,7 @@
+# Both crates are targets. The entrypoint references each kind only behind
+# a pointer; the dep keeps its own header.
+
+"cpp/plain" = "exclude"
+"cython/plain" = "exclude"
+"cython/tag" = "exclude"
+"symbol" = "exclude"

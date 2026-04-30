@@ -1,0 +1,55 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 294
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef enum Fieldless {
+  One,
+  Two,
+} Fieldless;
+
+typedef union FooUnion {
+  int32_t i;
+  float f;
+} FooUnion;
+
+typedef enum TaggedC_Tag {
+  A,
+  B,
+} TaggedC_Tag;
+
+typedef struct TaggedC {
+  TaggedC_Tag tag;
+  union {
+    struct {
+      int32_t a;
+    };
+  };
+} TaggedC;
+
+enum TaggedInt_Tag {
+  X,
+  Y,
+};
+typedef uint8_t TaggedInt_Tag;
+
+typedef union TaggedInt {
+  TaggedInt_Tag tag;
+  struct {
+    TaggedInt_Tag x_tag;
+    uint32_t x;
+  };
+} TaggedInt;
+
+union FooUnion make_union(void);
+
+struct TaggedC make_tagged_c(void);
+
+union TaggedInt make_tagged_int(void);
+
+enum Fieldless make_fieldless(void);

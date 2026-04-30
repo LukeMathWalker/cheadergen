@@ -1,0 +1,10 @@
+[package]
+name = "partitioned-pointer-only-with-header"
+version = "0.1.0"
+edition.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+partitioned-pointer-only-with-header-dep = { path = "../dep" }
