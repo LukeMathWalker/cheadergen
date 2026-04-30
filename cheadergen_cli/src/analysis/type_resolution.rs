@@ -633,9 +633,12 @@ fn resolve_tagged_union(
             }
         };
 
+        let discriminant = variant.discriminant.as_ref().map(|d| d.expr.clone());
+
         variants.push(CTaggedVariant {
             name: variant_name,
             body,
+            discriminant,
         });
     }
 

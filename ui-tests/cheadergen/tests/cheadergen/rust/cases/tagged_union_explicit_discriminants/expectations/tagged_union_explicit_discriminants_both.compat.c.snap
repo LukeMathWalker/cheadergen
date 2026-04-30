@@ -1,0 +1,89 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 332
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+enum Bitflagged
+#ifdef __cplusplus
+  : uint8_t
+#endif // __cplusplus
+ {
+  Union = 1,
+  Intersection = 2,
+  Term = 4,
+  Virtual = 8,
+  Numeric = 16,
+  Metric = 32,
+  HybridMetric = 64,
+};
+#ifndef __cplusplus
+typedef uint8_t Bitflagged;
+#endif // __cplusplus
+
+enum BitflaggedWithData_Tag
+#ifdef __cplusplus
+  : uint8_t
+#endif // __cplusplus
+ {
+  Unit = 1,
+  Single = 2,
+  Pair = 4,
+};
+#ifndef __cplusplus
+typedef uint8_t BitflaggedWithData_Tag;
+#endif // __cplusplus
+
+typedef struct Pair_Body {
+  BitflaggedWithData_Tag tag;
+  uint8_t x;
+  uint16_t y;
+} Pair_Body;
+
+typedef union BitflaggedWithData {
+  BitflaggedWithData_Tag tag;
+  struct {
+    BitflaggedWithData_Tag single_tag;
+    uint32_t single;
+  };
+  struct Pair_Body pair;
+} BitflaggedWithData;
+
+enum CTaggedExplicit_Tag
+#ifdef __cplusplus
+  : uint8_t
+#endif // __cplusplus
+ {
+  A = 10,
+  B = 20,
+  C = 30,
+};
+#ifndef __cplusplus
+typedef uint8_t CTaggedExplicit_Tag;
+#endif // __cplusplus
+
+typedef struct CTaggedExplicit {
+  CTaggedExplicit_Tag tag;
+  union {
+    struct {
+      uint32_t b;
+    };
+    struct {
+      uint16_t c;
+    };
+  };
+} CTaggedExplicit;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+void root(Bitflagged a, union BitflaggedWithData b, struct CTaggedExplicit c);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

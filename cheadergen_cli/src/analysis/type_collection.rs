@@ -338,6 +338,7 @@ pub struct CTaggedUnionDef {
 pub struct CTaggedVariant {
     pub name: String,
     pub body: Option<CTaggedVariantBody>,
+    pub discriminant: Option<String>,
 }
 
 /// The body (fields) of a tagged union variant.

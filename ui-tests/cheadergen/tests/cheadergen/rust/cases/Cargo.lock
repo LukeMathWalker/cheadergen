@@ -703,6 +703,10 @@ name = "tagged_union"
 version = "0.1.0"
 
 [[package]]
+name = "tagged_union_explicit_discriminants"
+version = "0.1.0"
+
+[[package]]
 name = "transparent"
 version = "0.1.0"
 

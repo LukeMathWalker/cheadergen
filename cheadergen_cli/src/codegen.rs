@@ -1019,7 +1019,7 @@ fn write_c_tagged_union(
             };
             crate::analysis::CEnumVariant {
                 name: CIdentifier::new(variant_name),
-                discriminant: None,
+                discriminant: v.discriminant.clone(),
             }
         })
         .collect();

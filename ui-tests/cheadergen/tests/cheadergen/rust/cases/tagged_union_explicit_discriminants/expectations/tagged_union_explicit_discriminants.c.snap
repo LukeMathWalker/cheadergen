@@ -1,0 +1,63 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 332
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+enum Bitflagged {
+  Union = 1,
+  Intersection = 2,
+  Term = 4,
+  Virtual = 8,
+  Numeric = 16,
+  Metric = 32,
+  HybridMetric = 64,
+};
+typedef uint8_t Bitflagged;
+
+enum BitflaggedWithData_Tag {
+  Unit = 1,
+  Single = 2,
+  Pair = 4,
+};
+typedef uint8_t BitflaggedWithData_Tag;
+
+typedef struct {
+  BitflaggedWithData_Tag tag;
+  uint8_t x;
+  uint16_t y;
+} Pair_Body;
+
+typedef union {
+  BitflaggedWithData_Tag tag;
+  struct {
+    BitflaggedWithData_Tag single_tag;
+    uint32_t single;
+  };
+  Pair_Body pair;
+} BitflaggedWithData;
+
+enum CTaggedExplicit_Tag {
+  A = 10,
+  B = 20,
+  C = 30,
+};
+typedef uint8_t CTaggedExplicit_Tag;
+
+typedef struct {
+  CTaggedExplicit_Tag tag;
+  union {
+    struct {
+      uint32_t b;
+    };
+    struct {
+      uint16_t c;
+    };
+  };
+} CTaggedExplicit;
+
+void root(Bitflagged a, BitflaggedWithData b, CTaggedExplicit c);
