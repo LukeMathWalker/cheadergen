@@ -1,16 +1,29 @@
-//! Annotations for controlling C/C++ header generation from Rust.
+//! Configure how `cheadergen` generates C/C++ headers from Rust.
 //!
-//! `cheadergen` generates C/C++ header files from Rust libraries that expose a `pub extern "C"` API.
-//! This crate provides attribute macros to control how Rust items appear in the generated header.
+//! `cheadergen` generates C/C++ header files from Rust libraries that expose a
+//! `pub extern "C"` API. Output is controlled in two complementary ways:
+//!
+//! - **[`cheadergen.toml`](config_reference)** — a project-wide TOML file that
+//!   the CLI loads via `--config`. It sets the preamble, include guards, sort
+//!   order, per-package opaque/skip rules, per-header overrides, and
+//!   language-specific options. See the [config reference](config_reference)
+//!   for the full schema.
+//! - **Per-item attributes** — `#[cheadergen::config(...)]` on items and
+//!   `#[cheadergen(...)]` on fields and variants, placed in your Rust source
+//!   to control how an individual definition appears in the generated header.
+//!   See the [`config`] macro for the directive reference.
+//!
+//! # Per-item attributes
 //!
 //! There are two attribute levels:
 //!
-//! - [`#[cheadergen::config(...)]`](config) — placed on items (structs, enums, unions, functions,
-//!   statics, type aliases) to control their header representation.
-//! - `#[cheadergen(...)]` — placed on fields and enum variants to control their individual
-//!   representation within a parent item.
+//! - [`#[cheadergen::config(...)]`](config) — placed on items (structs, enums,
+//!   unions, functions, statics, type aliases) to control their header
+//!   representation.
+//! - `#[cheadergen(...)]` — placed on fields and enum variants to control
+//!   their individual representation within a parent item.
 //!
-//! # Example
+//! ## Example
 //!
 //! ```ignore
 //! #[cheadergen::config(export, rename = "CColor")]
@@ -30,8 +43,6 @@
 //! #[unsafe(no_mangle)]
 //! pub extern "C" fn internal_helper() {}
 //! ```
-//!
-//! See [`config`] for the full directive reference.
 
 /// Control how a Rust item appears in the generated C/C++ header.
 ///
@@ -202,3 +213,5 @@
 ///
 /// Cannot be applied to enum variants.
 pub use cheadergen_macros::config;
+
+pub mod config_reference;

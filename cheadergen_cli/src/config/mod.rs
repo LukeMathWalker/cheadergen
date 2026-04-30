@@ -1,3 +1,8 @@
+// User-facing documentation for the `cheadergen.toml` schema lives in
+// `cheadergen::config_reference` (see `cheadergen/src/config_reference.rs`).
+// When you add, rename, or change the meaning of a field below, update that
+// page so it stays in sync with what users see on docs.rs.
+
 pub mod cbindgen;
 
 use std::collections::{BTreeMap, HashMap};
@@ -1504,5 +1509,180 @@ include_guard = "LIB_B_H"
             }
             _ => panic!("expected Config::C"),
         }
+    }
+
+    /// Drift guard: every TOML key produced by serializing a fully-populated
+    /// `RawConfig` must appear in `cheadergen/src/config_reference.rs`.
+    ///
+    /// The instances below use struct expressions without `..Default::default()`,
+    /// so the compiler refuses to build them after a new field is added until
+    /// the test is updated — at which point this assertion catches missing
+    /// documentation in the user-facing reference page.
+    #[test]
+    fn config_reference_documents_every_field() {
+        const PACKAGE_DUMMY: &str = "cheadergen-test-package-dummy";
+        const HEADER_DUMMY: &str = "cheadergen-test-header-dummy";
+
+        let raw_c = RawCSection {
+            style: Some(Style::Both),
+            cpp_compat: Some(true),
+            preamble: Some("p".into()),
+            trailer: Some("t".into()),
+            autogen_warning: Some("w".into()),
+            pragma_once: Some(true),
+            includes: Some(vec!["x".into()]),
+            no_includes: Some(true),
+            after_includes: Some("a".into()),
+            documentation: Some(true),
+            documentation_style: Some(DocumentationStyle::Auto),
+            documentation_length: Some(DocumentationLength::Full),
+        };
+        let raw_cxx = RawCxxSection {
+            preamble: Some("p".into()),
+            trailer: Some("t".into()),
+            autogen_warning: Some("w".into()),
+            pragma_once: Some(true),
+            includes: Some(vec!["x".into()]),
+            no_includes: Some(true),
+            after_includes: Some("a".into()),
+            documentation: Some(true),
+            documentation_style: Some(DocumentationStyle::Auto),
+            documentation_length: Some(DocumentationLength::Full),
+        };
+        let raw_header = RawHeaderSection {
+            include_guard: Some("G".into()),
+            preamble: Some("p".into()),
+            trailer: Some("t".into()),
+            autogen_warning: Some("w".into()),
+            pragma_once: Some(true),
+            includes: Some(vec!["x".into()]),
+            no_includes: Some(true),
+            after_includes: Some("a".into()),
+            documentation: Some(true),
+            documentation_style: Some(DocumentationStyle::Auto),
+            documentation_length: Some(DocumentationLength::Full),
+            sort_by: Some(SortKey::Name),
+            fn_: Some(RawFnSection {
+                sort_by: Some(SortKey::Name),
+            }),
+            static_: Some(RawStaticSection {
+                sort_by: Some(SortKey::Name),
+            }),
+            constant_: Some(RawConstantSection {
+                sort_by: Some(SortKey::Name),
+            }),
+            enum_: Some(RawEnumSection {
+                prefix_with_name: Some(true),
+            }),
+            c: Some(raw_c.clone()),
+            cxx: Some(raw_cxx.clone()),
+        };
+        let raw_package = RawPackageConfig {
+            types: Some(PackageTypeMode::Opaque),
+            header_name: Some("name".into()),
+        };
+        let max = RawConfig {
+            preamble: Some("p".into()),
+            trailer: Some("t".into()),
+            autogen_warning: Some("w".into()),
+            pragma_once: Some(true),
+            includes: vec!["x".into()],
+            no_includes: Some(true),
+            after_includes: Some("a".into()),
+            documentation: Some(true),
+            documentation_style: Some(DocumentationStyle::Auto),
+            documentation_length: Some(DocumentationLength::Full),
+            sort_by: Some(SortKey::Name),
+            fn_: Some(RawFnSection {
+                sort_by: Some(SortKey::Name),
+            }),
+            static_: Some(RawStaticSection {
+                sort_by: Some(SortKey::Name),
+            }),
+            constant_: Some(RawConstantSection {
+                sort_by: Some(SortKey::Name),
+            }),
+            enum_: Some(RawEnumSection {
+                prefix_with_name: Some(true),
+            }),
+            bundle: Some(true),
+            package: BTreeMap::from([(PACKAGE_DUMMY.to_string(), raw_package)]),
+            header: HashMap::from([(HEADER_DUMMY.to_string(), raw_header)]),
+            c: Some(raw_c),
+            cxx: Some(raw_cxx),
+        };
+
+        let serialized = toml::to_string(&max).expect("serialize max RawConfig");
+        let value: toml::Value = toml::from_str(&serialized).expect("re-parse serialized RawConfig");
+
+        let mut keys: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let dynamic = [PACKAGE_DUMMY, HEADER_DUMMY];
+        collect_table_keys(&value, &mut keys, &dynamic);
+
+        let reference_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("cheadergen")
+            .join("src")
+            .join("config_reference.rs");
+        let reference = std::fs::read_to_string(&reference_path)
+            .unwrap_or_else(|e| panic!("failed to read {}: {e}", reference_path.display()));
+
+        let mut missing: Vec<&String> = keys
+            .iter()
+            .filter(|k| !contains_word(&reference, k))
+            .collect();
+        missing.sort();
+
+        assert!(
+            missing.is_empty(),
+            "{} does not mention these TOML keys: {:?}.\n\
+             Did you add a field to a Raw* config struct without updating the user-facing reference?",
+            reference_path.display(),
+            missing,
+        );
+    }
+
+    fn collect_table_keys(
+        value: &toml::Value,
+        out: &mut std::collections::HashSet<String>,
+        skip: &[&str],
+    ) {
+        match value {
+            toml::Value::Table(table) => {
+                for (key, child) in table {
+                    if !skip.contains(&key.as_str()) {
+                        out.insert(key.clone());
+                    }
+                    collect_table_keys(child, out, skip);
+                }
+            }
+            toml::Value::Array(items) => {
+                for item in items {
+                    collect_table_keys(item, out, skip);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn contains_word(haystack: &str, word: &str) -> bool {
+        let bytes = haystack.as_bytes();
+        let len = word.len();
+        let mut start = 0;
+        while let Some(rel) = haystack[start..].find(word) {
+            let i = start + rel;
+            let before_is_word = i > 0 && is_ident_byte(bytes[i - 1]);
+            let after = i + len;
+            let after_is_word = after < bytes.len() && is_ident_byte(bytes[after]);
+            if !before_is_word && !after_is_word {
+                return true;
+            }
+            start = i + 1;
+        }
+        false
+    }
+
+    fn is_ident_byte(b: u8) -> bool {
+        b.is_ascii_alphanumeric() || b == b'_'
     }
 }
