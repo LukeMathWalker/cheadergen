@@ -319,9 +319,7 @@ pub fn partition_types(
                 && defs.iter().all(|d| {
                     matches!(
                         d.kind,
-                        CTypeKind::OpaqueStruct
-                            | CTypeKind::OpaqueUnion
-                            | CTypeKind::Typedef(_)
+                        CTypeKind::OpaqueStruct | CTypeKind::OpaqueUnion | CTypeKind::Typedef(_)
                     )
                 })
         })
@@ -367,9 +365,6 @@ pub fn compute_header_deps(
         }
     }
 
-    let _target_packages: HashSet<&PackageId> =
-        target_extern_items.iter().map(|(id, _)| id).collect();
-
     let mut result: HashMap<PackageId, HeaderDeps> = HashMap::new();
 
     for (pkg_id, defs) in &partitioned.per_crate {
@@ -408,6 +403,22 @@ pub fn compute_header_deps(
                     && dep_pkg != pkg_id
                 {
                     by_value_from.insert(dep_pkg);
+                }
+            }
+            for func in &extern_items.fns {
+                let mut ptr_names = Vec::new();
+                for input in &func.header.inputs {
+                    collect_pointer_names_from_type(&input.type_, &mut ptr_names);
+                }
+                if let Some(ref output) = func.header.output {
+                    collect_pointer_names_from_type(output, &mut ptr_names);
+                }
+                for name in &ptr_names {
+                    if let Some(&dep_pkg) = type_to_package.get(name.as_str())
+                        && dep_pkg != pkg_id
+                    {
+                        pointer_only_from.insert(dep_pkg);
+                    }
                 }
             }
         }
@@ -513,12 +524,14 @@ pub fn compute_header_deps(
         let mut seen_names: HashSet<String> = HashSet::new();
         forward_decls.retain(|d| seen_names.insert(d.name.clone()));
 
-        // Collect type hints from included deps (for rename/tag propagation).
-        // These are type definitions from deps whose headers are #included.
-        // They don't emit C code — they only feed the type_meta map so function
-        // signatures use correct renamed names and type tags.
+        // Collect type hints from any dep this header references — by-value or
+        // behind a pointer. Hints don't emit C code; they only feed the
+        // `type_meta` map so function signatures use the correct renamed names
+        // and type tags. Without entries for pointer-only deps, a typedef
+        // referenced behind a pointer would default to `struct Aliased` rather
+        // than the bare typedef name.
         let mut type_hints: Vec<CTypeDefinition> = Vec::new();
-        for dep_pkg in &by_value_from {
+        for dep_pkg in by_value_from.iter().chain(pointer_only_from.iter()) {
             if let Some(dep_defs) = partitioned.per_crate.get(*dep_pkg) {
                 type_hints.extend(dep_defs.iter().cloned());
             }

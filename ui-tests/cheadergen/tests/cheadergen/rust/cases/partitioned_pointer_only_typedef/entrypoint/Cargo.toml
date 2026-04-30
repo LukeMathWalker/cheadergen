@@ -1,0 +1,11 @@
+[package]
+name = "partitioned-pointer-only-typedef"
+version = "0.1.0"
+edition.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+partitioned-pointer-only-typedef-dep = { path = "../dep" }
+partitioned-pointer-only-typedef-dep2 = { path = "../dep2" }

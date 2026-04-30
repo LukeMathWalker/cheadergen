@@ -441,6 +441,25 @@ name = "partitioned-pointer-only-dep"
 version = "0.1.0"
 
 [[package]]
+name = "partitioned-pointer-only-typedef"
+version = "0.1.0"
+dependencies = [
+ "partitioned-pointer-only-typedef-dep",
+ "partitioned-pointer-only-typedef-dep2",
+]
+
+[[package]]
+name = "partitioned-pointer-only-typedef-dep"
+version = "0.1.0"
+dependencies = [
+ "partitioned-pointer-only-typedef-dep2",
+]
+
+[[package]]
+name = "partitioned-pointer-only-typedef-dep2"
+version = "0.1.0"
+
+[[package]]
 name = "partitioned-rename"
 version = "0.1.0"
 dependencies = [
