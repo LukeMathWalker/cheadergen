@@ -1,0 +1,44 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 332
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct {
+  /**
+   * The horizontal coordinate.
+   */
+  float x;
+  /**
+   * The vertical coordinate.
+   */
+  float y;
+} Point;
+
+typedef struct {
+  /**
+   * The first element.
+   */
+  int32_t m0;
+  /**
+   * The second element.
+   */
+  uint32_t m1;
+} Pair;
+
+typedef union {
+  /**
+   * Interpret the bits as an unsigned integer.
+   */
+  uint32_t u;
+  /**
+   * Interpret the bits as a float.
+   */
+  float f;
+} IntOrFloat;
+
+void root(Point point, Pair pair, IntOrFloat value);

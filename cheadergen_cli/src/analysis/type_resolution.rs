@@ -610,6 +610,7 @@ fn resolve_fieldless_enum(
         variants.push(CEnumVariant {
             name: CIdentifier::new(variant_name),
             discriminant,
+            rustdoc_id: Some(global_id),
         });
     }
     Ok(CTypeKind::FieldlessEnum(CFieldlessEnumDef {
@@ -679,6 +680,7 @@ fn resolve_tagged_union(
             name: variant_name,
             body,
             discriminant,
+            rustdoc_id: Some(global_id),
         });
     }
 
@@ -737,6 +739,7 @@ fn resolve_plain_fields(
             name: CIdentifier::new(field_name),
             type_: resolved,
             bitfield_width: field_ann.bitfield_width,
+            rustdoc_id: Some(global_id),
         });
     }
     Ok(c_fields)
@@ -791,6 +794,7 @@ fn resolve_tuple_fields(
             name: CIdentifier::new(field_name),
             type_: resolved,
             bitfield_width: None,
+            rustdoc_id: Some(global_id),
         });
         index += 1;
     }

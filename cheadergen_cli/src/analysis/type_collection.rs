@@ -228,6 +228,9 @@ pub struct CStructField {
     pub type_: Type,
     /// If set, emit this field as a C bitfield with the given width in bits.
     pub bitfield_width: Option<u64>,
+    /// The global rustdoc item ID for this field, used for doc-comment
+    /// lookup at codegen time.
+    pub rustdoc_id: Option<GlobalItemId>,
 }
 
 /// A C-like enum (all variants are fieldless).
@@ -246,6 +249,11 @@ pub struct CFieldlessEnumDef {
 pub struct CEnumVariant {
     pub name: CIdentifier,
     pub discriminant: Option<String>,
+    /// The global rustdoc item ID for this variant, used for doc-comment
+    /// lookup at codegen time. `None` for synthetic variants (e.g. those
+    /// produced by `write_c_tagged_union` from upstream tagged variants —
+    /// in that case the id is propagated from the source variant).
+    pub rustdoc_id: Option<GlobalItemId>,
 }
 
 /// Primitive integer types valid in `#[repr(...)]` on Rust enums.
@@ -344,6 +352,9 @@ pub struct CTaggedVariant {
     pub name: String,
     pub body: Option<CTaggedVariantBody>,
     pub discriminant: Option<String>,
+    /// The global rustdoc item ID for this variant, used for doc-comment
+    /// lookup at codegen time.
+    pub rustdoc_id: Option<GlobalItemId>,
 }
 
 /// The body (fields) of a tagged union variant.

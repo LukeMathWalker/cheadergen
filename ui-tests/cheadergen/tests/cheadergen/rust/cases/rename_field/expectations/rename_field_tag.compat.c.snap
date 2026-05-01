@@ -1,6 +1,6 @@
 ---
 source: ui-tests/cheadergen/src/lib.rs
-assertion_line: 249
+assertion_line: 332
 expression: output
 ---
 #include <stdarg.h>
@@ -11,5 +11,8 @@ expression: output
 struct Config {
   uint32_t raw_width;
   uint32_t raw_height;
+  /**
+   * A field without rename — should use its Rust name.
+   */
   uint32_t depth;
 };

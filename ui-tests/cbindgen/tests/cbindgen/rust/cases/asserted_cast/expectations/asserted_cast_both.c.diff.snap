@@ -1,6 +1,6 @@
 ---
 source: ui-tests/cbindgen/src/lib.rs
-assertion_line: 166
+assertion_line: 194
 expression: actual
 ---
 #define MY_ASSERT(...) do { } while (0)
@@ -15,8 +15,17 @@ expression: actual
  * cbindgen:prefix-with-name
  */
 enum H_Tag {
+  /**
+   * cbindgen:variant-mut-cast-attributes=MY_ATTRS
+   */
   Foo,
+  /**
+   * cbindgen:variant-const-cast-attributes=MY_ATTRS
+   */
   Bar,
+  /**
+   * cbindgen:variant-is-attributes=MY_ATTRS
+   */
   Baz,
 };
 typedef uint8_t H_Tag;
@@ -40,7 +49,13 @@ typedef struct H {
  * cbindgen:prefix-with-name
  */
 enum I_Tag {
+  /**
+   * cbindgen:variant-constructor-attributes=MY_ATTRS
+   */
   Foo,
+  /**
+   * cbindgen:eq-attributes=MY_ATTRS
+   */
   Bar,
   Baz,
 };

@@ -1,0 +1,139 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 332
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef enum {
+  /**
+   * The color red.
+   */
+  Red,
+  /**
+   * The color green.
+   */
+  Green,
+  /**
+   * The color blue.
+   */
+  Blue,
+} Color;
+
+enum Direction
+#ifdef __cplusplus
+  : uint8_t
+#endif // __cplusplus
+ {
+  /**
+   * Pointing up.
+   */
+  Up = 0,
+  /**
+   * Pointing down.
+   */
+  Down = 2,
+  /**
+   * Pointing left.
+   */
+  Left,
+  /**
+   * Pointing right.
+   */
+  Right = 5,
+};
+#ifndef __cplusplus
+typedef uint8_t Direction;
+#endif // __cplusplus
+
+typedef enum {
+  /**
+   * A circle with the given radius.
+   */
+  Circle,
+  /**
+   * A rectangle with width and height.
+   */
+  Rectangle,
+  /**
+   * A point — no associated data.
+   */
+  Point,
+} Shape_Tag;
+
+typedef struct {
+  /**
+   * The horizontal extent.
+   */
+  float width;
+  /**
+   * The vertical extent.
+   */
+  float height;
+} Rectangle_Body;
+
+typedef struct {
+  Shape_Tag tag;
+  union {
+    struct {
+      float circle;
+    };
+    Rectangle_Body rectangle;
+  };
+} Shape;
+
+enum Event_Tag
+#ifdef __cplusplus
+  : uint8_t
+#endif // __cplusplus
+ {
+  /**
+   * A keystroke event with the key code.
+   */
+  Key,
+  /**
+   * A click at the given coordinates.
+   */
+  Click,
+  /**
+   * A signal that the input ended.
+   */
+  Eof,
+};
+#ifndef __cplusplus
+typedef uint8_t Event_Tag;
+#endif // __cplusplus
+
+typedef struct {
+  /**
+   * The X coordinate of the click.
+   */
+  int32_t x;
+  /**
+   * The Y coordinate of the click.
+   */
+  int32_t y;
+} Click_Body;
+
+typedef struct {
+  Event_Tag tag;
+  union {
+    struct {
+      uint32_t key;
+    };
+    Click_Body click;
+  };
+} Event;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+void root(Color color, Direction direction, Shape shape, Event event);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

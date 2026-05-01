@@ -1,0 +1,52 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 332
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+struct Point {
+  /**
+   * The horizontal coordinate.
+   */
+  float x;
+  /**
+   * The vertical coordinate.
+   */
+  float y;
+};
+
+struct Pair {
+  /**
+   * The first element.
+   */
+  int32_t m0;
+  /**
+   * The second element.
+   */
+  uint32_t m1;
+};
+
+union IntOrFloat {
+  /**
+   * Interpret the bits as an unsigned integer.
+   */
+  uint32_t u;
+  /**
+   * Interpret the bits as a float.
+   */
+  float f;
+};
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+void root(struct Point point, struct Pair pair, union IntOrFloat value);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

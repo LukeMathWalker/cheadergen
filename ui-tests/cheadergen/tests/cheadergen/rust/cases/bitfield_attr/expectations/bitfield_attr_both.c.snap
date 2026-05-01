@@ -1,6 +1,6 @@
 ---
 source: ui-tests/cheadergen/src/lib.rs
-assertion_line: 249
+assertion_line: 332
 expression: output
 ---
 #include <stdarg.h>
@@ -11,5 +11,8 @@ expression: output
 typedef struct Flags {
   uint8_t low_nibble : 4;
   uint8_t high_nibble : 4;
+  /**
+   * A regular field (no bitfield).
+   */
   uint32_t value;
 } Flags;

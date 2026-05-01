@@ -33,6 +33,7 @@ struct TypeEmitCtx<'a> {
     meta: &'a HashMap<String, TypeMeta>,
     skipped: &'a HashSet<PackageId>,
     collection: &'a Collection,
+    config: &'a CommonConfig,
 }
 
 impl TypeEmitCtx<'_> {
@@ -192,6 +193,7 @@ pub fn generate_c_header(
         meta: &meta_map,
         skipped: skipped_packages,
         collection,
+        config: common,
     };
 
     // Type forward declarations.
@@ -283,6 +285,15 @@ fn lookup_docs(id: Option<&GlobalItemId>, collection: &Collection) -> Option<Str
 }
 
 fn write_doc_comment(docs: Option<&str>, config: &CommonConfig, out: &mut String) {
+    write_doc_comment_indented(docs, config, "", out);
+}
+
+fn write_doc_comment_indented(
+    docs: Option<&str>,
+    config: &CommonConfig,
+    indent: &str,
+    out: &mut String,
+) {
     if !config.documentation {
         return;
     }
@@ -319,28 +330,28 @@ fn write_doc_comment(docs: Option<&str>, config: &CommonConfig, out: &mut String
     if use_line_comments {
         for line in text.lines() {
             if line.is_empty() {
-                out.push_str("//\n");
+                writeln!(out, "{indent}//").unwrap();
             } else {
-                writeln!(out, "// {line}").unwrap();
+                writeln!(out, "{indent}// {line}").unwrap();
             }
         }
         if has_trailing_blank {
-            out.push_str("//\n");
+            writeln!(out, "{indent}//").unwrap();
         }
     } else {
         // C-style block comment: /** ... */
-        out.push_str("/**\n");
+        writeln!(out, "{indent}/**").unwrap();
         for line in text.lines() {
             if line.is_empty() {
-                out.push_str(" *\n");
+                writeln!(out, "{indent} *").unwrap();
             } else {
-                writeln!(out, " * {line}").unwrap();
+                writeln!(out, "{indent} * {line}").unwrap();
             }
         }
         if has_trailing_blank {
-            out.push_str(" *\n");
+            writeln!(out, "{indent} *").unwrap();
         }
-        out.push_str(" */\n");
+        writeln!(out, "{indent} */").unwrap();
     }
 }
 
@@ -395,6 +406,8 @@ fn write_c_field_line(
     ctx: &TypeEmitCtx<'_>,
     out: &mut String,
 ) {
+    let docs = lookup_docs(field.rustdoc_id.as_ref(), ctx.collection);
+    write_doc_comment_indented(docs.as_deref(), ctx.config, "  ", out);
     out.push_str("  ");
     write_c_decl(&field.type_, field.name.as_str(), style, ctx, out);
     if let Some(width) = field.bitfield_width {
@@ -685,7 +698,7 @@ fn write_c_type_definitions(
         };
         let docs = lookup_docs(def.rustdoc_id.as_ref(), collection);
         write_doc_comment(docs.as_deref(), config, out);
-        write_c_fieldless_enum(&def.name, enum_def, style, cpp_compat, out);
+        write_c_fieldless_enum(&def.name, enum_def, style, cpp_compat, config, collection, out);
         write_assoc_constants_for_type(&def.name, &assoc_map, collection, config, out);
         if i + 1 < fieldless_enum_defs.len() {
             out.push('\n');
@@ -920,6 +933,8 @@ fn write_c_fieldless_enum(
     def: &CFieldlessEnumDef,
     style: &Style,
     cpp_compat: bool,
+    config: &CommonConfig,
+    collection: &Collection,
     out: &mut String,
 ) {
     let prefix = def.prefix_with_name.as_deref();
@@ -933,14 +948,14 @@ fn write_c_fieldless_enum(
                 writeln!(out, "  : {c_int}").unwrap();
                 writeln!(out, "#endif // __cplusplus").unwrap();
                 writeln!(out, " {{").unwrap();
-                write_enum_variant_list(&def.variants, prefix, out);
+                write_enum_variant_list(&def.variants, prefix, config, collection, out);
                 writeln!(out, "}};").unwrap();
                 writeln!(out, "#ifndef __cplusplus").unwrap();
                 writeln!(out, "typedef {c_int} {name};").unwrap();
                 writeln!(out, "#endif // __cplusplus").unwrap();
             } else {
                 writeln!(out, "enum {name} {{").unwrap();
-                write_enum_variant_list(&def.variants, prefix, out);
+                write_enum_variant_list(&def.variants, prefix, config, collection, out);
                 writeln!(out, "}};").unwrap();
                 writeln!(out, "typedef {c_int} {name};").unwrap();
             }
@@ -948,17 +963,17 @@ fn write_c_fieldless_enum(
         CEnumRepr::C => match style {
             Style::Type => {
                 writeln!(out, "typedef enum {{").unwrap();
-                write_enum_variant_list(&def.variants, prefix, out);
+                write_enum_variant_list(&def.variants, prefix, config, collection, out);
                 writeln!(out, "}} {name};").unwrap();
             }
             Style::Tag => {
                 writeln!(out, "enum {name} {{").unwrap();
-                write_enum_variant_list(&def.variants, prefix, out);
+                write_enum_variant_list(&def.variants, prefix, config, collection, out);
                 writeln!(out, "}};").unwrap();
             }
             Style::Both => {
                 writeln!(out, "typedef enum {name} {{").unwrap();
-                write_enum_variant_list(&def.variants, prefix, out);
+                write_enum_variant_list(&def.variants, prefix, config, collection, out);
                 writeln!(out, "}} {name};").unwrap();
             }
         },
@@ -972,9 +987,15 @@ fn write_c_fieldless_enum(
 fn write_enum_variant_list(
     variants: &[crate::analysis::CEnumVariant],
     prefix: Option<&str>,
+    config: &CommonConfig,
+    collection: &Collection,
     out: &mut String,
 ) {
     for (i, variant) in variants.iter().enumerate() {
+        let docs = lookup_docs(variant.rustdoc_id.as_ref(), collection);
+        if docs.is_some() {
+            write_doc_comment_indented(docs.as_deref(), config, "  ", out);
+        }
         out.push_str("  ");
         if let Some(prefix) = prefix {
             write!(out, "{prefix}_").unwrap();
@@ -1016,6 +1037,7 @@ fn write_c_tagged_union(
             crate::analysis::CEnumVariant {
                 name: CIdentifier::new(variant_name),
                 discriminant: v.discriminant.clone(),
+                rustdoc_id: v.rustdoc_id.clone(),
             }
         })
         .collect();
@@ -1035,7 +1057,15 @@ fn write_c_tagged_union(
         // above, so don't apply prefix_with_name again here.
         prefix_with_name: None,
     };
-    write_c_fieldless_enum(&tag_name, &tag_enum_def, style, cpp_compat, out);
+    write_c_fieldless_enum(
+        &tag_name,
+        &tag_enum_def,
+        style,
+        cpp_compat,
+        ctx.config,
+        ctx.collection,
+        out,
+    );
     out.push('\n');
 
     // Determine the tag type string for use in fields.
@@ -1071,9 +1101,7 @@ fn write_c_tagged_union(
                     writeln!(out, "  {tag_type_str} tag;").unwrap();
                 }
                 for field in &body.fields {
-                    out.push_str("  ");
-                    write_c_decl(&field.type_, field.name.as_str(), style, ctx, out);
-                    writeln!(out, ";").unwrap();
+                    write_c_field_line(field, style, ctx, out);
                 }
                 writeln!(out, "}} {body_name};").unwrap();
             }
@@ -1083,15 +1111,7 @@ fn write_c_tagged_union(
                     writeln!(out, "  {tag_type_str} tag;").unwrap();
                 }
                 for field in &body.fields {
-                    out.push_str("  ");
-                    write_c_decl(
-                        &field.type_,
-                        field.name.as_str(),
-                        &Style::Tag,
-                        ctx,
-                        out,
-                    );
-                    writeln!(out, ";").unwrap();
+                    write_c_field_line(field, &Style::Tag, ctx, out);
                 }
                 writeln!(out, "}};").unwrap();
             }
@@ -1101,9 +1121,7 @@ fn write_c_tagged_union(
                     writeln!(out, "  {tag_type_str} tag;").unwrap();
                 }
                 for field in &body.fields {
-                    out.push_str("  ");
-                    write_c_decl(&field.type_, field.name.as_str(), style, ctx, out);
-                    writeln!(out, ";").unwrap();
+                    write_c_field_line(field, style, ctx, out);
                 }
                 writeln!(out, "}} {body_name};").unwrap();
             }

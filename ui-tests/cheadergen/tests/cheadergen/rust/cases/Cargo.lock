@@ -62,6 +62,10 @@ name = "corecursive_type"
 version = "0.1.0"
 
 [[package]]
+name = "enum_variant_doc_comments"
+version = "0.1.0"
+
+[[package]]
 name = "enumflags"
 version = "0.1.0"
 dependencies = [
@@ -717,6 +721,10 @@ version = "0.1.0"
 dependencies = [
  "cheadergen",
 ]
+
+[[package]]
+name = "struct_field_doc_comments"
+version = "0.1.0"
 
 [[package]]
 name = "syn"

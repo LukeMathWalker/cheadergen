@@ -1,5 +1,6 @@
 ---
-source: ui-tests/src/generate/mod.rs
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 332
 expression: output
 ---
 #include <stdarg.h>
@@ -33,7 +34,13 @@ typedef bool (*Predicate)(int32_t, int32_t);
 typedef void (*NullableCallback)(uint64_t);
 
 struct Dispatcher {
+  /**
+   * A function pointer field.
+   */
   void (*on_event)(uint32_t);
+  /**
+   * A nullable function pointer field.
+   */
   void (*on_error)(int32_t);
 };
 
@@ -61,8 +68,17 @@ typedef void (*NullableUnionCallback)(union IntOrFloat *);
  * Struct with fn-ptr fields that reference complex types.
  */
 struct ComplexDispatcher {
+  /**
+   * Non-nullable fn ptr field: struct → enum.
+   */
   struct Status (*on_pair)(struct Pair);
+  /**
+   * Nullable fn ptr field: enum → struct pointer.
+   */
   struct Pair *(*on_status)(struct Status);
+  /**
+   * Fn ptr field: union pointer → bool.
+   */
   bool (*on_union)(const union IntOrFloat *);
 };
 

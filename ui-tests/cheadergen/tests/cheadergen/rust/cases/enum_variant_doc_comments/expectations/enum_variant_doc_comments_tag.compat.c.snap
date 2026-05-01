@@ -1,0 +1,139 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 332
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+enum Color {
+  /**
+   * The color red.
+   */
+  Red,
+  /**
+   * The color green.
+   */
+  Green,
+  /**
+   * The color blue.
+   */
+  Blue,
+};
+
+enum Direction
+#ifdef __cplusplus
+  : uint8_t
+#endif // __cplusplus
+ {
+  /**
+   * Pointing up.
+   */
+  Up = 0,
+  /**
+   * Pointing down.
+   */
+  Down = 2,
+  /**
+   * Pointing left.
+   */
+  Left,
+  /**
+   * Pointing right.
+   */
+  Right = 5,
+};
+#ifndef __cplusplus
+typedef uint8_t Direction;
+#endif // __cplusplus
+
+enum Shape_Tag {
+  /**
+   * A circle with the given radius.
+   */
+  Circle,
+  /**
+   * A rectangle with width and height.
+   */
+  Rectangle,
+  /**
+   * A point — no associated data.
+   */
+  Point,
+};
+
+struct Rectangle_Body {
+  /**
+   * The horizontal extent.
+   */
+  float width;
+  /**
+   * The vertical extent.
+   */
+  float height;
+};
+
+struct Shape {
+  enum Shape_Tag tag;
+  union {
+    struct {
+      float circle;
+    };
+    struct Rectangle_Body rectangle;
+  };
+};
+
+enum Event_Tag
+#ifdef __cplusplus
+  : uint8_t
+#endif // __cplusplus
+ {
+  /**
+   * A keystroke event with the key code.
+   */
+  Key,
+  /**
+   * A click at the given coordinates.
+   */
+  Click,
+  /**
+   * A signal that the input ended.
+   */
+  Eof,
+};
+#ifndef __cplusplus
+typedef uint8_t Event_Tag;
+#endif // __cplusplus
+
+struct Click_Body {
+  /**
+   * The X coordinate of the click.
+   */
+  int32_t x;
+  /**
+   * The Y coordinate of the click.
+   */
+  int32_t y;
+};
+
+struct Event {
+  Event_Tag tag;
+  union {
+    struct {
+      uint32_t key;
+    };
+    struct Click_Body click;
+  };
+};
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+void root(enum Color color, Direction direction, struct Shape shape, struct Event event);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

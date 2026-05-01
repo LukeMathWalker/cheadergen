@@ -1,6 +1,6 @@
 ---
 source: ui-tests/cbindgen/src/lib.rs
-assertion_line: 166
+assertion_line: 194
 expression: actual
 ---
 #if 0
@@ -46,11 +46,29 @@ enum PositionAreaTrack
   : uint8_t
 #endif // __cplusplus
  {
+  /**
+   * First track
+   */
   Start = 0b001,
+  /**
+   * First and center.
+   */
   SpanStart = 0b011,
+  /**
+   * Last track.
+   */
   End = 0b100,
+  /**
+   * Last and center.
+   */
   SpanEnd = 0b110,
+  /**
+   * Center track.
+   */
   Center = 0b010,
+  /**
+   * All tracks
+   */
   SpanAll = 0b111,
 };
 #ifndef __cplusplus

@@ -1,6 +1,6 @@
 ---
 source: ui-tests/cbindgen/src/lib.rs
-assertion_line: 166
+assertion_line: 194
 expression: actual
 ---
 #include <stdarg.h>
@@ -96,6 +96,9 @@ typedef struct H {
  * cbindgen:derive-ostream=false
  */
 enum I_Tag {
+  /**
+   * cbindgen:derive-ostream=true
+   */
   ThereAgain,
   SomethingElse,
 };
