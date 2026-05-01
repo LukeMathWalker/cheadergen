@@ -7,7 +7,7 @@ use rustdoc_processor::GlobalItemId;
 
 use crate::Collection;
 use crate::diagnostic::DiagnosticSink;
-use crate::indexing::FieldAnnotation;
+use crate::indexing::{FieldAnnotation, RenameRule};
 use rustdoc_resolver::{GenericBindings, TypeAliasResolution, resolve_type};
 use rustdoc_types::{Attribute, AttributeRepr, ItemEnum, ReprKind, StructKind, VariantKind};
 
@@ -26,7 +26,9 @@ pub(super) fn resolve_type_kind(
     name: &str,
     path_type: &PathType,
     collection: &Collection,
-    enum_prefix_with_name: bool,
+    enum_prefix: Option<String>,
+    rename_all: Option<RenameRule>,
+    rename_all_fields: Option<RenameRule>,
     diagnostics: &mut DiagnosticSink,
 ) -> anyhow::Result<CTypeKind> {
     let Some(id) = &path_type.rustdoc_id else {
@@ -54,6 +56,7 @@ pub(super) fn resolve_type_kind(
             path_type,
             collection,
             field_names,
+            rename_all,
             diagnostics,
         ),
         ItemEnum::Union(union_def) => resolve_union_kind(
@@ -62,6 +65,7 @@ pub(super) fn resolve_type_kind(
             &item.attrs,
             path_type,
             collection,
+            rename_all,
             diagnostics,
         ),
         ItemEnum::Enum(enum_def) => resolve_enum_kind(
@@ -70,7 +74,9 @@ pub(super) fn resolve_type_kind(
             &item.attrs,
             path_type,
             collection,
-            enum_prefix_with_name,
+            enum_prefix,
+            rename_all,
+            rename_all_fields,
             diagnostics,
         ),
         ItemEnum::TypeAlias(type_alias) => {
@@ -127,6 +133,7 @@ fn setup_generic_bindings(
 }
 
 /// Resolve a struct into a `CTypeKind`.
+#[expect(clippy::too_many_arguments, reason = "explicit threading of resolution context")]
 fn resolve_struct_kind(
     name: &str,
     struct_def: &rustdoc_types::Struct,
@@ -134,6 +141,7 @@ fn resolve_struct_kind(
     path_type: &PathType,
     collection: &Collection,
     field_names: Option<&[String]>,
+    rename_all: Option<RenameRule>,
     diagnostics: &mut DiagnosticSink,
 ) -> anyhow::Result<CTypeKind> {
     // Check for #[repr(C)] or #[repr(transparent)].
@@ -189,6 +197,7 @@ fn resolve_struct_kind(
         path_type,
         collection,
         field_names,
+        rename_all,
     )?;
     if is_repr_transparent {
         match fields.len() {
@@ -222,11 +231,16 @@ fn resolve_struct_fields(
     path_type: &PathType,
     collection: &Collection,
     field_names: Option<&[String]>,
+    rename_all: Option<RenameRule>,
 ) -> anyhow::Result<Vec<CStructField>> {
     match &struct_def.kind {
-        StructKind::Plain { fields, .. } => {
-            resolve_plain_fields(fields, generic_bindings, &path_type.package_id, collection)
-        }
+        StructKind::Plain { fields, .. } => resolve_plain_fields(
+            fields,
+            generic_bindings,
+            &path_type.package_id,
+            collection,
+            rename_all,
+        ),
         StructKind::Tuple(fields) => resolve_tuple_fields(
             fields,
             generic_bindings,
@@ -287,8 +301,15 @@ fn resolve_transparent_inner_type(
     path_type: &PathType,
     collection: &Collection,
 ) -> Option<Type> {
-    let c_fields =
-        resolve_struct_fields(struct_def, generic_bindings, path_type, collection, None).ok()?;
+    let c_fields = resolve_struct_fields(
+        struct_def,
+        generic_bindings,
+        path_type,
+        collection,
+        None,
+        None,
+    )
+    .ok()?;
     if c_fields.len() == 1 {
         Some(c_fields.into_iter().next().unwrap().type_)
     } else {
@@ -331,6 +352,7 @@ fn resolve_union_kind(
     attrs: &[Attribute],
     path_type: &PathType,
     collection: &Collection,
+    rename_all: Option<RenameRule>,
     diagnostics: &mut DiagnosticSink,
 ) -> anyhow::Result<CTypeKind> {
     let is_repr_c = attrs.iter().any(|attr| {
@@ -374,6 +396,7 @@ fn resolve_union_kind(
         &generic_bindings,
         &path_type.package_id,
         collection,
+        rename_all,
     )?;
     Ok(CTypeKind::Union(CUnionDef { fields: c_fields }))
 }
@@ -478,13 +501,16 @@ fn extract_enum_repr(attrs: &[Attribute]) -> anyhow::Result<Option<CEnumRepr>> {
 }
 
 /// Resolve an enum into a `CTypeKind`.
+#[expect(clippy::too_many_arguments, reason = "explicit threading of resolution context")]
 fn resolve_enum_kind(
     name: &str,
     enum_def: &rustdoc_types::Enum,
     attrs: &[Attribute],
     path_type: &PathType,
     collection: &Collection,
-    enum_prefix_with_name: bool,
+    enum_prefix: Option<String>,
+    rename_all: Option<RenameRule>,
+    rename_all_fields: Option<RenameRule>,
     diagnostics: &mut DiagnosticSink,
 ) -> anyhow::Result<CTypeKind> {
     let Some(repr) = extract_enum_repr(attrs)? else {
@@ -539,7 +565,8 @@ fn resolve_enum_kind(
             repr,
             package_id,
             collection,
-            enum_prefix_with_name,
+            enum_prefix,
+            rename_all,
         )
     } else {
         resolve_tagged_union(
@@ -549,7 +576,9 @@ fn resolve_enum_kind(
             &generic_bindings,
             package_id,
             collection,
-            enum_prefix_with_name,
+            enum_prefix,
+            rename_all,
+            rename_all_fields,
         )
     }
 }
@@ -561,7 +590,8 @@ fn resolve_fieldless_enum(
     repr: CEnumRepr,
     package_id: &PackageId,
     collection: &Collection,
-    prefix_with_name: bool,
+    prefix_with_name: Option<String>,
+    rename_all: Option<RenameRule>,
 ) -> anyhow::Result<CTypeKind> {
     let mut variants = Vec::new();
     for variant_id in &enum_def.variants {
@@ -571,9 +601,11 @@ fn resolve_fieldless_enum(
             anyhow::bail!("Expected Variant for enum `{name}`");
         };
         let variant_ann = FieldAnnotation::from_attrs(&variant_item.attrs);
+        let rust_ident = variant_item.name.clone().unwrap_or_default();
         let variant_name = variant_ann
             .rename
-            .unwrap_or_else(|| variant_item.name.clone().unwrap_or_default());
+            .or_else(|| rename_all.map(|r| r.apply(&rust_ident)))
+            .unwrap_or(rust_ident);
         let discriminant = variant.discriminant.as_ref().map(|d| d.expr.clone());
         variants.push(CEnumVariant {
             name: CIdentifier::new(variant_name),
@@ -588,6 +620,7 @@ fn resolve_fieldless_enum(
 }
 
 /// Resolve a tagged union (enum with data variants).
+#[expect(clippy::too_many_arguments, reason = "explicit threading of resolution context")]
 fn resolve_tagged_union(
     name: &str,
     enum_def: &rustdoc_types::Enum,
@@ -595,10 +628,10 @@ fn resolve_tagged_union(
     generic_bindings: &GenericBindings,
     package_id: &PackageId,
     collection: &Collection,
-    enum_prefix_with_name: bool,
+    prefix_with_name: Option<String>,
+    rename_all: Option<RenameRule>,
+    rename_all_fields: Option<RenameRule>,
 ) -> anyhow::Result<CTypeKind> {
-    let prefix_with_name = enum_prefix_with_name;
-
     let mut variants = Vec::new();
     for variant_id in &enum_def.variants {
         let global_id = GlobalItemId::new(*variant_id, package_id.clone());
@@ -607,9 +640,11 @@ fn resolve_tagged_union(
             anyhow::bail!("Expected Variant for enum `{name}`");
         };
         let variant_ann = FieldAnnotation::from_attrs(&variant_item.attrs);
+        let rust_ident = variant_item.name.clone().unwrap_or_default();
         let variant_name = variant_ann
             .rename
-            .unwrap_or_else(|| variant_item.name.clone().unwrap_or_default());
+            .or_else(|| rename_all.map(|r| r.apply(&rust_ident)))
+            .unwrap_or(rust_ident);
 
         let body = match &variant.kind {
             VariantKind::Plain => None,
@@ -623,8 +658,13 @@ fn resolve_tagged_union(
                 }
             }
             VariantKind::Struct { fields, .. } => {
-                let c_fields =
-                    resolve_plain_fields(fields, generic_bindings, package_id, collection)?;
+                let c_fields = resolve_plain_fields(
+                    fields,
+                    generic_bindings,
+                    package_id,
+                    collection,
+                    rename_all_fields,
+                )?;
                 if c_fields.is_empty() {
                     None
                 } else {
@@ -659,6 +699,7 @@ fn resolve_plain_fields(
     generic_bindings: &GenericBindings,
     package_id: &PackageId,
     collection: &Collection,
+    rename_all: Option<RenameRule>,
 ) -> anyhow::Result<Vec<CStructField>> {
     let mut c_fields = Vec::new();
     for field_id in field_ids {
@@ -670,12 +711,14 @@ fn resolve_plain_fields(
 
         let field_ann = FieldAnnotation::from_attrs(&field_item.attrs);
 
-        let field_name = field_ann.rename.unwrap_or_else(|| {
-            field_item
-                .name
-                .clone()
-                .unwrap_or_else(|| "<unnamed>".to_string())
-        });
+        let rust_ident = field_item
+            .name
+            .clone()
+            .unwrap_or_else(|| "<unnamed>".to_string());
+        let field_name = field_ann
+            .rename
+            .or_else(|| rename_all.map(|r| r.apply(&rust_ident)))
+            .unwrap_or(rust_ident);
         let resolved = resolve_type(
             raw_type,
             package_id,

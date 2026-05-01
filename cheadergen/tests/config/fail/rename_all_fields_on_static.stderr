@@ -1,0 +1,5 @@
+error: `rename_all_fields` can only be applied to enums
+ --> tests/config/fail/rename_all_fields_on_static.rs:3:5
+  |
+3 | pub static GLOBAL: u32 = 42;
+  |     ^^^^^^

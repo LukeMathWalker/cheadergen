@@ -80,6 +80,35 @@ pub fn validate(directives: &[Directive], item: &Item) -> Vec<syn::Error> {
                     ));
                 }
             },
+            Directive::RenameAll { .. } => match item {
+                Item::Struct(_) | Item::Enum(_) | Item::Union(_) => {}
+                _ => {
+                    errors.push(syn::Error::new(
+                        item_keyword_span(item),
+                        "`rename_all` can only be applied to structs, enums, or unions",
+                    ));
+                }
+            },
+            Directive::RenameAllFields { .. } => match item {
+                Item::Enum(e) => {
+                    let has_struct_variant = e
+                        .variants
+                        .iter()
+                        .any(|v| matches!(v.fields, syn::Fields::Named(_)));
+                    if !has_struct_variant {
+                        errors.push(syn::Error::new(
+                            e.enum_token.span(),
+                            "`rename_all_fields` requires the enum to have at least one struct variant",
+                        ));
+                    }
+                }
+                _ => {
+                    errors.push(syn::Error::new(
+                        item_keyword_span(item),
+                        "`rename_all_fields` can only be applied to enums",
+                    ));
+                }
+            },
             Directive::Skip { .. } | Directive::Rename { .. } => {}
         }
     }

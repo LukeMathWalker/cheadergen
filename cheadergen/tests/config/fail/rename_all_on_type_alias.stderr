@@ -1,0 +1,5 @@
+error: `rename_all` can only be applied to structs, enums, or unions
+ --> tests/config/fail/rename_all_on_type_alias.rs:2:5
+  |
+2 | pub type Alias = u32;
+  |     ^^^^

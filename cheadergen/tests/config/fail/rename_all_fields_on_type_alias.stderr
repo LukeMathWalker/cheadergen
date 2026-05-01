@@ -1,0 +1,5 @@
+error: `rename_all_fields` can only be applied to enums
+ --> tests/config/fail/rename_all_fields_on_type_alias.rs:2:5
+  |
+2 | pub type Alias = u32;
+  |     ^^^^

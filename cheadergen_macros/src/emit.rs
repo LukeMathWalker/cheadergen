@@ -34,6 +34,14 @@ fn emit_one(directive: &Directive) -> TokenStream {
         Directive::FieldNames { names, .. } => {
             quote! { #[diagnostic::cheadergen::field_names(#(#names),*)] }
         }
+        Directive::RenameAll { rule, .. } => {
+            let lit = rule.name();
+            quote! { #[diagnostic::cheadergen::rename_all(#lit)] }
+        }
+        Directive::RenameAllFields { rule, .. } => {
+            let lit = rule.name();
+            quote! { #[diagnostic::cheadergen::rename_all_fields(#lit)] }
+        }
     }
 }
 

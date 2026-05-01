@@ -922,11 +922,7 @@ fn write_c_fieldless_enum(
     cpp_compat: bool,
     out: &mut String,
 ) {
-    let prefix = if def.prefix_with_name {
-        Some(name)
-    } else {
-        None
-    };
+    let prefix = def.prefix_with_name.as_deref();
 
     match &def.repr {
         CEnumRepr::Int { int_type, .. } => {
@@ -1012,8 +1008,8 @@ fn write_c_tagged_union(
         .variants
         .iter()
         .map(|v| {
-            let variant_name = if def.prefix_with_name {
-                format!("{}_{}", name, v.name)
+            let variant_name = if let Some(prefix) = &def.prefix_with_name {
+                format!("{prefix}_{}", v.name)
             } else {
                 v.name.clone()
             };
@@ -1037,7 +1033,7 @@ fn write_c_tagged_union(
         variants: tag_variants,
         // Tag variant names are already prefixed by the tagged union codegen
         // above, so don't apply prefix_with_name again here.
-        prefix_with_name: false,
+        prefix_with_name: None,
     };
     write_c_fieldless_enum(&tag_name, &tag_enum_def, style, cpp_compat, out);
     out.push('\n');
@@ -1059,8 +1055,8 @@ fn write_c_tagged_union(
         if body.fields.len() < 2 {
             continue;
         }
-        let body_name = if def.prefix_with_name {
-            format!("{name}_{}_Body", variant.name)
+        let body_name = if let Some(prefix) = &def.prefix_with_name {
+            format!("{prefix}_{}_Body", variant.name)
         } else {
             format!("{}_Body", variant.name)
         };
@@ -1151,8 +1147,8 @@ fn write_tagged_union_repr_c(
     tag_type_str: &str,
     out: &mut String,
 ) {
-    let body_prefix = if def.prefix_with_name {
-        format!("{name}_")
+    let body_prefix = if let Some(prefix) = &def.prefix_with_name {
+        format!("{prefix}_")
     } else {
         String::new()
     };
@@ -1221,8 +1217,8 @@ fn write_tagged_union_repr_int(
     }
     writeln!(out, "  {tag_type_str} tag;").unwrap();
 
-    let body_prefix = if def.prefix_with_name {
-        format!("{name}_")
+    let body_prefix = if let Some(prefix) = &def.prefix_with_name {
+        format!("{prefix}_")
     } else {
         String::new()
     };

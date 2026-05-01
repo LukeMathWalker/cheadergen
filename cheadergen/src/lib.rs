@@ -75,6 +75,8 @@
 /// | [`rename`](#rename) | struct, enum, union, type alias, function, static | No |
 /// | [`prefix_with_name`](#prefix_with_name) | enum | No |
 /// | [`field_names`](#field_names) | tuple struct | No |
+/// | [`rename_all`](#rename_all) | struct, enum, union | No |
+/// | [`rename_all_fields`](#rename_all_fields) | enum (with struct variant) | No |
 ///
 /// ## `export`
 ///
@@ -170,6 +172,71 @@
 /// ```
 ///
 /// Can only be applied to tuple structs.
+///
+/// ## `rename_all`
+///
+/// Bulk-rename fields (struct/union) or variants (enum) using a casing rule. Mirrors serde's
+/// directive of the same name. Accepted values (string literal, case-sensitive):
+///
+/// | Rule                      | Example: `max_value` / `MaxValue` becomes |
+/// |---------------------------|--------------------------------------------|
+/// | `"camelCase"`             | `maxValue`                                 |
+/// | `"PascalCase"`            | `MaxValue`                                 |
+/// | `"snake_case"`            | `max_value`                                |
+/// | `"SCREAMING_SNAKE_CASE"`  | `MAX_VALUE`                                |
+///
+/// ```ignore
+/// #[cheadergen::config(export, rename_all = "camelCase")]
+/// //                           ~~~~~~~~~~~~~~~~~~~~~~~~
+/// //                           └ Fields become maxValue, minValue
+/// #[repr(C)]
+/// pub struct Settings {
+///     pub max_value: u32,
+///     pub min_value: u32,
+/// }
+/// ```
+///
+/// A per-field/per-variant `#[cheadergen(rename = "...")]` always wins over the bulk rule.
+///
+/// When combined with [`prefix_with_name`](#prefix_with_name), the prefix (derived from the
+/// enum name) is also cased so the resulting C identifier is consistent:
+///
+/// ```ignore
+/// #[cheadergen::config(export, prefix_with_name, rename_all = "SCREAMING_SNAKE_CASE")]
+/// #[repr(C)]
+/// pub enum MyStatus {
+///     OkResult,
+///     ErrorCode,
+/// }
+/// // Variants emitted as `MY_STATUS_OK_RESULT`, `MY_STATUS_ERROR_CODE`.
+/// ```
+///
+/// An explicit `rename = "..."` on the enum short-circuits the prefix casing — the explicit
+/// C name is used verbatim as the prefix.
+///
+/// Cannot be applied to functions, statics, or type aliases.
+///
+/// ## `rename_all_fields`
+///
+/// On an enum, bulk-rename the fields inside every struct variant. Accepts the same casing
+/// values as [`rename_all`](#rename_all). Variant names themselves are unaffected (use
+/// `rename_all` for those).
+///
+/// ```ignore
+/// #[cheadergen::config(export, rename_all_fields = "camelCase")]
+/// //                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/// //                           └ Struct-variant fields become camelCase
+/// #[repr(C)]
+/// pub enum Message {
+///     Plain,
+///     WithBody {
+///         message_text: u32, // -> messageText
+///         sender_id: u32,    // -> senderId
+///     },
+/// }
+/// ```
+///
+/// Can only be applied to enums that have at least one struct (named-fields) variant.
 ///
 /// # Field and variant directives
 ///

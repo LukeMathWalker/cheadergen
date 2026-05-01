@@ -1,0 +1,26 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 332
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+enum Message_Tag {
+  Plain,
+  WithBody,
+};
+
+struct WithBody_Body {
+  uint32_t messageText;
+  uint32_t senderId;
+};
+
+struct Message {
+  enum Message_Tag tag;
+  union {
+    struct WithBody_Body withbody;
+  };
+};

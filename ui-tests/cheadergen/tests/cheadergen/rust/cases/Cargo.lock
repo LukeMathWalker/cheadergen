@@ -605,6 +605,41 @@ name = "ref_primitives"
 version = "0.1.0"
 
 [[package]]
+name = "rename_all_enum"
+version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
+
+[[package]]
+name = "rename_all_fields"
+version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
+
+[[package]]
+name = "rename_all_struct"
+version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
+
+[[package]]
+name = "rename_all_with_override"
+version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
+
+[[package]]
+name = "rename_all_with_prefix_with_name"
+version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
+
+[[package]]
 name = "rename_field"
 version = "0.1.0"
 dependencies = [

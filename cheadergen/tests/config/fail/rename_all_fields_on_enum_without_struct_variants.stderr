@@ -1,0 +1,11 @@
+error: `rename_all_fields` requires the enum to have at least one struct variant
+ --> tests/config/fail/rename_all_fields_on_enum_without_struct_variants.rs:3:5
+  |
+3 | pub enum FieldlessOnly {
+  |     ^^^^
+
+error: `rename_all_fields` requires the enum to have at least one struct variant
+  --> tests/config/fail/rename_all_fields_on_enum_without_struct_variants.rs:11:5
+   |
+11 | pub enum TupleOnly {
+   |     ^^^^

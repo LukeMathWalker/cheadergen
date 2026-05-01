@@ -1,0 +1,5 @@
+error: `rename_all_fields` can only be applied to enums
+ --> tests/config/fail/rename_all_fields_on_function.rs:3:16
+  |
+3 | pub extern "C" fn my_func() {}
+  |                ^^

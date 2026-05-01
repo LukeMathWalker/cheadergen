@@ -1,0 +1,5 @@
+error: `rename_all` can only be applied to structs, enums, or unions
+ --> tests/config/fail/rename_all_on_function.rs:3:16
+  |
+3 | pub extern "C" fn my_func() {}
+  |                ^^

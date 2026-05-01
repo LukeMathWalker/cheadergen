@@ -1,0 +1,5 @@
+error: unknown casing rule `kebab-case`; expected one of `camelCase`, `PascalCase`, `snake_case`, `SCREAMING_SNAKE_CASE`
+ --> tests/config/fail/rename_all_invalid_casing.rs:1:35
+  |
+1 | #[cheadergen::config(rename_all = "kebab-case")]
+  |                                   ^^^^^^^^^^^^

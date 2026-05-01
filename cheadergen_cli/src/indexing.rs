@@ -26,6 +26,53 @@ pub enum ExportMode {
     Opaque,
 }
 
+/// Casing rule used by `rename_all` and `rename_all_fields`.
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    bincode::Encode,
+    bincode::Decode,
+)]
+#[expect(
+    clippy::enum_variant_names,
+    reason = "the variant names mirror the canonical serde casing literals"
+)]
+pub enum RenameRule {
+    PascalCase,
+    CamelCase,
+    SnakeCase,
+    ScreamingSnakeCase,
+}
+
+impl RenameRule {
+    /// Parse the canonical literal embedded in the diagnostic attribute (e.g. `"camelCase"`).
+    pub fn from_diagnostic_str(s: &str) -> Option<Self> {
+        match s {
+            "PascalCase" => Some(Self::PascalCase),
+            "camelCase" => Some(Self::CamelCase),
+            "snake_case" => Some(Self::SnakeCase),
+            "SCREAMING_SNAKE_CASE" => Some(Self::ScreamingSnakeCase),
+            _ => None,
+        }
+    }
+
+    /// Apply the casing rule to a Rust identifier.
+    pub fn apply(&self, ident: &str) -> String {
+        use heck::{ToLowerCamelCase, ToShoutySnakeCase, ToSnakeCase, ToUpperCamelCase};
+        match self {
+            Self::PascalCase => ident.to_upper_camel_case(),
+            Self::CamelCase => ident.to_lower_camel_case(),
+            Self::SnakeCase => ident.to_snake_case(),
+            Self::ScreamingSnakeCase => ident.to_shouty_snake_case(),
+        }
+    }
+}
+
 /// Per-item annotation directives extracted from `#[cheadergen::config(...)]`.
 #[derive(
     Clone, Debug, Default, serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode,
@@ -41,6 +88,10 @@ pub struct ItemAnnotation {
     pub prefix_with_name: Option<bool>,
     /// Assign C field names to positional fields of a tuple struct.
     pub field_names: Option<Vec<String>>,
+    /// Bulk-rename fields (struct/union) or variants (enum) using a casing rule.
+    pub rename_all: Option<RenameRule>,
+    /// Bulk-rename fields inside struct variants of an enum.
+    pub rename_all_fields: Option<RenameRule>,
 }
 
 /// Annotations extracted from `#[cheadergen::config(...)]` attributes during
@@ -140,6 +191,12 @@ fn parse_cheadergen_attr(s: &str, ann: &mut ItemAnnotation) -> bool {
         let inner = inner.strip_suffix(')').unwrap_or(inner);
         let names: Vec<String> = inner.split(',').map(|n| n.trim().to_owned()).collect();
         ann.field_names = Some(names);
+    } else if let Some(inner) = rest.strip_prefix("rename_all(") {
+        let inner = inner.strip_suffix(')').unwrap_or(inner).trim_matches('"');
+        ann.rename_all = RenameRule::from_diagnostic_str(inner);
+    } else if let Some(inner) = rest.strip_prefix("rename_all_fields(") {
+        let inner = inner.strip_suffix(')').unwrap_or(inner).trim_matches('"');
+        ann.rename_all_fields = RenameRule::from_diagnostic_str(inner);
     } else {
         return false;
     }
@@ -210,5 +267,38 @@ impl FieldAnnotation {
             }
         }
         result
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Smoke test: each rule maps the four canonical identifier shapes to the
+    /// expected output. The actual case-conversion is delegated to `heck` —
+    /// these tests guard against accidentally wiring a rule to the wrong heck
+    /// trait.
+    #[test]
+    fn apply_each_rule() {
+        assert_eq!(RenameRule::PascalCase.apply("my_status"), "MyStatus");
+        assert_eq!(RenameRule::CamelCase.apply("MyStatus"), "myStatus");
+        assert_eq!(RenameRule::SnakeCase.apply("MyStatus"), "my_status");
+        assert_eq!(
+            RenameRule::ScreamingSnakeCase.apply("MyStatus"),
+            "MY_STATUS"
+        );
+    }
+
+    #[test]
+    fn from_diagnostic_str_round_trips() {
+        for (literal, rule) in [
+            ("PascalCase", RenameRule::PascalCase),
+            ("camelCase", RenameRule::CamelCase),
+            ("snake_case", RenameRule::SnakeCase),
+            ("SCREAMING_SNAKE_CASE", RenameRule::ScreamingSnakeCase),
+        ] {
+            assert_eq!(RenameRule::from_diagnostic_str(literal), Some(rule));
+        }
+        assert_eq!(RenameRule::from_diagnostic_str("kebab-case"), None);
     }
 }

@@ -1,0 +1,26 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 332
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+/**
+ * Variants emitted as `MY_STATUS_OK`, `MY_STATUS_ERROR_STATE` (prefix is also cased).
+ */
+typedef enum {
+  MY_STATUS_OK,
+  MY_STATUS_ERROR_STATE,
+} MyStatus;
+
+/**
+ * Variants emitted as `Foo_ok`, `Foo_error_state` — explicit `rename` becomes
+ * the prefix verbatim; only variants are cased.
+ */
+typedef enum {
+  Foo_ok,
+  Foo_error_state,
+} Foo;

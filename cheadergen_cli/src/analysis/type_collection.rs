@@ -12,7 +12,7 @@ use crate::analysis::exported_via_annotations;
 use crate::analysis::extern_items::ExternItems;
 use crate::cli::generate::PackageTypeOverrides;
 use crate::diagnostic::DiagnosticSink;
-use crate::indexing::ExportMode;
+use crate::indexing::{ExportMode, RenameRule};
 
 /// C and C++ reserved keywords that cannot be used as identifiers.
 ///
@@ -235,8 +235,10 @@ pub struct CStructField {
 pub struct CFieldlessEnumDef {
     pub repr: CEnumRepr,
     pub variants: Vec<CEnumVariant>,
-    /// Prefix each variant name with the enum name (e.g. `Status_Ok`).
-    pub prefix_with_name: bool,
+    /// When `Some(prefix)`, each variant is emitted as `<prefix>_<variant>`.
+    /// `None` disables prefixing. The prefix is pre-computed from the enum's
+    /// resolved type name (with any `rename_all` casing rule applied).
+    pub prefix_with_name: Option<String>,
 }
 
 /// A single variant of a fieldless enum.
@@ -328,8 +330,11 @@ impl CEnumRepr {
 #[derive(Clone, Debug)]
 pub struct CTaggedUnionDef {
     pub repr: CEnumRepr,
-    /// When true, variant names in the tag enum are prefixed with the enum name.
-    pub prefix_with_name: bool,
+    /// When `Some(prefix)`, variant names in the tag enum and body struct names
+    /// are prefixed with `<prefix>_`. `None` disables prefixing. The prefix is
+    /// pre-computed from the enum's resolved type name (with any `rename_all`
+    /// casing rule applied).
+    pub prefix_with_name: Option<String>,
     pub variants: Vec<CTaggedVariant>,
 }
 
@@ -729,6 +734,45 @@ fn annotation_prefix_with_name(
         .unwrap_or(global_default)
 }
 
+/// Look up the `rename_all` annotation for a type.
+fn annotation_rename_all(collection: &Collection, path_type: &PathType) -> Option<RenameRule> {
+    let ann = collection.get_annotated_items(&path_type.package_id)?;
+    let id = path_type.rustdoc_id?;
+    ann.get(&id)?.rename_all
+}
+
+/// Look up the `rename_all_fields` annotation for a type.
+fn annotation_rename_all_fields(
+    collection: &Collection,
+    path_type: &PathType,
+) -> Option<RenameRule> {
+    let ann = collection.get_annotated_items(&path_type.package_id)?;
+    let id = path_type.rustdoc_id?;
+    ann.get(&id)?.rename_all_fields
+}
+
+/// Compute the prefix string for `prefix_with_name`, applying any `rename_all`
+/// casing rule. An explicit `rename = "..."` on the type short-circuits the
+/// casing — the explicit C name is used verbatim.
+fn compute_enum_prefix(
+    enabled: bool,
+    explicit_rename: Option<&str>,
+    rust_ident: &str,
+    rename_all: Option<RenameRule>,
+) -> Option<String> {
+    if !enabled {
+        return None;
+    }
+    if let Some(name) = explicit_rename {
+        return Some(name.to_owned());
+    }
+    Some(
+        rename_all
+            .map(|r| r.apply(rust_ident))
+            .unwrap_or_else(|| rust_ident.to_owned()),
+    )
+}
+
 /// Resolve all collected types into `CTypeDefinition`s, iterating to a fixed
 /// point to discover transitive field types.
 fn resolve_all_type_definitions(
@@ -755,15 +799,30 @@ fn resolve_all_type_definitions(
         }
 
         for (canonical, path_type) in direct {
-            let per_type_prefix =
+            let prefix_enabled =
                 annotation_prefix_with_name(collection, &path_type, enum_prefix_with_name);
+            let rename_all = annotation_rename_all(collection, &path_type);
+            let rename_all_fields = annotation_rename_all_fields(collection, &path_type);
 
             let default_name = c_type_name(&Type::Path(path_type.clone()));
             let renamed = annotation_rename(collection, &path_type);
+            let enum_prefix = compute_enum_prefix(
+                prefix_enabled,
+                renamed.as_deref(),
+                &default_name,
+                rename_all,
+            );
             let original_name = renamed.as_ref().map(|_| default_name.clone());
             let name = renamed.unwrap_or(default_name);
-            let kind =
-                resolve_type_kind(&name, &path_type, collection, per_type_prefix, diagnostics)?;
+            let kind = resolve_type_kind(
+                &name,
+                &path_type,
+                collection,
+                enum_prefix,
+                rename_all,
+                rename_all_fields,
+                diagnostics,
+            )?;
 
             // Discover transitive field types from full definitions.
             match &kind {
@@ -851,11 +910,19 @@ fn resolve_all_type_definitions(
         }
 
         for (canonical, path_type) in unresolved {
-            let per_type_prefix =
+            let prefix_enabled =
                 annotation_prefix_with_name(collection, &path_type, enum_prefix_with_name);
+            let rename_all = annotation_rename_all(collection, &path_type);
+            let rename_all_fields = annotation_rename_all_fields(collection, &path_type);
 
             let default_name = c_type_name(&Type::Path(path_type.clone()));
             let renamed = annotation_rename(collection, &path_type);
+            let enum_prefix = compute_enum_prefix(
+                prefix_enabled,
+                renamed.as_deref(),
+                &default_name,
+                rename_all,
+            );
             let original_name = renamed.as_ref().map(|_| default_name.clone());
             let name = renamed.unwrap_or(default_name);
             let rustdoc_id = path_type
@@ -866,7 +933,9 @@ fn resolve_all_type_definitions(
                 &name,
                 &path_type,
                 collection,
-                per_type_prefix,
+                enum_prefix,
+                rename_all,
+                rename_all_fields,
                 diagnostics,
             )?;
 

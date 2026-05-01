@@ -21,6 +21,7 @@ clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 toml = "1"
 fs-err = "3"
+heck = "0.5"
 pathdiff = "0.2"
 petgraph = "0.8"
 guppy = { workspace = true }

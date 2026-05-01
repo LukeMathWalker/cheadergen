@@ -1,0 +1,5 @@
+error: `rename_all` can only be applied to structs, enums, or unions
+ --> tests/config/fail/rename_all_on_static.rs:3:5
+  |
+3 | pub static GLOBAL: u32 = 42;
+  |     ^^^^^^
