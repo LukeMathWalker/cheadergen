@@ -71,6 +71,11 @@ pub(super) struct GenerateArgs {
     /// Only valid with a single target package.
     #[arg(long)]
     bundle: bool,
+
+    /// In partitioned mode, delete header files in --output-dir that were not
+    /// produced by this run.
+    #[arg(long)]
+    prune_orphans: bool,
 }
 
 /// Resolved per-package type overrides, keyed by [`guppy::PackageId`].
@@ -330,6 +335,12 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
         );
     }
 
+    if cli.prune_orphans && config_set.bundle {
+        anyhow::bail!(
+            "--prune-orphans is only valid in partitioned mode; remove --bundle to use it"
+        );
+    }
+
     let toolchain = std::env::var("CHEADERGEN_DOCS_TOOLCHAIN")
         .unwrap_or_else(|_| metadata::DOCS_TOOLCHAIN.to_string());
     if !cli.quiet {
@@ -577,6 +588,8 @@ fn generate_partitioned(
 
     fs_err::create_dir_all(&cli.output_dir)?;
 
+    let mut written: HashSet<String> = HashSet::new();
+
     for (pkg_id, mut type_defs) in partitioned.per_crate {
         let is_target = target_ids.contains(&pkg_id);
 
@@ -644,9 +657,49 @@ fn generate_partitioned(
             let kind = if is_target { "target" } else { "dependency" };
             eprintln!("Wrote {kind} header: {filename}");
         }
+
+        written.insert(filename);
+    }
+
+    if cli.prune_orphans {
+        prune_orphan_headers(&cli.output_dir, cli.lang.extension(), &written, cli.quiet)?;
     }
 
     Ok(all_symbols)
+}
+
+/// Delete top-level files in `output_dir` whose extension matches
+/// `lang_extension` and whose name is not in `keep`. Logs each removal to
+/// stderr unless `quiet` is set.
+fn prune_orphan_headers(
+    output_dir: &std::path::Path,
+    lang_extension: &str,
+    keep: &HashSet<String>,
+    quiet: bool,
+) -> anyhow::Result<()> {
+    let target_ext = std::ffi::OsStr::new(lang_extension);
+    for entry in fs_err::read_dir(output_dir)? {
+        let entry = entry?;
+        if !entry.file_type()?.is_file() {
+            continue;
+        }
+        let path = entry.path();
+        if path.extension() != Some(target_ext) {
+            continue;
+        }
+        let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        if keep.contains(name) {
+            continue;
+        }
+        let name = name.to_string();
+        fs_err::remove_file(&path)?;
+        if !quiet {
+            eprintln!("Removed orphan header: {name}");
+        }
+    }
+    Ok(())
 }
 
 /// Processes a single crate: loads its rustdoc JSON via [`Collection`],
