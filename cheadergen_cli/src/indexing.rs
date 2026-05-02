@@ -109,15 +109,6 @@ impl CHeadergenAnnotations {
     }
 }
 
-impl bincode::Decode<()> for CHeadergenAnnotations {
-    fn decode<D: bincode::de::Decoder<Context = ()>>(
-        decoder: &mut D,
-    ) -> Result<Self, bincode::error::DecodeError> {
-        let items: BTreeMap<rustdoc_types::Id, ItemAnnotation> = bincode::Decode::decode(decoder)?;
-        Ok(Self { items })
-    }
-}
-
 /// Indexer that discovers `#[cheadergen::config(...)]` annotations during crate
 /// traversal.
 pub struct CheadergenIndexer;

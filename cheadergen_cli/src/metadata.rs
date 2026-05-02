@@ -9,7 +9,7 @@ use crate::indexing::CheadergenIndexer;
 
 /// The nightly toolchain used for `cargo rustdoc` JSON generation.
 /// Must match the FORMAT_VERSION expected by `rustdoc_types`.
-pub const DOCS_TOOLCHAIN: &str = "nightly-2025-12-15";
+pub const DOCS_TOOLCHAIN: &str = "nightly-2026-05-01";
 
 /// Load cargo metadata and build a package graph.
 pub fn load_package_graph(

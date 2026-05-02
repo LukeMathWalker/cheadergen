@@ -28,7 +28,7 @@ guppy = { workspace = true }
 rustdoc_ir = { workspace = true }
 rustdoc_processor = { workspace = true }
 rustdoc_resolver = { workspace = true }
-rustdoc_types = { workspace = true }
+rustdoc-types = { workspace = true }
 xdg-home = "1"
 
 [dev-dependencies]

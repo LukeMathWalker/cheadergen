@@ -22,6 +22,7 @@ use super::type_transform;
 ///
 /// Returns an opaque variant (with a warning on stderr) if the type cannot
 /// be fully defined — e.g. missing `rustdoc_id`, not `#[repr(C)]`, etc.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn resolve_type_kind(
     name: &str,
     path_type: &PathType,
@@ -137,7 +138,10 @@ fn setup_generic_bindings(
 }
 
 /// Resolve a struct into a `CTypeKind`.
-#[expect(clippy::too_many_arguments, reason = "explicit threading of resolution context")]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "explicit threading of resolution context"
+)]
 fn resolve_struct_kind(
     name: &str,
     struct_def: &rustdoc_types::Struct,
@@ -356,6 +360,7 @@ fn resolve_type_alias_kind(
 }
 
 /// Resolve a union into a `CTypeKind`.
+#[allow(clippy::too_many_arguments)]
 fn resolve_union_kind(
     name: &str,
     union_def: &rustdoc_types::Union,
@@ -516,7 +521,10 @@ fn extract_enum_repr(attrs: &[Attribute]) -> anyhow::Result<Option<CEnumRepr>> {
 }
 
 /// Resolve an enum into a `CTypeKind`.
-#[expect(clippy::too_many_arguments, reason = "explicit threading of resolution context")]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "explicit threading of resolution context"
+)]
 fn resolve_enum_kind(
     name: &str,
     enum_def: &rustdoc_types::Enum,
@@ -641,7 +649,10 @@ fn resolve_fieldless_enum(
 }
 
 /// Resolve a tagged union (enum with data variants).
-#[expect(clippy::too_many_arguments, reason = "explicit threading of resolution context")]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "explicit threading of resolution context"
+)]
 fn resolve_tagged_union(
     name: &str,
     enum_def: &rustdoc_types::Enum,

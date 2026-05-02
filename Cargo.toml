@@ -12,7 +12,7 @@ allow_attributes = "warn"
 private-intra-doc-links = "allow"
 
 [workspace.dependencies]
-rustdoc_types = { git = "https://github.com/LukeMathWalker/pavex", package = "rustdoc_types" }
+rustdoc-types = "0.57.3"
 rustdoc_ext = { git = "https://github.com/LukeMathWalker/pavex" }
 rustdoc_ir = { git = "https://github.com/LukeMathWalker/pavex" }
 rustdoc_processor = { git = "https://github.com/LukeMathWalker/pavex" }
