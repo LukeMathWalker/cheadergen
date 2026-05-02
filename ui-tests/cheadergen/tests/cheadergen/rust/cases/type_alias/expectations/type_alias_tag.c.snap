@@ -1,6 +1,5 @@
 ---
 source: ui-tests/cheadergen/src/lib.rs
-assertion_line: 332
 expression: output
 ---
 #include <stdarg.h>
@@ -47,12 +46,12 @@ typedef union FloatOrInt Number;
 /**
  * Alias to an alias to a primitive.
  */
-typedef uint32_t Size;
+typedef Length Size;
 
 /**
  * Alias to an alias to a struct.
  */
-typedef struct Point Coordinate;
+typedef Position Coordinate;
 
 /**
  * `repr(transparent)` wrapper around a `repr(C)` struct.

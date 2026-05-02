@@ -346,13 +346,18 @@ fn resolve_type_alias_kind(
             Err(()) => return Ok(CTypeKind::OpaqueStruct),
         };
 
-    // Resolve the aliased type fully (resolve through nested aliases).
+    // Preserve nested aliases so that `std::ffi::c_*` (and other foreign
+    // typedefs whose identity matters in C) survive into the emitted typedef
+    // body. Codegen consults `ffi_primitive_to_c` to map e.g. `c_char` back
+    // to `char`; that mapping only fires when the type is still a
+    // `Type::TypeAlias`, not after `ResolveThrough` has collapsed it to its
+    // leaf primitive.
     let resolved = resolve_type(
         &type_alias.type_,
         &path_type.package_id,
         collection,
         &generic_bindings,
-        TypeAliasResolution::ResolveThrough,
+        TypeAliasResolution::Preserve,
     )
     .map_err(|e| anyhow::anyhow!("Failed to resolve type alias `{name}`: {}", Arc::new(e)))?;
 

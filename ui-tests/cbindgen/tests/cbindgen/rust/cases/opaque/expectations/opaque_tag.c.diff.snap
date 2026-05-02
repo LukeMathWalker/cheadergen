@@ -259,10 +259,10 @@ struct HashMap_i32__i32__BuildHasherDefault_DefaultHasher;
  *
  * See the [module documentation](self) for details.
  */
-struct Result_HashMap_i32__i32__BuildHasherDefault_DefaultHasher__;
+struct Result_Foo__;
 
 typedef struct HashMap_i32__i32__BuildHasherDefault_DefaultHasher Foo;
 
-typedef struct Result_HashMap_i32__i32__BuildHasherDefault_DefaultHasher__ Bar;
+typedef struct Result_Foo__ Bar;
 
 void root(const Foo *a, const Bar *b);
