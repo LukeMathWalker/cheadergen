@@ -14,7 +14,7 @@ use rustdoc_types::{Attribute, AttributeRepr, ItemEnum, ReprKind, StructKind, Va
 use super::type_collection::{
     CEnumRepr, CEnumVariant, CFieldlessEnumDef, CIdentifier, CStructDef, CStructField,
     CTaggedUnionDef, CTaggedVariant, CTaggedVariantBody, CTypeKind, CTypedefDef, CUnionDef,
-    ReprIntType, is_zst_type,
+    ReprIntType, TypeUsage, is_zst_type,
 };
 use super::type_transform;
 
@@ -29,6 +29,7 @@ pub(super) fn resolve_type_kind(
     enum_prefix: Option<String>,
     rename_all: Option<RenameRule>,
     rename_all_fields: Option<RenameRule>,
+    usage: TypeUsage,
     diagnostics: &mut DiagnosticSink,
 ) -> anyhow::Result<CTypeKind> {
     let Some(id) = &path_type.rustdoc_id else {
@@ -57,6 +58,7 @@ pub(super) fn resolve_type_kind(
             collection,
             field_names,
             rename_all,
+            usage,
             diagnostics,
         ),
         ItemEnum::Union(union_def) => resolve_union_kind(
@@ -66,6 +68,7 @@ pub(super) fn resolve_type_kind(
             path_type,
             collection,
             rename_all,
+            usage,
             diagnostics,
         ),
         ItemEnum::Enum(enum_def) => resolve_enum_kind(
@@ -77,6 +80,7 @@ pub(super) fn resolve_type_kind(
             enum_prefix,
             rename_all,
             rename_all_fields,
+            usage,
             diagnostics,
         ),
         ItemEnum::TypeAlias(type_alias) => {
@@ -142,6 +146,7 @@ fn resolve_struct_kind(
     collection: &Collection,
     field_names: Option<&[String]>,
     rename_all: Option<RenameRule>,
+    usage: TypeUsage,
     diagnostics: &mut DiagnosticSink,
 ) -> anyhow::Result<CTypeKind> {
     // Check for #[repr(C)] or #[repr(transparent)].
@@ -165,15 +170,20 @@ fn resolve_struct_kind(
     });
 
     if !is_repr_c && !is_repr_transparent {
-        let global_id =
-            GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
-        let type_item = collection.get_item_by_global_type_id(&global_id);
-        diagnostics
-            .warning(format!("type `{name}` is not #[repr(C)]"))
-            .with_span_if(type_item.span.as_ref())
-            .with_label("not #[repr(C)]".to_string())
-            .with_help("emitting opaque forward declaration")
-            .emit();
+        // Only warn when the type is actually reached by value: if the only
+        // uses are behind a pointer/reference, an opaque forward declaration
+        // is exactly what callers want and the warning is noise.
+        if usage == TypeUsage::ByValue {
+            let global_id =
+                GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
+            let type_item = collection.get_item_by_global_type_id(&global_id);
+            diagnostics
+                .warning(format!("type `{name}` is not #[repr(C)]"))
+                .with_span_if(type_item.span.as_ref())
+                .with_label("not #[repr(C)]".to_string())
+                .with_help("emitting opaque forward declaration")
+                .emit();
+        }
         return Ok(CTypeKind::OpaqueStruct);
     }
 
@@ -353,6 +363,7 @@ fn resolve_union_kind(
     path_type: &PathType,
     collection: &Collection,
     rename_all: Option<RenameRule>,
+    usage: TypeUsage,
     diagnostics: &mut DiagnosticSink,
 ) -> anyhow::Result<CTypeKind> {
     let is_repr_c = attrs.iter().any(|attr| {
@@ -365,15 +376,19 @@ fn resolve_union_kind(
         )
     });
     if !is_repr_c {
-        let global_id =
-            GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
-        let item = collection.get_item_by_global_type_id(&global_id);
-        diagnostics
-            .warning(format!("union `{name}` is not #[repr(C)]"))
-            .with_span_if(item.span.as_ref())
-            .with_label("not #[repr(C)]".to_string())
-            .with_help("emitting opaque forward declaration")
-            .emit();
+        // Only warn when reached by value; opaque is the right output for
+        // pointer-only uses.
+        if usage == TypeUsage::ByValue {
+            let global_id =
+                GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
+            let item = collection.get_item_by_global_type_id(&global_id);
+            diagnostics
+                .warning(format!("union `{name}` is not #[repr(C)]"))
+                .with_span_if(item.span.as_ref())
+                .with_label("not #[repr(C)]".to_string())
+                .with_help("emitting opaque forward declaration")
+                .emit();
+        }
         return Ok(CTypeKind::OpaqueUnion);
     }
 
@@ -511,17 +526,22 @@ fn resolve_enum_kind(
     enum_prefix: Option<String>,
     rename_all: Option<RenameRule>,
     rename_all_fields: Option<RenameRule>,
+    usage: TypeUsage,
     diagnostics: &mut DiagnosticSink,
 ) -> anyhow::Result<CTypeKind> {
     let Some(repr) = extract_enum_repr(attrs)? else {
-        let global_id =
-            GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
-        let item = collection.get_item_by_global_type_id(&global_id);
-        diagnostics
-            .warning(format!("enum `{name}` has no C-compatible repr"))
-            .with_span_if(item.span.as_ref())
-            .with_help("emitting opaque forward declaration")
-            .emit();
+        // Only warn when reached by value; opaque is the right output for
+        // pointer-only uses.
+        if usage == TypeUsage::ByValue {
+            let global_id =
+                GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
+            let item = collection.get_item_by_global_type_id(&global_id);
+            diagnostics
+                .warning(format!("enum `{name}` has no C-compatible repr"))
+                .with_span_if(item.span.as_ref())
+                .with_help("emitting opaque forward declaration")
+                .emit();
+        }
         return Ok(CTypeKind::OpaqueStruct);
     };
 

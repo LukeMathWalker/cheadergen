@@ -365,7 +365,7 @@ pub struct CTaggedVariantBody {
 
 /// Whether a type appears by value or only behind a pointer/reference.
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(super) enum TypeUsage {
+pub(crate) enum TypeUsage {
     /// Type appears by value in a signature or struct field.
     ByValue,
     /// Type only appears behind a pointer or reference.
@@ -832,6 +832,7 @@ fn resolve_all_type_definitions(
                 enum_prefix,
                 rename_all,
                 rename_all_fields,
+                TypeUsage::ByValue,
                 diagnostics,
             )?;
 
@@ -947,6 +948,7 @@ fn resolve_all_type_definitions(
                 enum_prefix,
                 rename_all,
                 rename_all_fields,
+                TypeUsage::BehindPointer,
                 diagnostics,
             )?;
 
