@@ -10,11 +10,11 @@ DEF M_32 = 0
 
 # `struct.derive_eq` was skipped: not supported by cheadergen
 # `struct.derive_neq` was skipped: not supported by cheadergen
-# `enum.derive_helper_methods` was skipped: not supported by cheadergen
-# `enum.derive_tagged_enum_copy_constructor` was skipped: not supported by cheadergen
-# `enum.derive_tagged_enum_copy_assignment` was skipped: not supported by cheadergen
-# `enum.derive_tagged_enum_destructor` was skipped: not supported by cheadergen
 # `enum.private_default_tagged_enum_constructor` was skipped: not supported by cheadergen
+# `enum.derive_tagged_enum_destructor` was skipped: not supported by cheadergen
+# `enum.derive_tagged_enum_copy_assignment` was skipped: not supported by cheadergen
+# `enum.derive_tagged_enum_copy_constructor` was skipped: not supported by cheadergen
+# `enum.derive_helper_methods` was skipped: not supported by cheadergen
 # `macro_expansion.bitflags` was skipped: not supported by cheadergen
 # `defines.target_pointer_width = 32` was skipped: not supported by cheadergen
 # `defines.unix` was skipped: not supported by cheadergen

@@ -2,6 +2,7 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fmt::Write;
 use std::path::Path;
 
+use crate::analysis::extern_items::FreeFunctionItem;
 use crate::analysis::{
     CEnumRepr, CFieldlessEnumDef, CIdentifier, CStructDef, CTaggedUnionDef, CTypeDefinition,
     CTypeKind, CTypedefDef, CUnionDef, c_type_name, ffi_primitive_to_c,
@@ -10,7 +11,7 @@ use crate::config::{CConfig, CommonConfig, DocumentationLength, DocumentationSty
 use crate::constant_item::ConstantItem;
 use crate::static_item::StaticItem;
 use guppy::PackageId;
-use rustdoc_ir::{FreeFunction, FunctionPointer, PathType, ScalarPrimitive, Type};
+use rustdoc_ir::{FunctionPointer, PathType, ScalarPrimitive, Type};
 use rustdoc_processor::GlobalItemId;
 
 use crate::Collection;
@@ -119,7 +120,7 @@ pub fn generate_c_header(
     type_defs: &[CTypeDefinition],
     constants: &[ConstantItem],
     assoc_constants: &[(String, Vec<ConstantItem>)],
-    functions: &[FreeFunction],
+    functions: &[FreeFunctionItem],
     statics: &[StaticItem],
     dep_includes: &[String],
     type_hints: &[CTypeDefinition],
@@ -155,6 +156,16 @@ pub fn generate_c_header(
     if !common.no_includes {
         out.push_str("#include <stdarg.h>\n");
         out.push_str("#include <stdbool.h>\n");
+        // `<stddef.h>` is needed for `size_t` and `ptrdiff_t` when any item
+        // in this header was resolved with `usize_is_size_t = true`. We pull
+        // it in conditionally to keep the default include block unchanged
+        // for the (much more common) case where the option is off.
+        let needs_stddef = type_defs.iter().any(|d| d.usize_is_size_t)
+            || functions.iter().any(|f| f.usize_is_size_t)
+            || statics.iter().any(|s| s.usize_is_size_t);
+        if needs_stddef {
+            out.push_str("#include <stddef.h>\n");
+        }
         out.push_str("#include <stdint.h>\n");
         out.push_str("#include <stdlib.h>\n");
     }
@@ -252,7 +263,7 @@ pub fn generate_c_header(
         if !out.is_empty() {
             out.push('\n');
         }
-        let docs = lookup_docs(func.source_coordinates.as_ref(), collection);
+        let docs = lookup_docs(func.function.source_coordinates.as_ref(), collection);
         write_doc_comment(docs.as_deref(), common, out);
         write_c_function_decl(func, &config.style, &ctx, out);
         out.push('\n');
@@ -369,7 +380,14 @@ fn write_c_static_decl(
     if !s.is_mutable && !is_const_pointer(&s.type_) {
         out.push_str("const ");
     }
-    write_c_decl(&s.type_, exported_static_name(s), style, ctx, out);
+    write_c_decl(
+        &s.type_,
+        exported_static_name(s),
+        style,
+        ctx,
+        s.usize_is_size_t,
+        out,
+    );
     out.push(';');
 }
 
@@ -380,17 +398,18 @@ fn write_c_decl(
     name: &str,
     style: &Style,
     ctx: &TypeEmitCtx<'_>,
+    usize_is_size_t: bool,
     out: &mut String,
 ) {
     if let Type::Array(a) = ty {
-        write_c_type(&a.element_type, style, ctx, out);
+        write_c_type(&a.element_type, style, ctx, usize_is_size_t, out);
         write!(out, " {name}[{}]", a.len).unwrap();
     } else if let Some((fp, depth)) = fn_ptr_through_pointers(ty) {
         let declarator = format!("{}{name}", "*".repeat(depth));
-        write_fn_ptr_decl(fp, &declarator, style, ctx, out);
+        write_fn_ptr_decl(fp, &declarator, style, ctx, usize_is_size_t, out);
     } else {
         let mut type_buf = String::new();
-        write_c_type(ty, style, ctx, &mut type_buf);
+        write_c_type(ty, style, ctx, usize_is_size_t, &mut type_buf);
         if type_buf.ends_with('*') {
             write!(out, "{type_buf}{name}").unwrap();
         } else {
@@ -404,12 +423,20 @@ fn write_c_field_line(
     field: &crate::analysis::CStructField,
     style: &Style,
     ctx: &TypeEmitCtx<'_>,
+    usize_is_size_t: bool,
     out: &mut String,
 ) {
     let docs = lookup_docs(field.rustdoc_id.as_ref(), ctx.collection);
     write_doc_comment_indented(docs.as_deref(), ctx.config, "  ", out);
     out.push_str("  ");
-    write_c_decl(&field.type_, field.name.as_str(), style, ctx, out);
+    write_c_decl(
+        &field.type_,
+        field.name.as_str(),
+        style,
+        ctx,
+        usize_is_size_t,
+        out,
+    );
     if let Some(width) = field.bitfield_width {
         write!(out, " : {width}").unwrap();
     }
@@ -422,11 +449,13 @@ fn is_const_pointer(ty: &Type) -> bool {
 }
 
 fn write_c_function_decl(
-    func: &FreeFunction,
+    item: &FreeFunctionItem,
     style: &Style,
     ctx: &TypeEmitCtx<'_>,
     out: &mut String,
 ) {
+    let func = &item.function;
+    let usize_is_size_t = item.usize_is_size_t;
     let name = func
         .header
         .symbol_name
@@ -438,7 +467,7 @@ fn write_c_function_decl(
     match &func.header.output {
         None => ret_buf.push_str("void"),
         Some(ty) if is_void(ty) => ret_buf.push_str("void"),
-        Some(ty) => write_c_type(ty, style, ctx, &mut ret_buf),
+        Some(ty) => write_c_type(ty, style, ctx, usize_is_size_t, &mut ret_buf),
     }
     if ret_buf.ends_with('*') {
         write!(out, "{ret_buf}{name}(").unwrap();
@@ -454,7 +483,14 @@ fn write_c_function_decl(
             if i > 0 {
                 out.push_str(", ");
             }
-            write_c_param(&input.type_, input.name.as_str(), style, ctx, out);
+            write_c_param(
+                &input.type_,
+                input.name.as_str(),
+                style,
+                ctx,
+                usize_is_size_t,
+                out,
+            );
         }
         if func.header.is_c_variadic {
             if !func.header.inputs.is_empty() {
@@ -472,14 +508,15 @@ fn write_c_param(
     name: &str,
     style: &Style,
     ctx: &TypeEmitCtx<'_>,
+    usize_is_size_t: bool,
     out: &mut String,
 ) {
     if let Some((fp, depth)) = fn_ptr_through_pointers(ty) {
         let declarator = format!("{}{name}", "*".repeat(depth));
-        write_fn_ptr_decl(fp, &declarator, style, ctx, out);
+        write_fn_ptr_decl(fp, &declarator, style, ctx, usize_is_size_t, out);
     } else {
         let mut type_buf = String::new();
-        write_c_type(ty, style, ctx, &mut type_buf);
+        write_c_type(ty, style, ctx, usize_is_size_t, &mut type_buf);
         if type_buf.ends_with('*') {
             write!(out, "{type_buf}{name}").unwrap();
         } else {
@@ -488,24 +525,30 @@ fn write_c_param(
     }
 }
 
-fn write_c_type(ty: &Type, style: &Style, ctx: &TypeEmitCtx<'_>, out: &mut String) {
+fn write_c_type(
+    ty: &Type,
+    style: &Style,
+    ctx: &TypeEmitCtx<'_>,
+    usize_is_size_t: bool,
+    out: &mut String,
+) {
     match ty {
-        Type::ScalarPrimitive(p) => out.push_str(scalar_to_c(p)),
+        Type::ScalarPrimitive(p) => out.push_str(scalar_to_c(p, usize_is_size_t)),
         Type::RawPointer(_) | Type::Reference(_) => {
             if let Some((fp, depth)) = fn_ptr_through_pointers(ty) {
                 let declarator = "*".repeat(depth);
-                write_fn_ptr_decl(fp, &declarator, style, ctx, out);
+                write_fn_ptr_decl(fp, &declarator, style, ctx, usize_is_size_t, out);
                 return;
             }
-            write_pointer_chain(ty, style, ctx, out);
+            write_pointer_chain(ty, style, ctx, usize_is_size_t, out);
         }
         Type::Tuple(t) if t.elements.is_empty() => out.push_str("void"),
         Type::Array(a) => {
-            write_c_type(&a.element_type, style, ctx, out);
+            write_c_type(&a.element_type, style, ctx, usize_is_size_t, out);
             write!(out, "[{}]", a.len).unwrap();
         }
         Type::FunctionPointer(fp) => {
-            write_fn_ptr_decl(fp, "", style, ctx, out);
+            write_fn_ptr_decl(fp, "", style, ctx, usize_is_size_t, out);
         }
         Type::Path(p) | Type::TypeAlias(p) => {
             if let Some(c_name) = ffi_primitive_to_c(p) {
@@ -564,7 +607,13 @@ fn write_c_type(ty: &Type, style: &Style, ctx: &TypeEmitCtx<'_>, out: &mut Strin
 /// - `*const *const i32`        → `const int32_t *const *`
 /// - `*const *mut i32`          → `int32_t *const *`
 /// - `*mut *const i32`          → `const int32_t * *`
-fn write_pointer_chain(ty: &Type, style: &Style, ctx: &TypeEmitCtx<'_>, out: &mut String) {
+fn write_pointer_chain(
+    ty: &Type,
+    style: &Style,
+    ctx: &TypeEmitCtx<'_>,
+    usize_is_size_t: bool,
+    out: &mut String,
+) {
     let mut levels: Vec<bool> = Vec::new();
     let mut current = ty;
     loop {
@@ -586,7 +635,7 @@ fn write_pointer_chain(ty: &Type, style: &Style, ctx: &TypeEmitCtx<'_>, out: &mu
     if innermost_const {
         out.push_str("const ");
     }
-    write_c_type(current, style, ctx, out);
+    write_c_type(current, style, ctx, usize_is_size_t, out);
     for i in (0..levels.len()).rev() {
         out.push_str(" *");
         if i > 0 && levels[i - 1] {
@@ -617,6 +666,7 @@ fn write_fn_ptr_decl(
     declarator: &str,
     style: &Style,
     ctx: &TypeEmitCtx<'_>,
+    usize_is_size_t: bool,
     out: &mut String,
 ) {
     // Return type.
@@ -624,7 +674,7 @@ fn write_fn_ptr_decl(
     match &fp.output {
         None => ret_buf.push_str("void"),
         Some(ty) if is_void(ty) => ret_buf.push_str("void"),
-        Some(ty) => write_c_type(ty, style, ctx, &mut ret_buf),
+        Some(ty) => write_c_type(ty, style, ctx, usize_is_size_t, &mut ret_buf),
     }
 
     if ret_buf.ends_with('*') {
@@ -642,9 +692,9 @@ fn write_fn_ptr_decl(
                 out.push_str(", ");
             }
             if let Some(name) = &input.name {
-                write_c_param(&input.type_, name, style, ctx, out);
+                write_c_param(&input.type_, name, style, ctx, usize_is_size_t, out);
             } else {
-                write_c_type(&input.type_, style, ctx, out);
+                write_c_type(&input.type_, style, ctx, usize_is_size_t, out);
             }
         }
     }
@@ -698,7 +748,16 @@ fn write_c_type_definitions(
         };
         let docs = lookup_docs(def.rustdoc_id.as_ref(), collection);
         write_doc_comment(docs.as_deref(), config, out);
-        write_c_fieldless_enum(&def.name, enum_def, style, cpp_compat, config, collection, out);
+        write_c_fieldless_enum(
+            &def.name,
+            enum_def,
+            style,
+            cpp_compat,
+            def.usize_is_size_t,
+            config,
+            collection,
+            out,
+        );
         write_assoc_constants_for_type(&def.name, &assoc_map, collection, config, out);
         if i + 1 < fieldless_enum_defs.len() {
             out.push('\n');
@@ -792,11 +851,20 @@ fn write_c_type_definitions(
                     style,
                     has_fwd_decl,
                     ctx,
+                    def.usize_is_size_t,
                     out,
                 );
             }
             CTypeKind::Union(union_def) => {
-                write_c_union_definition(&def.name, union_def, style, has_fwd_decl, ctx, out);
+                write_c_union_definition(
+                    &def.name,
+                    union_def,
+                    style,
+                    has_fwd_decl,
+                    ctx,
+                    def.usize_is_size_t,
+                    out,
+                );
             }
             CTypeKind::TaggedUnion(tagged_def) => {
                 write_c_tagged_union(
@@ -806,11 +874,12 @@ fn write_c_type_definitions(
                     has_fwd_decl,
                     cpp_compat,
                     ctx,
+                    def.usize_is_size_t,
                     out,
                 );
             }
             CTypeKind::Typedef(typedef_def) => {
-                write_c_typedef(&def.name, typedef_def, style, ctx, out);
+                write_c_typedef(&def.name, typedef_def, style, ctx, def.usize_is_size_t, out);
             }
             _ => unreachable!(),
         }
@@ -842,12 +911,14 @@ fn write_assoc_constants_for_type(
 }
 
 /// Emit a full C struct definition with fields.
+#[allow(clippy::too_many_arguments)]
 fn write_c_struct_definition(
     name: &str,
     def: &CStructDef,
     style: &Style,
     has_fwd_decl: bool,
     ctx: &TypeEmitCtx<'_>,
+    usize_is_size_t: bool,
     out: &mut String,
 ) {
     let write_fields = |style: &Style, out: &mut String| {
@@ -855,7 +926,7 @@ fn write_c_struct_definition(
             writeln!(out).unwrap();
         } else {
             for field in &def.fields {
-                write_c_field_line(field, style, ctx, out);
+                write_c_field_line(field, style, ctx, usize_is_size_t, out);
             }
         }
     };
@@ -885,12 +956,14 @@ fn write_c_struct_definition(
 }
 
 /// Emit a full C union definition with fields.
+#[allow(clippy::too_many_arguments)]
 fn write_c_union_definition(
     name: &str,
     def: &CUnionDef,
     style: &Style,
     has_fwd_decl: bool,
     ctx: &TypeEmitCtx<'_>,
+    usize_is_size_t: bool,
     out: &mut String,
 ) {
     let write_fields = |style: &Style, out: &mut String| {
@@ -898,7 +971,7 @@ fn write_c_union_definition(
             writeln!(out).unwrap();
         } else {
             for field in &def.fields {
-                write_c_field_line(field, style, ctx, out);
+                write_c_field_line(field, style, ctx, usize_is_size_t, out);
             }
         }
     };
@@ -928,11 +1001,13 @@ fn write_c_union_definition(
 }
 
 /// Emit a fieldless C enum.
+#[allow(clippy::too_many_arguments)]
 fn write_c_fieldless_enum(
     name: &str,
     def: &CFieldlessEnumDef,
     style: &Style,
     cpp_compat: bool,
+    usize_is_size_t: bool,
     config: &CommonConfig,
     collection: &Collection,
     out: &mut String,
@@ -941,7 +1016,7 @@ fn write_c_fieldless_enum(
 
     match &def.repr {
         CEnumRepr::Int { int_type, .. } => {
-            let c_int = scalar_to_c(&int_type.to_scalar_primitive());
+            let c_int = scalar_to_c(&int_type.to_scalar_primitive(), usize_is_size_t);
             if cpp_compat {
                 writeln!(out, "enum {name}").unwrap();
                 writeln!(out, "#ifdef __cplusplus").unwrap();
@@ -1013,6 +1088,7 @@ fn write_enum_variant_list(
 }
 
 /// Emit a tagged union (enum with data variants).
+#[allow(clippy::too_many_arguments)]
 fn write_c_tagged_union(
     name: &str,
     def: &CTaggedUnionDef,
@@ -1020,6 +1096,7 @@ fn write_c_tagged_union(
     has_fwd_decl: bool,
     cpp_compat: bool,
     ctx: &TypeEmitCtx<'_>,
+    usize_is_size_t: bool,
     out: &mut String,
 ) {
     let tag_name = format!("{name}_Tag");
@@ -1057,11 +1134,15 @@ fn write_c_tagged_union(
         // above, so don't apply prefix_with_name again here.
         prefix_with_name: None,
     };
+    // Tag discriminants are produced by `to_scalar_primitive` on small ints
+    // (`u8`/`u16`/...), never `usize`/`isize`, so the bool only matters for
+    // consistency — pass the surrounding type's value.
     write_c_fieldless_enum(
         &tag_name,
         &tag_enum_def,
         style,
         cpp_compat,
+        usize_is_size_t,
         ctx.config,
         ctx.collection,
         out,
@@ -1101,7 +1182,7 @@ fn write_c_tagged_union(
                     writeln!(out, "  {tag_type_str} tag;").unwrap();
                 }
                 for field in &body.fields {
-                    write_c_field_line(field, style, ctx, out);
+                    write_c_field_line(field, style, ctx, usize_is_size_t, out);
                 }
                 writeln!(out, "}} {body_name};").unwrap();
             }
@@ -1111,7 +1192,7 @@ fn write_c_tagged_union(
                     writeln!(out, "  {tag_type_str} tag;").unwrap();
                 }
                 for field in &body.fields {
-                    write_c_field_line(field, &Style::Tag, ctx, out);
+                    write_c_field_line(field, &Style::Tag, ctx, usize_is_size_t, out);
                 }
                 writeln!(out, "}};").unwrap();
             }
@@ -1121,7 +1202,7 @@ fn write_c_tagged_union(
                     writeln!(out, "  {tag_type_str} tag;").unwrap();
                 }
                 for field in &body.fields {
-                    write_c_field_line(field, style, ctx, out);
+                    write_c_field_line(field, style, ctx, usize_is_size_t, out);
                 }
                 writeln!(out, "}} {body_name};").unwrap();
             }
@@ -1139,6 +1220,7 @@ fn write_c_tagged_union(
             has_fwd_decl,
             ctx,
             &tag_type_str,
+            usize_is_size_t,
             out,
         );
     } else {
@@ -1150,12 +1232,14 @@ fn write_c_tagged_union(
             has_fwd_decl,
             ctx,
             &tag_type_str,
+            usize_is_size_t,
             out,
         );
     }
 }
 
 /// Emit the outer container for a repr(C) tagged union.
+#[allow(clippy::too_many_arguments)]
 fn write_tagged_union_repr_c(
     name: &str,
     def: &CTaggedUnionDef,
@@ -1163,6 +1247,7 @@ fn write_tagged_union_repr_c(
     has_fwd_decl: bool,
     ctx: &TypeEmitCtx<'_>,
     tag_type_str: &str,
+    usize_is_size_t: bool,
     out: &mut String,
 ) {
     let body_prefix = if let Some(prefix) = &def.prefix_with_name {
@@ -1194,7 +1279,14 @@ fn write_tagged_union_repr_c(
                 writeln!(out, "    struct {{").unwrap();
                 let field = &body.fields[0];
                 out.push_str("      ");
-                write_c_decl(&field.type_, field_name.as_str(), style, ctx, out);
+                write_c_decl(
+                    &field.type_,
+                    field_name.as_str(),
+                    style,
+                    ctx,
+                    usize_is_size_t,
+                    out,
+                );
                 writeln!(out, ";").unwrap();
                 writeln!(out, "    }};").unwrap();
             } else {
@@ -1218,6 +1310,7 @@ fn write_tagged_union_repr_c(
 }
 
 /// Emit the outer container for a repr(uN) tagged union.
+#[allow(clippy::too_many_arguments)]
 fn write_tagged_union_repr_int(
     name: &str,
     def: &CTaggedUnionDef,
@@ -1225,6 +1318,7 @@ fn write_tagged_union_repr_int(
     has_fwd_decl: bool,
     ctx: &TypeEmitCtx<'_>,
     tag_type_str: &str,
+    usize_is_size_t: bool,
     out: &mut String,
 ) {
     match (style, has_fwd_decl) {
@@ -1252,7 +1346,14 @@ fn write_tagged_union_repr_int(
             writeln!(out, "  struct {{").unwrap();
             writeln!(out, "    {tag_type_str} {field_name}_tag;").unwrap();
             out.push_str("    ");
-            write_c_decl(&field.type_, field_name.as_str(), style, ctx, out);
+            write_c_decl(
+                &field.type_,
+                field_name.as_str(),
+                style,
+                ctx,
+                usize_is_size_t,
+                out,
+            );
             writeln!(out, ";").unwrap();
             writeln!(out, "  }};").unwrap();
         } else {
@@ -1384,27 +1485,46 @@ fn write_c_typedef(
     def: &CTypedefDef,
     style: &Style,
     ctx: &TypeEmitCtx<'_>,
+    usize_is_size_t: bool,
     out: &mut String,
 ) {
     out.push_str("typedef ");
-    write_c_decl(&def.inner, name, style, ctx, out);
+    write_c_decl(&def.inner, name, style, ctx, usize_is_size_t, out);
     writeln!(out, ";").unwrap();
 }
 
-fn scalar_to_c(p: &ScalarPrimitive) -> &'static str {
+/// Translate a Rust scalar primitive to its C type name.
+///
+/// `usize_is_size_t` controls the width-pointer-int translation:
+/// - `false` (default): `usize`/`isize` → `uintptr_t`/`intptr_t`.
+/// - `true`: `usize`/`isize` → `size_t`/`ptrdiff_t`. Use when the surrounding
+///   item's resolved per-package configuration enables it.
+fn scalar_to_c(p: &ScalarPrimitive, usize_is_size_t: bool) -> &'static str {
     match p {
         ScalarPrimitive::U8 => "uint8_t",
         ScalarPrimitive::U16 => "uint16_t",
         ScalarPrimitive::U32 => "uint32_t",
         ScalarPrimitive::U64 => "uint64_t",
         ScalarPrimitive::U128 => "__uint128_t",
-        ScalarPrimitive::Usize => "uintptr_t",
+        ScalarPrimitive::Usize => {
+            if usize_is_size_t {
+                "size_t"
+            } else {
+                "uintptr_t"
+            }
+        }
         ScalarPrimitive::I8 => "int8_t",
         ScalarPrimitive::I16 => "int16_t",
         ScalarPrimitive::I32 => "int32_t",
         ScalarPrimitive::I64 => "int64_t",
         ScalarPrimitive::I128 => "__int128_t",
-        ScalarPrimitive::Isize => "intptr_t",
+        ScalarPrimitive::Isize => {
+            if usize_is_size_t {
+                "ptrdiff_t"
+            } else {
+                "intptr_t"
+            }
+        }
         ScalarPrimitive::F32 => "float",
         ScalarPrimitive::F64 => "double",
         ScalarPrimitive::Bool => "bool",

@@ -1,0 +1,15 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 294
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef struct {
+  size_t len;
+  ptrdiff_t offset;
+} DepBuffer;

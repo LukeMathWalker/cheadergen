@@ -29,6 +29,9 @@ pub(crate) struct CbindgenConfig {
     style: Option<String>,
     cpp_compat: Option<bool>,
 
+    // -- Translatable fields (continued) --
+    usize_is_size_t: Option<bool>,
+
     // -- Unsupported fields (detected for warnings) --
     include_version: Option<toml::Value>,
     package_version: Option<toml::Value>,
@@ -40,7 +43,6 @@ pub(crate) struct CbindgenConfig {
     tab_width: Option<toml::Value>,
     line_endings: Option<toml::Value>,
     sort_by: Option<String>,
-    usize_is_size_t: Option<toml::Value>,
     documentation: Option<bool>,
     documentation_style: Option<String>,
     documentation_length: Option<String>,
@@ -157,6 +159,7 @@ fn translate_config(cb: &CbindgenConfig) -> (RawConfig, Vec<String>) {
     let pragma_once = cb.pragma_once.filter(|&v| v);
     let no_includes = cb.no_includes.filter(|&v| v);
     let cpp_compat = cb.cpp_compat.filter(|&v| v);
+    let usize_is_size_t = cb.usize_is_size_t.filter(|&v| v);
 
     // Translate top-level sort_by.
     let top_sort_by = cb.sort_by.as_deref().and_then(translate_sort_by);
@@ -258,6 +261,7 @@ fn translate_config(cb: &CbindgenConfig) -> (RawConfig, Vec<String>) {
         constant_: None,
         enum_: enum_section,
         bundle: None,
+        usize_is_size_t,
         package: BTreeMap::new(),
         header: HashMap::new(),
         c: None,
@@ -347,11 +351,6 @@ const UNSUPPORTED_FIELD_COLLECTORS: &[UnsupportedFieldCollector] = &[
     ("line_endings", |cb, out| {
         if cb.line_endings.is_some() {
             out.push("line_endings".into());
-        }
-    }),
-    ("usize_is_size_t", |cb, out| {
-        if cb.usize_is_size_t.is_some() {
-            out.push("usize_is_size_t".into());
         }
     }),
     ("only_target_dependencies", |cb, out| {

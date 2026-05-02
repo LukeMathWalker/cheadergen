@@ -6,6 +6,7 @@ use rustdoc_processor::compute::CannotGetCrateData;
 use rustdoc_processor::queries::Crate;
 
 use crate::Collection;
+use crate::cli::generate::PackageTypeOverrides;
 use crate::config::CommonConfig;
 use crate::diagnostic::DiagnosticSink;
 use rustdoc_resolver::{CallableResolutionError, TypeAliasResolution, resolve_free_function};
@@ -16,6 +17,17 @@ use super::type_transform;
 use crate::analysis::{CTypeDefinition, sort_local_ids_by_key};
 use crate::constant_item::{ConstantItem, resolve_assoc_constant, resolve_constant};
 use crate::static_item::{StaticItem, resolve_static};
+
+/// An extern "C" free function paired with cheadergen-resolved per-item
+/// attributes. Wraps [`rustdoc_ir::FreeFunction`] because that type lives in
+/// an external crate we cannot extend.
+pub struct FreeFunctionItem {
+    /// The resolved function signature.
+    pub function: FreeFunction,
+    /// Resolved `usize_is_size_t` setting for this function (per-package
+    /// override over global default).
+    pub usize_is_size_t: bool,
+}
 
 /// Extern "C" function IDs, exported static IDs, and constant IDs found in a crate.
 pub struct ExternItemCoordinates {
@@ -81,10 +93,15 @@ impl ExternItemCoordinates {
     }
 
     /// Resolve each extern item id into the IR, validating types along the way.
+    ///
+    /// `overrides` carries the global `usize_is_size_t` default plus any
+    /// per-package overrides; the resolved bool is baked onto each item so
+    /// codegen can read it without re-resolving.
     pub fn resolve(
         self,
         collection: &Collection,
         config: &CommonConfig,
+        overrides: &PackageTypeOverrides,
         diagnostics: &mut DiagnosticSink,
     ) -> ExternItems {
         let krate = collection
@@ -104,8 +121,13 @@ impl ExternItemCoordinates {
         sort_local_ids_by_key(&mut static_ids, config.static_sort_by, krate);
         sort_local_ids_by_key(&mut constant_ids, config.constant_sort_by, krate);
 
-        let fns = resolve_functions(&fn_ids, krate, collection, diagnostics);
-        let statics = resolve_statics(&static_ids, krate, collection, diagnostics);
+        // Every item in this batch comes from `package_id`, so resolve once.
+        // Per-item overrides (e.g. future `#[cheadergen::config(usize_is_size_t)]`
+        // annotations) would replace this single value with a per-item lookup.
+        let usize_is_size_t = overrides.usize_is_size_t(&package_id);
+
+        let fns = resolve_functions(&fn_ids, krate, collection, usize_is_size_t, diagnostics);
+        let statics = resolve_statics(&static_ids, krate, collection, usize_is_size_t, diagnostics);
         let constants = resolve_constants(&constant_ids, krate, collection, diagnostics);
 
         ExternItems {
@@ -122,7 +144,7 @@ pub struct ExternItems {
     /// The package ID of the crate that all these items belong to.
     pub package_id: PackageId,
     /// The extern "C" functions found in the crate.
-    pub fns: Vec<FreeFunction>,
+    pub fns: Vec<FreeFunctionItem>,
     /// The exported statics found in the crate.
     pub statics: Vec<StaticItem>,
     /// The public constants found in the crate.
@@ -136,8 +158,9 @@ fn resolve_functions(
     fn_ids: &[rustdoc_types::Id],
     krate: &Crate,
     collection: &Collection,
+    usize_is_size_t: bool,
     diagnostics: &mut DiagnosticSink,
-) -> Vec<FreeFunction> {
+) -> Vec<FreeFunctionItem> {
     let mut resolved_fns = Vec::new();
     for id in fn_ids {
         let Some(item) = krate.core.krate.index.get(id) else {
@@ -198,7 +221,10 @@ fn resolve_functions(
             type_transform::simplify_type(output, collection);
         }
 
-        resolved_fns.push(free_fn);
+        resolved_fns.push(FreeFunctionItem {
+            function: free_fn,
+            usize_is_size_t,
+        });
     }
     resolved_fns
 }
@@ -210,6 +236,7 @@ fn resolve_statics(
     static_ids: &[rustdoc_types::Id],
     krate: &Crate,
     collection: &Collection,
+    usize_is_size_t: bool,
     diagnostics: &mut DiagnosticSink,
 ) -> Vec<StaticItem> {
     let mut resolved = Vec::new();
@@ -221,7 +248,7 @@ fn resolve_statics(
             continue;
         };
         let name = item.name.as_deref().unwrap_or("<unnamed>");
-        let mut static_item = match resolve_static(&item, krate, collection) {
+        let mut static_item = match resolve_static(&item, krate, collection, usize_is_size_t) {
             Ok(s) => s,
             Err(e) => {
                 diagnostics

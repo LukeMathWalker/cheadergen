@@ -1,0 +1,19 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 294
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include "size_t_dep.h"
+
+struct LocalBuffer {
+  uintptr_t len;
+  intptr_t offset;
+};
+
+struct DepBuffer use_dep(struct DepBuffer b);
+
+uintptr_t use_local(struct LocalBuffer b);

@@ -72,6 +72,8 @@ members = [
     "skip_bindgen_ffi/dep",
     "skip_dependency/entrypoint",
     "skip_dependency/dep",
+    "usize_is_size_t_per_package/entrypoint",
+    "usize_is_size_t_per_package/dep",
 ]
 exclude = [
     "target",
@@ -106,6 +108,7 @@ exclude = [
     "skip_alias_preserves_name",
     "skip_bindgen_ffi",
     "skip_dependency",
+    "usize_is_size_t_per_package",
 ]
 resolver = "3"
 

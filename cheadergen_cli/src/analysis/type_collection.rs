@@ -172,6 +172,11 @@ pub struct CTypeDefinition {
     /// Generic instantiations are placed in the consuming crate's header
     /// and wrapped in `#ifndef` guards to handle potential duplication.
     pub is_generic_instantiation: bool,
+    /// Resolved `usize_is_size_t` setting for this type, derived from the
+    /// `defining_package` (per-package override over global default). Drives
+    /// whether `usize`/`isize` fields render as `size_t`/`ptrdiff_t` or
+    /// `uintptr_t`/`intptr_t`.
+    pub usize_is_size_t: bool,
 }
 
 /// The kind of C type definition to emit.
@@ -405,7 +410,7 @@ pub fn collect_type_definitions(
 
     // Do a first pass over extern items to collect paths from their input/output types.
     for func in &extern_items.fns {
-        for input in &func.header.inputs {
+        for input in &func.function.header.inputs {
             collect_paths_from_type(
                 &input.type_,
                 TypeUsage::ByValue,
@@ -414,7 +419,7 @@ pub fn collect_type_definitions(
                 overrides,
             );
         }
-        if let Some(output) = &func.header.output {
+        if let Some(output) = &func.function.header.output {
             collect_paths_from_type(output, TypeUsage::ByValue, &mut seen, collection, overrides);
         }
     }
@@ -469,7 +474,7 @@ pub fn collect_type_definitions_multi(
 
         // Seed from extern items.
         for func in &extern_items.fns {
-            for input in &func.header.inputs {
+            for input in &func.function.header.inputs {
                 collect_paths_from_type(
                     &input.type_,
                     TypeUsage::ByValue,
@@ -478,7 +483,7 @@ pub fn collect_type_definitions_multi(
                     overrides,
                 );
             }
-            if let Some(output) = &func.header.output {
+            if let Some(output) = &func.function.header.output {
                 collect_paths_from_type(
                     output,
                     TypeUsage::ByValue,
@@ -888,6 +893,7 @@ fn resolve_all_type_definitions(
             }
 
             let is_generic_instantiation = has_concrete_generic_args(&path_type);
+            let usize_is_size_t = overrides.usize_is_size_t(&path_type.package_id);
             resolved.insert(
                 canonical,
                 CTypeDefinition {
@@ -899,6 +905,7 @@ fn resolve_all_type_definitions(
                         .map(|id| GlobalItemId::new(id, path_type.package_id.clone())),
                     defining_package: path_type.package_id.clone(),
                     is_generic_instantiation,
+                    usize_is_size_t,
                 },
             );
         }
@@ -971,6 +978,7 @@ fn resolve_all_type_definitions(
             };
 
             let is_generic_instantiation = has_concrete_generic_args(&path_type);
+            let usize_is_size_t = overrides.usize_is_size_t(&path_type.package_id);
             resolved.insert(
                 canonical,
                 CTypeDefinition {
@@ -980,6 +988,7 @@ fn resolve_all_type_definitions(
                     rustdoc_id,
                     defining_package: path_type.package_id.clone(),
                     is_generic_instantiation,
+                    usize_is_size_t,
                 },
             );
         }

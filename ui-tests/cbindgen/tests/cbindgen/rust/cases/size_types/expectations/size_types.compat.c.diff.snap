@@ -1,40 +1,41 @@
 ---
 source: ui-tests/cbindgen/src/lib.rs
-assertion_line: 166
+assertion_line: 194
 expression: actual
 ---
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 
 enum UE
 #ifdef __cplusplus
-  : uintptr_t
+  : size_t
 #endif // __cplusplus
  {
   UV,
 };
 #ifndef __cplusplus
-typedef uintptr_t UE;
+typedef size_t UE;
 #endif // __cplusplus
 
 enum IE
 #ifdef __cplusplus
-  : intptr_t
+  : ptrdiff_t
 #endif // __cplusplus
  {
   IV,
 };
 #ifndef __cplusplus
-typedef intptr_t IE;
+typedef ptrdiff_t IE;
 #endif // __cplusplus
 
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
 
-void root(uintptr_t _, intptr_t _, UE _, IE _);
+void root(size_t _, ptrdiff_t _, UE _, IE _);
 
 #ifdef __cplusplus
 }  // extern "C"

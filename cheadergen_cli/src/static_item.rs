@@ -20,6 +20,10 @@ pub struct StaticItem {
     pub is_mutable: bool,
     /// The global rustdoc item ID, used for doc comment lookup at codegen time.
     pub rustdoc_id: GlobalItemId,
+    /// Resolved `usize_is_size_t` setting for this item (per-package override
+    /// over global default). Drives whether `usize`/`isize` render as
+    /// `size_t`/`ptrdiff_t` or `uintptr_t`/`intptr_t`.
+    pub usize_is_size_t: bool,
 }
 
 /// Convert a static item from `rustdoc_types` into a [`StaticItem`].
@@ -27,6 +31,7 @@ pub fn resolve_static(
     item: &Item,
     krate: &Crate,
     collection: &Collection,
+    usize_is_size_t: bool,
 ) -> Result<StaticItem, StaticResolutionError> {
     let ItemEnum::Static(inner) = &item.inner else {
         unreachable!("Expected a static item");
@@ -58,6 +63,7 @@ pub fn resolve_static(
         type_,
         is_mutable: inner.is_mutable,
         rustdoc_id: GlobalItemId::new(item.id, krate.core.package_id.clone()),
+        usize_is_size_t,
     })
 }
 

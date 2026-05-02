@@ -1,0 +1,2 @@
+[package."size-t-dep"]
+usize_is_size_t = true

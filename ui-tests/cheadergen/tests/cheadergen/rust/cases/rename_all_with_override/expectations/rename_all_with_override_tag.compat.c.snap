@@ -10,6 +10,9 @@ expression: output
 
 enum Color {
   RED,
+  /**
+   * Explicit override wins — emitted as `explicit_green`, not `GREEN`.
+   */
   explicit_green,
   BLUE,
 };

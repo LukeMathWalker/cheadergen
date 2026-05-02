@@ -195,6 +195,10 @@ pub struct RawPackageConfig {
     /// extension). Rejected in bundle mode.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub header_name: Option<String>,
+    /// Override the global `usize_is_size_t` setting for items defined in
+    /// this package. When `Some`, takes precedence over the top-level value.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub usize_is_size_t: Option<bool>,
 }
 
 /// The declaration style for C struct and enum definitions.
@@ -292,6 +296,12 @@ pub struct RawConfig {
     /// Defaults to `false` (partitioned mode).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bundle: Option<bool>,
+
+    /// Translate Rust's `usize`/`isize` to C's `size_t`/`ptrdiff_t` instead of
+    /// the default `uintptr_t`/`intptr_t`. Defaults to `false`. Can be
+    /// overridden per dependency via [`RawPackageConfig::usize_is_size_t`].
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub usize_is_size_t: Option<bool>,
 
     /// Per-dependency-package configuration.
     ///
@@ -474,13 +484,20 @@ pub struct CommonConfig {
     /// Per-dependency-package configuration, keyed by the raw config key
     /// (crate name or `name@version`).
     pub package_configs: HashMap<String, PackageConfig>,
+    /// See [`RawConfig::usize_is_size_t`]. Defaults to `false`. Per-package
+    /// overrides on [`PackageConfig::usize_is_size_t`] take priority for items
+    /// defined in that package.
+    pub usize_is_size_t: bool,
 }
 
 /// Validated per-dependency-package configuration.
 #[derive(Debug, Clone)]
 pub struct PackageConfig {
-    /// How types from this package should be emitted.
-    pub types: PackageTypeMode,
+    /// How types from this package should be emitted, if specified.
+    pub types: Option<PackageTypeMode>,
+    /// Override of [`CommonConfig::usize_is_size_t`] for items defined in
+    /// this package, if specified.
+    pub usize_is_size_t: Option<bool>,
 }
 
 /// C-specific configuration, including options that are only meaningful for
@@ -545,6 +562,7 @@ struct RawCommonFields {
     documentation_style: Option<DocumentationStyle>,
     documentation_length: Option<DocumentationLength>,
     package_configs: HashMap<String, PackageConfig>,
+    usize_is_size_t: Option<bool>,
 }
 
 /// Optional overrides from a language section that can replace top-level
@@ -613,6 +631,7 @@ impl RawCommonFields {
                 .or(self.documentation_length)
                 .unwrap_or_default(),
             package_configs: self.package_configs,
+            usize_is_size_t: self.usize_is_size_t.unwrap_or(false),
         }
     }
 }
@@ -728,8 +747,14 @@ impl RawConfig {
         let mut header_renames: HashMap<String, String> = HashMap::new();
         let mut rename_targets: HashMap<String, String> = HashMap::new();
         for (key, raw) in self.package {
-            if let Some(types) = raw.types {
-                package_configs.insert(key.clone(), PackageConfig { types });
+            if raw.types.is_some() || raw.usize_is_size_t.is_some() {
+                package_configs.insert(
+                    key.clone(),
+                    PackageConfig {
+                        types: raw.types,
+                        usize_is_size_t: raw.usize_is_size_t,
+                    },
+                );
             }
             if let Some(header_name) = raw.header_name {
                 if bundle {
@@ -793,6 +818,7 @@ impl RawConfig {
             documentation_style: self.documentation_style,
             documentation_length: self.documentation_length,
             package_configs,
+            usize_is_size_t: self.usize_is_size_t,
         };
 
         // Build the default config (no include_guard, no per-header overrides).
@@ -1152,7 +1178,7 @@ types = "opaque"
             Config::C(c) => {
                 assert_eq!(
                     c.common.package_configs["my-dep"].types,
-                    PackageTypeMode::Opaque
+                    Some(PackageTypeMode::Opaque)
                 );
             }
             _ => panic!("expected Config::C"),
@@ -1177,7 +1203,7 @@ types = "skip"
             Config::C(c) => {
                 assert_eq!(
                     c.common.package_configs["other-dep"].types,
-                    PackageTypeMode::Skip
+                    Some(PackageTypeMode::Skip)
                 );
             }
             _ => panic!("expected Config::C"),
@@ -1256,8 +1282,81 @@ style = "Tag"
                 assert!(matches!(c.style, Style::Tag));
                 assert_eq!(
                     c.common.package_configs["my-dep"].types,
-                    PackageTypeMode::Opaque
+                    Some(PackageTypeMode::Opaque)
                 );
+            }
+            _ => panic!("expected Config::C"),
+        }
+    }
+
+    #[test]
+    fn usize_is_size_t_global_default() {
+        let raw: RawConfig = toml::from_str("").unwrap();
+        let config_set = raw
+            .into_config(&Language::C, &CliOverrides::default())
+            .unwrap();
+        match config_set.default {
+            Config::C(c) => assert!(!c.common.usize_is_size_t),
+            _ => panic!("expected Config::C"),
+        }
+    }
+
+    #[test]
+    fn usize_is_size_t_global_set() {
+        let raw: RawConfig = toml::from_str("usize_is_size_t = true").unwrap();
+        assert_eq!(raw.usize_is_size_t, Some(true));
+        let config_set = raw
+            .into_config(&Language::C, &CliOverrides::default())
+            .unwrap();
+        match config_set.default {
+            Config::C(c) => assert!(c.common.usize_is_size_t),
+            _ => panic!("expected Config::C"),
+        }
+    }
+
+    #[test]
+    fn usize_is_size_t_per_package() {
+        let toml_str = r#"
+[package.my-dep]
+usize_is_size_t = true
+"#;
+        let raw: RawConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(raw.package["my-dep"].usize_is_size_t, Some(true));
+        // Per-package section materializes even without `types` set.
+        let config_set = raw
+            .into_config(&Language::C, &CliOverrides::default())
+            .unwrap();
+        match config_set.default {
+            Config::C(c) => {
+                let pkg = c
+                    .common
+                    .package_configs
+                    .get("my-dep")
+                    .expect("package_configs entry should exist");
+                assert_eq!(pkg.types, None);
+                assert_eq!(pkg.usize_is_size_t, Some(true));
+                assert!(!c.common.usize_is_size_t);
+            }
+            _ => panic!("expected Config::C"),
+        }
+    }
+
+    #[test]
+    fn usize_is_size_t_per_package_with_types() {
+        let toml_str = r#"
+[package.my-dep]
+types = "opaque"
+usize_is_size_t = false
+"#;
+        let raw: RawConfig = toml::from_str(toml_str).unwrap();
+        let config_set = raw
+            .into_config(&Language::C, &CliOverrides::default())
+            .unwrap();
+        match config_set.default {
+            Config::C(c) => {
+                let pkg = &c.common.package_configs["my-dep"];
+                assert_eq!(pkg.types, Some(PackageTypeMode::Opaque));
+                assert_eq!(pkg.usize_is_size_t, Some(false));
             }
             _ => panic!("expected Config::C"),
         }
@@ -1580,6 +1679,7 @@ include_guard = "LIB_B_H"
         let raw_package = RawPackageConfig {
             types: Some(PackageTypeMode::Opaque),
             header_name: Some("name".into()),
+            usize_is_size_t: Some(true),
         };
         let max = RawConfig {
             preamble: Some("p".into()),
@@ -1606,6 +1706,7 @@ include_guard = "LIB_B_H"
                 prefix_with_name: Some(true),
             }),
             bundle: Some(true),
+            usize_is_size_t: Some(true),
             package: BTreeMap::from([(PACKAGE_DUMMY.to_string(), raw_package)]),
             header: HashMap::from([(HEADER_DUMMY.to_string(), raw_header)]),
             c: Some(raw_c),

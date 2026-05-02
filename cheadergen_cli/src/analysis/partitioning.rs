@@ -2,10 +2,10 @@ use std::collections::{HashMap, HashSet};
 
 use guppy::graph::{BuildTargetId, PackageGraph};
 use guppy::{PackageId, Version};
-use rustdoc_ir::{FreeFunction, Type};
+use rustdoc_ir::Type;
 
 use super::type_collection::{CTypeDefinition, CTypeKind, c_type_name};
-use crate::analysis::extern_items::ExternItems;
+use crate::analysis::extern_items::{ExternItems, FreeFunctionItem};
 use crate::cli::generate::PackageTypeOverrides;
 use crate::static_item::StaticItem;
 
@@ -160,7 +160,7 @@ pub fn partition_types(
     // and type fields. These need opaque forward declarations in the consuming header.
     for (pkg_id, extern_items) in target_extern_items {
         for func in &extern_items.fns {
-            for input in &func.header.inputs {
+            for input in &func.function.header.inputs {
                 let mut ptr_names = Vec::new();
                 collect_pointer_names_from_type(&input.type_, &mut ptr_names);
                 for name in &ptr_names {
@@ -174,7 +174,7 @@ pub fn partition_types(
                     }
                 }
             }
-            if let Some(ref output) = func.header.output {
+            if let Some(ref output) = func.function.header.output {
                 let mut ptr_names = Vec::new();
                 collect_pointer_names_from_type(output, &mut ptr_names);
                 for name in &ptr_names {
@@ -284,6 +284,7 @@ pub fn partition_types(
                             rustdoc_id: def.rustdoc_id.clone(),
                             defining_package: def.defining_package.clone(),
                             is_generic_instantiation: is_by_value,
+                            usize_is_size_t: def.usize_is_size_t,
                         });
                 } else {
                     per_crate
@@ -296,6 +297,7 @@ pub fn partition_types(
                             rustdoc_id: def.rustdoc_id.clone(),
                             defining_package: def.defining_package.clone(),
                             is_generic_instantiation: is_by_value,
+                            usize_is_size_t: def.usize_is_size_t,
                         });
                     break;
                 }
@@ -404,10 +406,10 @@ pub fn compute_header_deps(
             }
             for func in &extern_items.fns {
                 let mut ptr_names = Vec::new();
-                for input in &func.header.inputs {
+                for input in &func.function.header.inputs {
                     collect_pointer_names_from_type(&input.type_, &mut ptr_names);
                 }
-                if let Some(ref output) = func.header.output {
+                if let Some(ref output) = func.function.header.output {
                     collect_pointer_names_from_type(output, &mut ptr_names);
                 }
                 for name in &ptr_names {
@@ -448,12 +450,12 @@ pub fn compute_header_deps(
                 &extern_items.statics,
             ));
             for func in &extern_items.fns {
-                for input in &func.header.inputs {
+                for input in &func.function.header.inputs {
                     let mut ptr_names = Vec::new();
                     collect_pointer_names_from_type(&input.type_, &mut ptr_names);
                     all_referenced.extend(ptr_names);
                 }
-                if let Some(ref output) = func.header.output {
+                if let Some(ref output) = func.function.header.output {
                     let mut ptr_names = Vec::new();
                     collect_pointer_names_from_type(output, &mut ptr_names);
                     all_referenced.extend(ptr_names);
@@ -497,10 +499,10 @@ pub fn compute_header_deps(
             {
                 for func in &extern_items.fns {
                     let mut names = Vec::new();
-                    for input in &func.header.inputs {
+                    for input in &func.function.header.inputs {
                         collect_pointer_names_from_type(&input.type_, &mut names);
                     }
-                    if let Some(ref output) = func.header.output {
+                    if let Some(ref output) = func.function.header.output {
                         collect_pointer_names_from_type(output, &mut names);
                     }
                     for n in names {
@@ -844,9 +846,10 @@ fn collect_all_referenced_type_names(def: &CTypeDefinition) -> Vec<String> {
 }
 
 /// Collect type names from function signatures and static types.
-fn collect_fn_type_names(fns: &[FreeFunction], statics: &[StaticItem]) -> Vec<String> {
+fn collect_fn_type_names(fns: &[FreeFunctionItem], statics: &[StaticItem]) -> Vec<String> {
     let mut names = Vec::new();
-    for func in fns {
+    for item in fns {
+        let func = &item.function;
         for input in &func.header.inputs {
             collect_by_value_names_from_type(&input.type_, &mut names);
         }

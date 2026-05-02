@@ -11,5 +11,8 @@ expression: output
 struct Settings {
   uint32_t maxValue;
   uint32_t minValue;
+  /**
+   * Per-field rename wins over the bulk rule.
+   */
   uint32_t explicitName;
 };

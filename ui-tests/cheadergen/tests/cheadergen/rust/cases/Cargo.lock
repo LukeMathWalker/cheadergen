@@ -677,6 +677,10 @@ name = "simple_struct"
 version = "0.1.0"
 
 [[package]]
+name = "size-t-dep"
+version = "0.1.0"
+
+[[package]]
 name = "skip-dep"
 version = "0.1.0"
 
@@ -778,6 +782,17 @@ version = "0.1.0"
 [[package]]
 name = "unsupported_constant"
 version = "0.1.0"
+
+[[package]]
+name = "usize_is_size_t_global"
+version = "0.1.0"
+
+[[package]]
+name = "usize_is_size_t_per_package"
+version = "0.1.0"
+dependencies = [
+ "size-t-dep",
+]
 
 [[package]]
 name = "zst_fields"

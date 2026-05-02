@@ -1,0 +1,62 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 332
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+enum BigEnum
+#ifdef __cplusplus
+  : size_t
+#endif // __cplusplus
+ {
+  A,
+  B,
+};
+#ifndef __cplusplus
+typedef size_t BigEnum;
+#endif // __cplusplus
+
+enum SignedEnum
+#ifdef __cplusplus
+  : ptrdiff_t
+#endif // __cplusplus
+ {
+  Neg = -1,
+  Zero = 0,
+};
+#ifndef __cplusplus
+typedef ptrdiff_t SignedEnum;
+#endif // __cplusplus
+
+struct Buffer {
+  uint8_t *data;
+  size_t len;
+  ptrdiff_t offset;
+};
+
+typedef size_t ItemCount;
+
+typedef ptrdiff_t Offset;
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+extern const size_t MAX_LEN;
+
+struct Buffer make_buffer(size_t len, ptrdiff_t offset);
+
+ItemCount buffer_size(struct Buffer buf);
+
+Offset buffer_offset(struct Buffer buf);
+
+size_t classify_big(BigEnum big, SignedEnum signed_enum);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus

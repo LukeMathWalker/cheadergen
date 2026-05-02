@@ -87,12 +87,32 @@ pub(super) struct GenerateArgs {
 /// Resolved per-package type overrides, keyed by [`guppy::PackageId`].
 ///
 /// Built from the `[package.*]` config sections after resolving crate names
-/// (and optional `@version` specifiers) against the dependency graph.
+/// (and optional `@version` specifiers) against the dependency graph. Also
+/// carries the global default for `usize_is_size_t` so the resolver method
+/// can layer per-package over global in one place.
 pub(crate) struct PackageTypeOverrides {
     /// Types from these packages are emitted as opaque forward declarations.
     pub opaque: HashSet<guppy::PackageId>,
     /// Types from these packages are not emitted at all.
     pub skipped: HashSet<guppy::PackageId>,
+    /// Per-package `usize_is_size_t` overrides. Items defined in a package
+    /// listed here use the bool here instead of [`Self::global_usize_is_size_t`].
+    pub usize_is_size_t: HashMap<guppy::PackageId, bool>,
+    /// Global `usize_is_size_t` resolved from the top-level config.
+    pub global_usize_is_size_t: bool,
+}
+
+impl PackageTypeOverrides {
+    /// Resolve the effective `usize_is_size_t` for an item defined in `package_id`.
+    ///
+    /// Layered lookup (most-specific first): per-package override → global default.
+    /// A future per-item annotation layer will be added as the new first step.
+    pub fn usize_is_size_t(&self, package_id: &guppy::PackageId) -> bool {
+        self.usize_is_size_t
+            .get(package_id)
+            .copied()
+            .unwrap_or(self.global_usize_is_size_t)
+    }
 }
 
 /// Parse a package config key into `(name, optional_version_req)`.
@@ -119,11 +139,13 @@ fn parse_package_key(key: &str) -> Result<(&str, Option<guppy::VersionReq>), con
 /// or an error if any package name is unknown or ambiguous.
 fn resolve_package_overrides(
     package_configs: &HashMap<String, PackageConfig>,
+    global_usize_is_size_t: bool,
     collection: &Collection,
     diagnostics: &mut DiagnosticSink,
 ) -> Result<PackageTypeOverrides, anyhow::Error> {
     let mut opaque = HashSet::new();
     let mut skipped = HashSet::new();
+    let mut usize_is_size_t: HashMap<guppy::PackageId, bool> = HashMap::new();
     let graph = collection.package_graph();
 
     for (key, config) in package_configs {
@@ -174,12 +196,19 @@ fn resolve_package_overrides(
             continue;
         }
 
-        let target = match config.types {
-            PackageTypeMode::Opaque => &mut opaque,
-            PackageTypeMode::Skip => &mut skipped,
-        };
-        for pkg in &matching {
-            target.insert(pkg.id().clone());
+        if let Some(types) = config.types {
+            let target = match types {
+                PackageTypeMode::Opaque => &mut opaque,
+                PackageTypeMode::Skip => &mut skipped,
+            };
+            for pkg in &matching {
+                target.insert(pkg.id().clone());
+            }
+        }
+        if let Some(value) = config.usize_is_size_t {
+            for pkg in &matching {
+                usize_is_size_t.insert(pkg.id().clone(), value);
+            }
         }
     }
 
@@ -193,7 +222,12 @@ fn resolve_package_overrides(
             .emit();
     }
 
-    Ok(PackageTypeOverrides { opaque, skipped })
+    Ok(PackageTypeOverrides {
+        opaque,
+        skipped,
+        usize_is_size_t,
+        global_usize_is_size_t,
+    })
 }
 
 /// Resolve `[package.<name>] header_name = ...` entries against the dependency
@@ -368,11 +402,16 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
 
     // Resolve per-package overrides against the dependency graph.
     // Package overrides are global (not per-header), so resolve once.
-    let package_configs = match &config_set.default {
-        config::Config::C(c) => &c.common.package_configs,
-        config::Config::Cxx(c) => &c.common.package_configs,
+    let (package_configs, global_usize_is_size_t) = match &config_set.default {
+        config::Config::C(c) => (&c.common.package_configs, c.common.usize_is_size_t),
+        config::Config::Cxx(c) => (&c.common.package_configs, c.common.usize_is_size_t),
     };
-    let type_overrides = resolve_package_overrides(package_configs, &collection, &mut diagnostics)?;
+    let type_overrides = resolve_package_overrides(
+        package_configs,
+        global_usize_is_size_t,
+        &collection,
+        &mut diagnostics,
+    )?;
     let header_renames =
         resolve_header_renames(&config_set.header_renames, &collection, &mut diagnostics)?;
 
@@ -531,7 +570,8 @@ fn generate_partitioned(
             _ => anyhow::bail!("Only C output is currently supported"),
         };
 
-        let extern_items = coordinates.resolve(collection, &c_config.common, diagnostics);
+        let extern_items =
+            coordinates.resolve(collection, &c_config.common, type_overrides, diagnostics);
 
         if !cli.quiet {
             eprintln!(
@@ -800,7 +840,7 @@ fn generate_one_crate(
             _ => anyhow::bail!("Only C output is currently supported"),
         };
 
-        let extern_items = extern_items.resolve(collection, &c_config.common, diagnostics);
+        let extern_items = extern_items.resolve(collection, &c_config.common, overrides, diagnostics);
 
         if !cli.quiet {
             eprintln!("Resolved {} function(s) to IR", extern_items.fns.len());

@@ -68,6 +68,22 @@
 //! When `true`, emit `#pragma once` at the top of each header. Independent of
 //! the per-header [`include_guard`](#headernameinclude_guard).
 //!
+//! ### `usize_is_size_t`
+//!
+//! - **Type**: bool
+//! - **Default**: `false`
+//!
+//! When `true`, Rust's `usize` and `isize` translate to C's `size_t` and
+//! `ptrdiff_t` instead of the default `uintptr_t` and `intptr_t`.
+//!
+//! Resolution is per *defining* package. The setting on a `[package.<name>]`
+//! section (see [`[package.<name>].usize_is_size_t`](#packagenameusize_is_size_t))
+//! takes priority over this global value for items defined in that package —
+//! including generic instantiations, which follow the generic's defining
+//! crate. Items in your own crate (`extern "C"` functions, statics, struct
+//! fields, etc.) use this global value unless you list your own crate under
+//! `[package.<name>]` to override it.
+//!
 //! ### `includes`
 //!
 //! - **Type**: array of string
@@ -258,6 +274,24 @@
 //!
 //! Rejected in [`bundle`](#bundle) mode. Two packages cannot share the same
 //! `header_name`.
+//!
+//! ### `[package.<name>].usize_is_size_t`
+//!
+//! - **Type**: bool
+//! - **Default**: inherits the top-level [`usize_is_size_t`](#usize_is_size_t)
+//!
+//! Override the global `usize_is_size_t` for items defined in this package.
+//! Use this to flip the spelling for a specific dependency without affecting
+//! the rest of the workspace:
+//!
+//! ```toml
+//! [package.my-dep]
+//! usize_is_size_t = true
+//! ```
+//!
+//! Resolution is per *defining* package, so a generic from this dependency
+//! (e.g. `Vec<usize>`) follows the package's setting wherever it is
+//! instantiated.
 //!
 //! # `[header.<name>]` sections
 //!

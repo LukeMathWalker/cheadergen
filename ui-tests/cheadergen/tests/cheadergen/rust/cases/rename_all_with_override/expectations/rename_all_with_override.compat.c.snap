@@ -10,6 +10,9 @@ expression: output
 
 typedef enum {
   RED,
+  /**
+   * Explicit override wins — emitted as `explicit_green`, not `GREEN`.
+   */
   explicit_green,
   BLUE,
 } Color;
