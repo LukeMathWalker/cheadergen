@@ -52,6 +52,22 @@ fn unknown_field_rejected() {
 }
 
 #[test]
+fn skip_empty_conflicts_with_bundle_cli() {
+    // clap rejects `--skip-empty --bundle` before any work is done.
+    let stderr = run_config_error("", &["--lang", "c", "--skip-empty", "--bundle"]);
+    insta::assert_snapshot!(stderr);
+}
+
+#[test]
+fn skip_empty_conflicts_with_bundle_in_config() {
+    // clap can't see `bundle = true` in the config file — the runtime check
+    // catches it instead.
+    let stderr = run_config_error("bundle = true", &["--lang", "c", "--skip-empty"]);
+    insta::assert_snapshot!(stderr, @"Error: --skip-empty is only valid in partitioned mode; remove --bundle to use it
+");
+}
+
+#[test]
 fn cython_rejected() {
     let bin = std::env::var("CHEADERGEN_BIN").expect("CHEADERGEN_BIN must be set by setup script");
 

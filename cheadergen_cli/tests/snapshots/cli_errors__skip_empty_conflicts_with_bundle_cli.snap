@@ -1,0 +1,10 @@
+---
+source: cheadergen_cli/tests/cli_errors.rs
+assertion_line: 58
+expression: stderr
+---
+error: the argument '--skip-empty' cannot be used with '--bundle'
+
+Usage: cheadergen generate --lang <LANG> --output-dir <OUTPUT_DIR> --config <CONFIG> --skip-empty [INPUT]
+
+For more information, try '--help'.

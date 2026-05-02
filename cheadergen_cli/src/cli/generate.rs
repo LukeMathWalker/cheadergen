@@ -76,6 +76,12 @@ pub(super) struct GenerateArgs {
     /// produced by this run.
     #[arg(long)]
     prune_orphans: bool,
+
+    /// In partitioned mode, skip writing header files that contain no
+    /// declarations (no type definitions, constants, statics, or functions).
+    /// Not valid with --bundle.
+    #[arg(long, conflicts_with = "bundle")]
+    skip_empty: bool,
 }
 
 /// Resolved per-package type overrides, keyed by [`guppy::PackageId`].
@@ -299,6 +305,12 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
     // CLI --bundle overrides the config file setting.
     if cli.bundle {
         config_set.bundle = true;
+    }
+
+    if cli.skip_empty && config_set.bundle {
+        anyhow::bail!(
+            "--skip-empty is only valid in partitioned mode; remove --bundle to use it"
+        );
     }
 
     let metadata_dir = resolved_input
@@ -608,10 +620,6 @@ fn generate_partitioned(
             }
         }
 
-        // Sort types: source order first, then topological sort.
-        analysis::sort_by_key(&mut type_defs, config::SortKey::SourceOrder, collection);
-        topological_sort::topological_sort(&mut type_defs, collection, diagnostics);
-
         // Get extern items for target packages (empty for non-targets).
         let (fns, statics, constants) = if is_target {
             let items = target_extern_items
@@ -623,6 +631,22 @@ fn generate_partitioned(
         } else {
             (&[][..], &[][..], &[][..])
         };
+
+        // With --skip-empty, headers with no declarations are not written and
+        // therefore not added to `written`, so --prune-orphans treats any
+        // pre-existing copy as an orphan.
+        if cli.skip_empty
+            && type_defs.is_empty()
+            && fns.is_empty()
+            && statics.is_empty()
+            && constants.is_empty()
+        {
+            continue;
+        }
+
+        // Sort types: source order first, then topological sort.
+        analysis::sort_by_key(&mut type_defs, config::SortKey::SourceOrder, collection);
+        topological_sort::topological_sort(&mut type_defs, collection, diagnostics);
 
         // Find associated constants for types in this header.
         let krate_data = collection
