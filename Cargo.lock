@@ -1151,8 +1151,9 @@ dependencies = [
 
 [[package]]
 name = "rustdoc_ext"
-version = "0.2.10"
-source = "git+https://github.com/LukeMathWalker/pavex#efd062fec6c4a4685cf2073be4428a038707b788"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6319c29b9fb4ad97bcf3f7099171b7b52d4a11c5d8e492c4213d8521ed8f8b3c"
 dependencies = [
  "guppy",
  "rustdoc-types",
@@ -1160,8 +1161,9 @@ dependencies = [
 
 [[package]]
 name = "rustdoc_ir"
-version = "0.2.10"
-source = "git+https://github.com/LukeMathWalker/pavex#efd062fec6c4a4685cf2073be4428a038707b788"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "346bd2e64092544e28f3d98a4bbe35944330aa268861ed4808ad26126def70b0"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1178,8 +1180,9 @@ dependencies = [
 
 [[package]]
 name = "rustdoc_processor"
-version = "0.2.10"
-source = "git+https://github.com/LukeMathWalker/pavex#efd062fec6c4a4685cf2073be4428a038707b788"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6dd9f7e04eb1498e2773546490943af78b2afead449c80d1d7128885541bc4e3"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1215,8 +1218,9 @@ dependencies = [
 
 [[package]]
 name = "rustdoc_resolver"
-version = "0.2.10"
-source = "git+https://github.com/LukeMathWalker/pavex#efd062fec6c4a4685cf2073be4428a038707b788"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1c8be19091477b20316abfca7502d0d74d34ed78e1d3e63c3860d66851148d9"
 dependencies = [
  "ahash",
  "anyhow",

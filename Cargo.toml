@@ -13,8 +13,8 @@ private-intra-doc-links = "allow"
 
 [workspace.dependencies]
 rustdoc-types = "0.57.3"
-rustdoc_ext = { git = "https://github.com/LukeMathWalker/pavex" }
-rustdoc_ir = { git = "https://github.com/LukeMathWalker/pavex" }
-rustdoc_processor = { git = "https://github.com/LukeMathWalker/pavex" }
-rustdoc_resolver = { git = "https://github.com/LukeMathWalker/pavex" }
+rustdoc_ext = "0.1.1"
+rustdoc_ir = "0.1.1"
+rustdoc_processor = "0.1.1"
+rustdoc_resolver = "0.1.1"
 guppy = "0.17"
