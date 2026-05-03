@@ -2,6 +2,12 @@
 members = ["cheaderdiff", "cheadergen", "cheadergen_cli", "cheadergen_macros", "ui-tests/cbindgen", "ui-tests/cheadergen", "ui-tests/cli", "ui-tests/toolkit"]
 resolver = "3"
 
+[workspace.package]
+edition = "2024"
+repository = "https://github.com/LukeMathWalker/cheadergen"
+license = "Apache-2.0"
+version = "0.1.0"
+
 [workspace.lints.clippy]
 # Use `#[expect]` instead of `#[allow]` so we are warned when they become obsolete.
 allow_attributes = "warn"
@@ -12,9 +18,17 @@ allow_attributes = "warn"
 private-intra-doc-links = "allow"
 
 [workspace.dependencies]
+cheadergen = { path = "cheadergen", version = "0.1.0" }
+cheadergen_cli = { path = "cheadergen_cli", version = "0.1.0" }
+cheadergen_macros = { path = "cheadergen_macros", version = "0.1.0" }
 rustdoc-types = "0.57.3"
 rustdoc_ext = "0.1.1"
 rustdoc_ir = "0.1.1"
 rustdoc_processor = "0.1.1"
 rustdoc_resolver = "0.1.1"
 guppy = "0.17"
+
+# The profile that 'cargo dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"

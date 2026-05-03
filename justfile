@@ -9,6 +9,10 @@ fmt action="fmt":
 lint:
     cargo clippy --workspace --all-targets -- -D warnings
 
+# Build docs and fail on warnings
+doc:
+    RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --document-private-items --lib
+
 # Run tests
 # Use `just test <nextest args>` to pass filters and flags
 # For example:
@@ -106,4 +110,4 @@ ui-tests-translate-configs:
     cargo run -p ui-tests -- translate-configs
 
 # Run all checks
-verify: lint (fmt "check") test
+verify: lint doc (fmt "check") test

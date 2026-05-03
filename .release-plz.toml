@@ -1,0 +1,79 @@
+[workspace]
+changelog_update = false
+git_release_enable = false
+git_tag_enable = false
+semver_check = false
+pr_labels = ["release"]
+
+[changelog]
+header = """# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+"""
+
+body = """
+
+## [{{ version | trim_start_matches(pat="v") }}]\
+    {%- if release_link -%}\
+        ({{ release_link }})\
+    {% endif %} \
+    - {{ timestamp | date(format="%Y-%m-%d") }}
+{% for group, commits in commits | group_by(attribute="group") %}
+{% if group != "other" %}
+### {{ group | striptags | trim | upper_first }}
+    {% for commit in commits %}
+        {%- if commit.scope -%}
+            - *({{commit.scope}})* {% if commit.breaking %}[**breaking**] {% endif %}\
+                {{ commit.message }}{{ self::username(commit=commit) }}\
+                {%- if commit.links %} \
+                    ({% for link in commit.links %}[{{link.text}}]({{link.href}}) {% endfor -%})\
+                {% endif %}
+        {% else -%}
+            - {% if commit.breaking %}[**breaking**] {% endif %}{{ commit.message }}{{ self::username(commit=commit) }}{{ self::pr(commit=commit) }}
+        {% endif -%}
+    {% endfor -%}
+{% endif %}
+{% endfor %}
+{%- if remote.contributors %}
+### Contributors
+{% for contributor in remote.contributors %}
+    * @{{ contributor.username }}
+{%- endfor %}
+{% endif -%}
+{%- macro username(commit) -%}
+    {% if commit.remote.username %} (by @{{ commit.remote.username }}){% endif -%}
+{% endmacro -%}
+{%- macro pr(commit) -%}
+    {% if commit.remote.pr_number %} - #{{ commit.remote.pr_number }}{% endif -%}
+{% endmacro -%}
+"""
+
+commit_parsers = [
+    { message = "^breaking", group = "<!-- 0 -->‼️ Breaking changes" },
+    { message = "^feat", group = "<!-- 1 -->⛰️ Features" },
+    { message = "^fix", group = "<!-- 2 -->🐛 Bug Fixes" },
+    { message = "^deprecated", group = "<!-- 3 --> ⚠️ Deprecations" },
+    { message = "^perf", group = "<!-- 4 -->⚡ Performance" },
+    { message = "^doc", group = "<!-- 5 -->📚 Documentation" },
+    { body = ".*security", group = "<!-- 6 -->🛡️ Security" },
+    { message = "^polish", group = "<!-- 7 -->🫧 Polishing" },
+    { message = "^test", group = "<!-- 8 -->🧪 Testing" },
+    { message = "^.*", skip = true },
+]
+
+postprocessors = [
+  { pattern = '.*', replace_command = "dprint fmt --stdin md" },
+]
+
+[[package]]
+name = "cheadergen"
+changelog_update = true
+changelog_include = ["cheadergen_cli", "cheadergen_macros"]
+changelog_path = "CHANGELOG.md"
+git_tag_name = "{{ version }}"
+git_tag_enable = true

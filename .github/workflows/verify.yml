@@ -17,6 +17,14 @@ jobs:
       - uses: extractions/setup-just@v2
       - run: just lint
 
+  doc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: extractions/setup-just@v2
+      - run: just doc
+
   coverage:
     runs-on: ubuntu-latest
     steps:
@@ -26,7 +34,7 @@ jobs:
           components: llvm-tools-preview
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          toolchain: nightly-2025-12-15
+          toolchain: nightly-2026-05-01
           components: rust-docs-json
           override: false
       - uses: taiki-e/install-action@cargo-llvm-cov

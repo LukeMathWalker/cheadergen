@@ -1,12 +1,12 @@
 [package]
 name = "cheadergen_cli"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
 description = "A tool for generating C bindings to Rust code."
-license = "Apache-2.0"
+license.workspace = true
+repository.workspace = true
 keywords = ["bindings", "ffi", "code-generation"]
 categories = ["external-ffi-bindings", "development-tools::ffi"]
-repository = "https://github.com/LukeMathWalker/cheadergen"
 
 [[bin]]
 name = "cheadergen"
