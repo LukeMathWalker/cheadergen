@@ -398,6 +398,14 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
 
     let collection = metadata::create_collection(package_graph)?;
 
+    // Batch-compute rustdoc JSON for all target crates up front. The underlying
+    // processor issues a single `cargo doc -p crate1 -p crate2 ...` invocation
+    // (chunking only on name collisions), sharing dep compilation across
+    // targets. Subsequent per-crate `get_or_compute` calls then hit the cache.
+    collection
+        .compute_batch(packages.iter().map(|(id, _)| id.clone()))
+        .map_err(|e| anyhow::anyhow!(e))?;
+
     let mut all_symbols = BTreeSet::new();
 
     // Resolve per-package overrides against the dependency graph.
