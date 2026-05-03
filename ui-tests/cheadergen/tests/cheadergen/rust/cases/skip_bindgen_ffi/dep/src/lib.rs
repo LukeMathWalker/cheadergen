@@ -2,6 +2,7 @@
 //! a `#[repr(C)]` struct, and a `#[repr(C)]` enum, all of which the
 //! consumer treats as externally-defined and references by bare name.
 
+#[allow(non_camel_case_types)]
 pub type size_t = usize;
 
 #[repr(C)]
