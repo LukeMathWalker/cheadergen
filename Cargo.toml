@@ -6,7 +6,7 @@ resolver = "3"
 edition = "2024"
 repository = "https://github.com/LukeMathWalker/cheadergen"
 license = "Apache-2.0"
-version = "0.1.1"
+version = "0.1.2"
 
 [workspace.lints.clippy]
 # Use `#[expect]` instead of `#[allow]` so we are warned when they become obsolete.
@@ -18,9 +18,9 @@ allow_attributes = "warn"
 private-intra-doc-links = "allow"
 
 [workspace.dependencies]
-cheadergen = { path = "cheadergen", version = "0.1.1" }
-cheadergen_cli = { path = "cheadergen_cli", version = "0.1.1" }
-cheadergen_macros = { path = "cheadergen_macros", version = "0.1.1" }
+cheadergen = { path = "cheadergen", version = "0.1.2" }
+cheadergen_cli = { path = "cheadergen_cli", version = "0.1.2" }
+cheadergen_macros = { path = "cheadergen_macros", version = "0.1.2" }
 rustdoc-types = "0.57.3"
 rustdoc_ext = "0.1.1"
 rustdoc_ir = "0.1.1"

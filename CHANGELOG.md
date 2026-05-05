@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2](https://github.com/LukeMathWalker/cheadergen/compare/0.1.1...0.1.2) - 2026-05-05
+
+### ‼️ Breaking changes
+
+- Constants must opt-in to be included in the generated header, via an annotation (by @LukeMathWalker)
+
+### Contributors
+
+- @LukeMathWalker
+
 ## [0.1.1](https://github.com/LukeMathWalker/cheadergen/compare/0.1.0...0.1.1) - 2026-05-04
 
 ### ⛰️ Features
