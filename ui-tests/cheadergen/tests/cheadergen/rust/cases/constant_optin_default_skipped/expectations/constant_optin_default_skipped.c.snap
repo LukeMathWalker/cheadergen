@@ -1,6 +1,6 @@
 ---
-source: ui-tests/src/generate/mod.rs
-assertion_line: 171
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 332
 expression: output
 ---
 #include <stdarg.h>
@@ -8,4 +8,4 @@ expression: output
 #include <stdint.h>
 #include <stdlib.h>
 
-void anchor(void);
+uint32_t anchor(void);

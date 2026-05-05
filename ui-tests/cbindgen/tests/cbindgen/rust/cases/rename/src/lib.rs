@@ -35,8 +35,10 @@ type F = A;
 #[unsafe(no_mangle)]
 pub static G: i32 = 10;
 
+#[cheadergen::config(export)]
 pub const H: i32 = 10;
 
+#[cheadergen::config(export)]
 pub const I: isize = 10;
 
 #[unsafe(no_mangle)]

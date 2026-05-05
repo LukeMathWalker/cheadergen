@@ -5,6 +5,7 @@
 #[repr(C)]
 struct Foo {}
 
+#[cheadergen::config(export)]
 pub const Foo_FOO: u32 = 42;
 
 impl Foo {

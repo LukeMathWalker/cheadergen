@@ -5,3 +5,6 @@ edition.workspace = true
 
 [lints]
 workspace = true
+
+[dependencies]
+cheadergen.workspace = true

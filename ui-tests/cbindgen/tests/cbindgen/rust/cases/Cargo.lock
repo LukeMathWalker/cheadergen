@@ -39,6 +39,9 @@ version = "0.1.0"
 [[package]]
 name = "as_ty"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "asserted_cast"
@@ -47,10 +50,16 @@ version = "0.1.0"
 [[package]]
 name = "assoc_const_conflict"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "assoc_constant"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "associated_constant_panic"
@@ -116,6 +125,9 @@ checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 [[package]]
 name = "cfg_2"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "cfg_field"
@@ -126,12 +138,34 @@ name = "char"
 version = "0.1.0"
 
 [[package]]
+name = "cheadergen"
+version = "0.1.1"
+dependencies = [
+ "cheadergen_macros",
+]
+
+[[package]]
+name = "cheadergen_macros"
+version = "0.1.1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "const_conflict"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "const_generics"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "const_generics_arrayvec"
@@ -155,6 +189,9 @@ version = "0.1.0"
 [[package]]
 name = "const_generics_constant"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "const_generics_thru"
@@ -163,30 +200,51 @@ version = "0.1.0"
 [[package]]
 name = "const_transparent"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "constant"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "constant_big"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "constant_constexpr"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "constant_sort_name"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "constant_sort_none"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "constant_user_defined_type"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "custom_header"
@@ -270,6 +328,9 @@ version = "0.1.0"
 [[package]]
 name = "duplicated_constants"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "enum"
@@ -278,6 +339,9 @@ version = "0.1.0"
 [[package]]
 name = "enum_discriminant"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "enum_self"
@@ -286,6 +350,9 @@ version = "0.1.0"
 [[package]]
 name = "enum_self_flags"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "euclid"
@@ -413,6 +480,9 @@ dependencies = [
 [[package]]
 name = "ignore"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "impl_unsafe_attr_method"
@@ -448,10 +518,16 @@ version = "0.1.0"
 [[package]]
 name = "item_types"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "item_types_renamed"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "layout"
@@ -526,18 +602,30 @@ version = "0.1.0"
 [[package]]
 name = "mod_2015"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "mod_2018"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "mod_attr"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "mod_path"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "monomorph_1"
@@ -558,10 +646,16 @@ version = "0.1.0"
 [[package]]
 name = "namespace_constant"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "namespaces_constant"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "nested_import"
@@ -631,6 +725,9 @@ version = "0.1.0"
 [[package]]
 name = "prefix"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "prefixed_struct_literal"
@@ -673,10 +770,16 @@ version = "0.1.0"
 [[package]]
 name = "rename"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "rename_associated_constant"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "rename_case"

@@ -1,0 +1,10 @@
+[package]
+name = "constant_optin_export_requires_pub"
+version = "0.1.0"
+edition.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+cheadergen.workspace = true

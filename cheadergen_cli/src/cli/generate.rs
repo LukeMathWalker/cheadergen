@@ -563,7 +563,7 @@ fn generate_partitioned(
             );
         }
 
-        let coordinates = ExternItemCoordinates::collect(collection, package_id)
+        let coordinates = ExternItemCoordinates::collect(collection, package_id, diagnostics)
             .map_err(|e| anyhow::anyhow!(e))?;
 
         // Collect symbols for the merged symbol file.
@@ -800,8 +800,8 @@ fn generate_one_crate(
         );
     }
 
-    let extern_items =
-        ExternItemCoordinates::collect(collection, package_id).map_err(|e| anyhow::anyhow!(e))?;
+    let extern_items = ExternItemCoordinates::collect(collection, package_id, diagnostics)
+        .map_err(|e| anyhow::anyhow!(e))?;
 
     if !cli.quiet {
         eprintln!(

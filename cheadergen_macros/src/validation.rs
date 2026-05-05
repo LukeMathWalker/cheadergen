@@ -30,7 +30,7 @@ pub fn validate(directives: &[Directive], item: &Item) -> Vec<syn::Error> {
 
     for directive in directives {
         match directive {
-            Directive::Export { .. } => match item {
+            Directive::Export { opaque, span } => match item {
                 Item::Fn(f) => {
                     errors.push(syn::Error::new(
                         f.sig.fn_token.span(),
@@ -41,6 +41,12 @@ pub fn validate(directives: &[Directive], item: &Item) -> Vec<syn::Error> {
                     errors.push(syn::Error::new(
                         s.static_token.span(),
                         "`export` cannot be applied to statics",
+                    ));
+                }
+                Item::Const(_) if *opaque => {
+                    errors.push(syn::Error::new(
+                        *span,
+                        "`export(opaque)` cannot be applied to constants — opaque only makes sense for types",
                     ));
                 }
                 _ => {}
@@ -125,5 +131,47 @@ fn item_keyword_span(item: &Item) -> Span {
         Item::Static(s) => s.static_token.span(),
         Item::Type(t) => t.type_token.span(),
         other => other.span(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::directive::Directives;
+    use syn::parse_quote;
+
+    fn parse_directives(src: &str) -> Vec<Directive> {
+        syn::parse_str::<Directives>(src).unwrap().items
+    }
+
+    #[test]
+    fn export_plain_on_const_is_accepted() {
+        let directives = parse_directives("export");
+        let item: Item = parse_quote! { pub const FOO: u32 = 1; };
+        assert!(validate(&directives, &item).is_empty());
+    }
+
+    #[test]
+    fn export_opaque_on_const_is_rejected() {
+        let directives = parse_directives("export(opaque)");
+        let item: Item = parse_quote! { pub const FOO: u32 = 1; };
+        let errors = validate(&directives, &item);
+        assert_eq!(errors.len(), 1);
+        assert!(
+            errors[0]
+                .to_string()
+                .contains("`export(opaque)` cannot be applied to constants"),
+            "unexpected error: {}",
+            errors[0]
+        );
+    }
+
+    #[test]
+    fn export_on_function_is_rejected() {
+        let directives = parse_directives("export");
+        let item: Item = parse_quote! { pub fn foo() {} };
+        let errors = validate(&directives, &item);
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].to_string().contains("functions"));
     }
 }

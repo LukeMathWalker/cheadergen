@@ -38,8 +38,11 @@ pub enum PositionAreaTrack {
     SpanAll = 0b111,
 }
 
+#[cheadergen::config(export)]
 pub const AXIS_SHIFT: usize = 3;
+#[cheadergen::config(export)]
 pub const SELF_WM_SHIFT: usize = 6;
+#[cheadergen::config(export)]
 pub const SELF_WM: u8 = 1u8 << 6;
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]

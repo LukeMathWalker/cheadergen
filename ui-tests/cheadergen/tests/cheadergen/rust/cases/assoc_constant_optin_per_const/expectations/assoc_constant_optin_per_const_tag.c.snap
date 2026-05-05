@@ -1,0 +1,17 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 332
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+struct Foo {
+  uint32_t field;
+};
+#define Foo_KEPT 1
+#define Foo_ALSO_KEPT "hi"
+
+uint32_t anchor(struct Foo x);

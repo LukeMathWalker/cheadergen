@@ -1,0 +1,37 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 271
+expression: stderr_str
+---
+error: constant `PRIVATE_FREE` is annotated with `#[cheadergen::config(export)]` but is not `pub`
+ --> constant_optin_export_requires_pub/src/lib.rs:6:2
+  |
+6 | pub(crate) const PRIVATE_FREE: i32 = 1;
+  |  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = help: only `pub` constants can be exported in the C header
+
+error: constant `TRULY_PRIVATE_FREE` is annotated with `#[cheadergen::config(export)]` but is not `pub`
+ --> constant_optin_export_requires_pub/src/lib.rs:9:2
+  |
+9 | const TRULY_PRIVATE_FREE: i32 = 2;
+  |  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = help: only `pub` constants can be exported in the C header
+
+error: assoc constant `Foo_PRIVATE_ASSOC` is annotated with `#[cheadergen::config(export)]` but is not `pub`
+  --> constant_optin_export_requires_pub/src/lib.rs:18:6
+   |
+18 |     pub(crate) const PRIVATE_ASSOC: i32 = 3;
+   |      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: only `pub` associated constants can be exported in the C header
+
+error: assoc constant `Foo_TRULY_PRIVATE_ASSOC` is annotated with `#[cheadergen::config(export)]` but is not `pub`
+  --> constant_optin_export_requires_pub/src/lib.rs:21:6
+   |
+21 |     const TRULY_PRIVATE_ASSOC: i32 = 4;
+   |      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: only `pub` associated constants can be exported in the C header
+Error: aborting due to previous error(s)

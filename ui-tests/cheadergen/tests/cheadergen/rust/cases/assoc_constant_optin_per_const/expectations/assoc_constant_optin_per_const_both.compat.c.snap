@@ -1,6 +1,6 @@
 ---
-source: ui-tests/src/generate/mod.rs
-assertion_line: 171
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 332
 expression: output
 ---
 #include <stdarg.h>
@@ -8,11 +8,17 @@ expression: output
 #include <stdint.h>
 #include <stdlib.h>
 
+typedef struct Foo {
+  uint32_t field;
+} Foo;
+#define Foo_KEPT 1
+#define Foo_ALSO_KEPT "hi"
+
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
 
-void anchor(void);
+uint32_t anchor(struct Foo x);
 
 #ifdef __cplusplus
 }  // extern "C"

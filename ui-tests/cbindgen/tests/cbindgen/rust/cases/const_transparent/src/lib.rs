@@ -6,6 +6,7 @@
 struct TransparentStruct { field: u8 }
 
 impl TransparentStruct {
+    #[cheadergen::config(export)]
     pub const ASSOC_STRUCT_FOO: i64 = 1;
     pub const ASSOC_STRUCT_BAR: TransparentStruct = TransparentStruct { field: 2 };
 

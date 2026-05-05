@@ -16,6 +16,7 @@ use super::type_transform;
 
 use crate::analysis::{CTypeDefinition, sort_local_ids_by_key};
 use crate::constant_item::{ConstantItem, resolve_assoc_constant, resolve_constant};
+use crate::indexing::{ExportMode, item_annotation_from_attrs};
 use crate::static_item::{StaticItem, resolve_static};
 
 /// An extern "C" free function paired with cheadergen-resolved per-item
@@ -47,6 +48,7 @@ impl ExternItemCoordinates {
     pub fn collect(
         collection: &Collection,
         package_id: &PackageId,
+        diagnostics: &mut DiagnosticSink,
     ) -> Result<Self, CannotGetCrateData> {
         let krate = collection.get_or_compute(package_id)?;
         let annotations = collection.get_annotated_items(package_id);
@@ -54,13 +56,20 @@ impl ExternItemCoordinates {
         let mut fn_ids = Vec::new();
         let mut static_ids = Vec::new();
         let mut constant_ids = Vec::new();
-        for id in krate.import_index.items.keys() {
+        // The import index is a `HashMap`, so its iteration order is
+        // non-deterministic. Sort the keys upfront so diagnostics emitted
+        // during the walk land in a stable order.
+        let mut sorted_ids: Vec<&rustdoc_types::Id> = krate.import_index.items.keys().collect();
+        sorted_ids.sort();
+        for id in sorted_ids {
             let Some(item) = krate.core.krate.index.get(id) else {
                 continue;
             };
 
+            let item_ann = annotations.as_ref().and_then(|a| a.get(id));
+
             // Filter out items annotated with `#[cheadergen::config(skip)]`.
-            if let Some(ann) = annotations.as_ref().and_then(|a| a.get(id))
+            if let Some(ann) = item_ann
                 && ann.skip
             {
                 continue;
@@ -77,7 +86,24 @@ impl ExternItemCoordinates {
                 ItemEnum::Static(_) if has_export_attr(&item.attrs) => {
                     static_ids.push(*id);
                 }
-                ItemEnum::Constant { .. } => {
+                ItemEnum::Constant { .. }
+                    if matches!(
+                        item_ann.and_then(|a| a.export.as_ref()),
+                        Some(ExportMode::Full)
+                    ) =>
+                {
+                    if !matches!(item.visibility, rustdoc_types::Visibility::Public) {
+                        let name = item.name.as_deref().unwrap_or("<unnamed>");
+                        diagnostics
+                            .error(format!(
+                                "constant `{name}` is annotated with \
+                                 `#[cheadergen::config(export)]` but is not `pub`"
+                            ))
+                            .with_span_if(item.span.as_ref())
+                            .with_help("only `pub` constants can be exported in the C header")
+                            .emit();
+                        continue;
+                    }
                     constant_ids.push(*id);
                 }
                 _ => {}
@@ -357,11 +383,30 @@ pub fn find_assoc_constants(
                 let Some(assoc_item) = krate.core.krate.index.get(assoc_id) else {
                     continue;
                 };
-                // Only public associated constants.
-                if !matches!(assoc_item.visibility, rustdoc_types::Visibility::Public) {
+                if !matches!(assoc_item.inner, ItemEnum::AssocConst { .. }) {
                     continue;
                 }
-                if !matches!(assoc_item.inner, ItemEnum::AssocConst { .. }) {
+                // Per-constant opt-in: requires `#[cheadergen::config(export)]`
+                // on the assoc constant itself; the parent type's annotation
+                // does not cascade. We read the attribute directly from the
+                // item because the indexer does not recurse into impl blocks.
+                let assoc_ann = item_annotation_from_attrs(&assoc_item.attrs);
+                if !matches!(assoc_ann.export, Some(ExportMode::Full)) {
+                    continue;
+                }
+                if !matches!(assoc_item.visibility, rustdoc_types::Visibility::Public) {
+                    let const_name = assoc_item.name.as_deref().unwrap_or("<unnamed>");
+                    diagnostics
+                        .error(format!(
+                            "assoc constant `{}_{const_name}` is annotated with \
+                             `#[cheadergen::config(export)]` but is not `pub`",
+                            def.name
+                        ))
+                        .with_span_if(assoc_item.span.as_ref())
+                        .with_help(
+                            "only `pub` associated constants can be exported in the C header",
+                        )
+                        .emit();
                     continue;
                 }
                 if let Some(c) =

@@ -7,6 +7,7 @@ pub struct CArrayString<const CAP: usize> {
     pub chars: [i8; CAP],
 }
 
+#[cheadergen::config(export)]
 pub const TITLE_SIZE: usize = 80;
 
 #[repr(C)]

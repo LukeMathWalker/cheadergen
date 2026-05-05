@@ -3,6 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #[cfg(foo)]
+#[cheadergen::config(export)]
 pub const FOO: i32 = 1;
 
 #[cfg(foo)]
@@ -16,6 +17,7 @@ pub struct Foo {}
 #[cfg(feature = "foobar")]
 pub mod foo {
     #[cfg(bar)]
+    #[cheadergen::config(export)]
     pub const BAR: i32 = 2;
 
     #[cfg(bar)]

@@ -9,5 +9,6 @@ impl Foo {
     const FOO: i32 = 0;
 }
 
+#[cheadergen::config(export)]
 pub const Foo_FOO: u32 = 42;
 

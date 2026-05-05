@@ -26,9 +26,11 @@ struct Root {
 }
 
 #[cfg(windows)]
+#[cheadergen::config(export)]
 pub const DEFAULT_X: i32 = 0x08;
 
 #[cfg(unix)]
+#[cheadergen::config(export)]
 pub const DEFAULT_X: i32 = 0x2a;
 
 #[unsafe(no_mangle)]

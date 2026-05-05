@@ -7,6 +7,7 @@ pub struct FixedPoint<const FRACTION_BITS: u16> {
     value: u16,
 }
 
+#[cheadergen::config(export)]
 pub const FONT_WEIGHT_FRACTION_BITS: u16 = 6;
 
 pub type FontWeightFixedPoint = FixedPoint<FONT_WEIGHT_FRACTION_BITS>;

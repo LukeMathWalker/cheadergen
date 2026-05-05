@@ -44,7 +44,7 @@ pub fn resolve_constant(
         Ok(t) => t,
         Err(e) => {
             diagnostics
-                .warning(format!("constant `{name}`: failed to resolve type"))
+                .error(format!("constant `{name}`: failed to resolve type"))
                 .with_span_if(item.span.as_ref())
                 .with_error_chain(&e)
                 .emit();
@@ -57,7 +57,7 @@ pub fn resolve_constant(
         Type::ScalarPrimitive(ScalarPrimitive::Bool) => {
             let Some(ref value) = const_.value else {
                 diagnostics
-                    .warning(format!("constant `{name}` has no evaluated value"))
+                    .error(format!("constant `{name}` has no evaluated value"))
                     .with_span_if(item.span.as_ref())
                     .emit();
                 return None;
@@ -69,7 +69,7 @@ pub fn resolve_constant(
         Type::ScalarPrimitive(ScalarPrimitive::Char) => {
             if !const_.is_literal {
                 diagnostics
-                    .warning(format!("constant `{name}` is a computed char expression"))
+                    .error(format!("constant `{name}` is a computed char expression"))
                     .with_span_if(item.span.as_ref())
                     .with_help("only literal char constants are supported")
                     .emit();
@@ -86,7 +86,7 @@ pub fn resolve_constant(
         {
             let Some(ref value) = const_.value else {
                 diagnostics
-                    .warning(format!("constant `{name}` has no evaluated value"))
+                    .error(format!("constant `{name}` has no evaluated value"))
                     .with_span_if(item.span.as_ref())
                     .emit();
                 return None;
@@ -98,7 +98,7 @@ pub fn resolve_constant(
         Type::Reference(r) if matches!(&*r.inner, Type::ScalarPrimitive(ScalarPrimitive::Str)) => {
             if !const_.is_literal {
                 diagnostics
-                    .warning(format!("constant `{name}` is a computed string expression"))
+                    .error(format!("constant `{name}` is a computed string expression"))
                     .with_span_if(item.span.as_ref())
                     .with_help("only literal string constants are supported")
                     .emit();
@@ -108,7 +108,7 @@ pub fn resolve_constant(
         }
         _ => {
             diagnostics
-                .warning(format!("constant `{name}` has unsupported type"))
+                .error(format!("constant `{name}` has unsupported type"))
                 .with_span_if(item.span.as_ref())
                 .emit();
             return None;
@@ -152,7 +152,7 @@ pub fn resolve_assoc_constant(
         Ok(t) => t,
         Err(e) => {
             diagnostics
-                .warning(format!(
+                .error(format!(
                     "assoc constant `{type_name}_{const_name}`: failed to resolve type"
                 ))
                 .with_span_if(item.span.as_ref())
@@ -166,7 +166,7 @@ pub fn resolve_assoc_constant(
         Some(v) if !v.is_empty() && v != "_" => v,
         _ => {
             diagnostics
-                .warning(format!(
+                .error(format!(
                     "assoc constant `{type_name}_{const_name}` has no evaluated value"
                 ))
                 .with_span_if(item.span.as_ref())
@@ -191,7 +191,7 @@ pub fn resolve_assoc_constant(
         }
         _ => {
             diagnostics
-                .warning(format!(
+                .error(format!(
                     "assoc constant `{type_name}_{const_name}` has unsupported type"
                 ))
                 .with_span_if(item.span.as_ref())

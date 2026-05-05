@@ -6,8 +6,11 @@
 struct Foo {}
 
 impl Foo {
+    #[cheadergen::config(export)]
     pub const GA: i32 = 10;
+    #[cheadergen::config(export)]
     pub const BU: &'static str = "hello world";
+    #[cheadergen::config(export)]
     pub const ZO: f32 = 3.14;
 
     pub(crate) const DONT_EXPORT_CRATE: i32 = 20;

@@ -12,6 +12,7 @@ pub struct DoNotExportMe {
     val: u64
 }
 
+#[cheadergen::config(export)]
 pub const EXPORT_ME_TOO: u8 = 0x2a;
 
 #[unsafe(no_mangle)]

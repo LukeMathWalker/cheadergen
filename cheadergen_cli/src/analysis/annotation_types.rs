@@ -64,18 +64,24 @@ pub fn exported_via_annotations(
             continue;
         };
 
-        if !matches!(
-            &item.inner,
-            ItemEnum::Struct(_) | ItemEnum::Enum(_) | ItemEnum::Union(_) | ItemEnum::TypeAlias(_)
-        ) {
-            let name = item.name.as_deref().unwrap_or("<unnamed>");
-            diagnostics
-                .warning(format!(
-                    "#[cheadergen::export] on `{name}` is not a struct, enum, union, or type alias"
-                ))
-                .with_span_if(item.span.as_ref())
-                .emit();
-            continue;
+        match &item.inner {
+            ItemEnum::Struct(_)
+            | ItemEnum::Enum(_)
+            | ItemEnum::Union(_)
+            | ItemEnum::TypeAlias(_) => {}
+            // Constants legitimately carry `export` (handled by the constant
+            // pipeline, not here). Skip without warning.
+            ItemEnum::Constant { .. } | ItemEnum::AssocConst { .. } => continue,
+            _ => {
+                let name = item.name.as_deref().unwrap_or("<unnamed>");
+                diagnostics
+                    .warning(format!(
+                        "#[cheadergen::export] on `{name}` is not a struct, enum, union, type alias or constant"
+                    ))
+                    .with_span_if(item.span.as_ref())
+                    .emit();
+                continue;
+            }
         }
 
         let ty =

@@ -1,6 +1,6 @@
 ---
 source: ui-tests/cbindgen/src/lib.rs
-assertion_line: 166
+assertion_line: 194
 expression: actual
 ---
 #include <stdarg.h>
@@ -31,10 +31,6 @@ struct Foo {
 #define EQUID U'\U00010083'
 
 #define ZOM 3.1400001
-
-#define DONT_EXPORT_CRATE 20
-
-#define DONT_EXPORT_PRIV 30
 
 /**
  * A single-line doc comment.

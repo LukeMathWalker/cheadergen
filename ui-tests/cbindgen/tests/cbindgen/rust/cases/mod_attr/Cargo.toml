@@ -10,3 +10,6 @@ crate-type = ["lib", "dylib"]
 
 [features]
 foobar = []
+
+[dependencies]
+cheadergen.workspace = true

@@ -3,3 +3,6 @@ name = "constant_user_defined_type"
 version = "0.1.0"
 authors = ["cbindgen"]
 edition.workspace = true
+
+[dependencies]
+cheadergen.workspace = true

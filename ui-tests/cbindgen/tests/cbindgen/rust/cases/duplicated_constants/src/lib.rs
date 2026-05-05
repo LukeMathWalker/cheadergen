@@ -8,6 +8,7 @@ pub struct Foo {
 }
 
 impl Foo {
+    #[cheadergen::config(export)]
     pub const FIELD_RELATED_CONSTANT: u32 = 0;
 }
 
@@ -17,6 +18,7 @@ pub struct Bar {
 }
 
 impl Bar {
+    #[cheadergen::config(export)]
     pub const FIELD_RELATED_CONSTANT: u32 = 0;
 }
 

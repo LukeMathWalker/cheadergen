@@ -1,6 +1,5 @@
 ---
 source: ui-tests/cbindgen/src/lib.rs
-assertion_line: 166
 expression: actual
 ---
 #include <stdarg.h>
@@ -8,7 +7,16 @@ expression: actual
 #include <stdint.h>
 #include <stdlib.h>
 
-typedef struct E E;
+enum E {
+  A = 1,
+  B = -1,
+  C = { _ },
+  D = FOUR,
+  F = (5),
+  G = { _ },
+  H = { _ },
+};
+typedef int8_t E;
 
 #define FOUR 4
 

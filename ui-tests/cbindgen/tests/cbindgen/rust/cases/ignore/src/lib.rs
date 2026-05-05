@@ -32,6 +32,7 @@ impl IgnoreStructWithImpl {
 /// cbindgen:ignore
 pub const IGNORE_CONST: u32 = 0;
 
+#[cheadergen::config(export)]
 pub const NO_IGNORE_CONST: u32 = 0;
 
 pub struct NoIgnoreStructWithImpl;
@@ -47,6 +48,7 @@ impl NoIgnoreStructWithImpl {
     /// cbindgen:ignore
     pub const IGNORE_INNER_CONST: u32 = 0;
 
+    #[cheadergen::config(export)]
     pub const NO_IGNORE_INNER_CONST: u32 = 0;
 }
 

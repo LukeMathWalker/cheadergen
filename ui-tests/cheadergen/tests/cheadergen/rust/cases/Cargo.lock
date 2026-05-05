@@ -7,8 +7,22 @@ name = "alias-dep"
 version = "0.1.0"
 
 [[package]]
+name = "assoc_constant_optin_default_skipped"
+version = "0.1.0"
+
+[[package]]
+name = "assoc_constant_optin_per_const"
+version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
+
+[[package]]
 name = "associated_constants"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "bin_only_explicit"
@@ -36,17 +50,20 @@ version = "0.1.0"
 [[package]]
 name = "char_str_constant"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "cheadergen"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "cheadergen_macros",
 ]
 
 [[package]]
 name = "cheadergen_macros"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -56,6 +73,20 @@ dependencies = [
 [[package]]
 name = "computed_constant"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
+
+[[package]]
+name = "constant_optin_default_skipped"
+version = "0.1.0"
+
+[[package]]
+name = "constant_optin_export_requires_pub"
+version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "corecursive_type"
@@ -139,6 +170,9 @@ version = "0.1.0"
 [[package]]
 name = "free_constant"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "generic_enum"
@@ -782,6 +816,9 @@ version = "0.1.0"
 [[package]]
 name = "unsupported_constant"
 version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
 
 [[package]]
 name = "usize_is_size_t_global"

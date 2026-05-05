@@ -3,6 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 
+#[cheadergen::config(export)]
 pub const MY_CONST: u8 = 4;
 
 #[unsafe(no_mangle)]

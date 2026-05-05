@@ -202,19 +202,50 @@ struct CheadergenVisitor {
 
 impl IndexingVisitor for CheadergenVisitor {
     fn on_item_discovered(&mut self, item: &rustdoc_types::Item, item_id: rustdoc_types::Id) {
-        let mut ann = ItemAnnotation::default();
-        let mut found = false;
-        for attr in &item.attrs {
-            if let Attribute::Other(s) = attr {
-                found |= parse_cheadergen_attr(s, &mut ann);
-            }
-        }
-        if found {
+        let ann = item_annotation_from_attrs(&item.attrs);
+        if !ann.is_empty() {
             self.items.insert(item_id, ann);
         }
     }
 
     fn on_type_indexed(&mut self, _item_id: rustdoc_types::Id) {}
+}
+
+/// Parse all `#[diagnostic::cheadergen::...]` attributes from a list of rustdoc
+/// attributes into an [`ItemAnnotation`].
+///
+/// Used during indexing for top-level items, and on demand for items the
+/// indexer doesn't visit (e.g. associated constants inside `impl` blocks).
+pub fn item_annotation_from_attrs(attrs: &[Attribute]) -> ItemAnnotation {
+    let mut ann = ItemAnnotation::default();
+    for attr in attrs {
+        if let Attribute::Other(s) = attr {
+            parse_cheadergen_attr(s, &mut ann);
+        }
+    }
+    ann
+}
+
+impl ItemAnnotation {
+    /// Returns `true` if no cheadergen directives were applied to this annotation.
+    pub fn is_empty(&self) -> bool {
+        let Self {
+            export,
+            skip,
+            rename,
+            prefix_with_name,
+            field_names,
+            rename_all,
+            rename_all_fields,
+        } = self;
+        export.is_none()
+            && !skip
+            && rename.is_none()
+            && prefix_with_name.is_none()
+            && field_names.is_none()
+            && rename_all.is_none()
+            && rename_all_fields.is_none()
+    }
 }
 
 /// Parse field/variant-level `#[diagnostic::cheadergen::...]` attributes.

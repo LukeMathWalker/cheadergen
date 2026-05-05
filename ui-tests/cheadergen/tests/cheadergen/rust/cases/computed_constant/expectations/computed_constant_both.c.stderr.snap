@@ -1,9 +1,21 @@
 ---
-source: ui-tests/src/generate/mod.rs
-assertion_line: 198
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 271
 expression: stderr_str
 ---
-warning: constant `COMPUTED_CHAR` is a computed char expression
- = help: only literal char constants are supported
-warning: constant `COMPUTED_STR` is a computed string expression
- = help: only literal string constants are supported
+error: constant `COMPUTED_CHAR` is a computed char expression
+  --> computed_constant/src/lib.rs:10:2
+   |
+10 | pub const COMPUTED_CHAR: char = make_char();
+   |  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: only literal char constants are supported
+
+error: constant `COMPUTED_STR` is a computed string expression
+  --> computed_constant/src/lib.rs:17:2
+   |
+17 | pub const COMPUTED_STR: &str = make_str();
+   |  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: only literal string constants are supported
+Error: aborting due to previous error(s)

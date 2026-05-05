@@ -7,7 +7,9 @@
 struct Foo {}
 
 impl Foo {
+    #[cheadergen::config(export)]
     pub const GA: i32 = 10;
+    #[cheadergen::config(export)]
     pub const ZO: f32 = 3.14;
 }
 

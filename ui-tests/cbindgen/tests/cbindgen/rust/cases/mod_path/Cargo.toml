@@ -7,3 +7,6 @@ edition.workspace = true
 [lib]
 name = "mod_path"
 crate-type = ["lib", "dylib"]
+
+[dependencies]
+cheadergen.workspace = true
