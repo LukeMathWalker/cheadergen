@@ -994,6 +994,19 @@ fn resolve_all_type_definitions(
         }
     }
 
-    let defs: Vec<CTypeDefinition> = resolved.into_values().collect();
+    // Sort by `(name, original_name, defining_package)` so the returned Vec is
+    // deterministic — `resolved` is a `HashMap<CCanonicalType, _>` and
+    // `into_values()` would otherwise return values in HashMap iteration order.
+    // When two definitions share the same C-level `name` (e.g. one Rust struct
+    // is renamed to the C name of another via `#[cheadergen::config(rename)]`),
+    // downstream dedup steps keep the first-occurrence in this Vec, so a
+    // non-deterministic order produces visibly different headers across runs.
+    let mut defs: Vec<CTypeDefinition> = resolved.into_values().collect();
+    defs.sort_by(|a, b| {
+        a.name
+            .cmp(&b.name)
+            .then_with(|| a.original_name.cmp(&b.original_name))
+            .then_with(|| a.defining_package.cmp(&b.defining_package))
+    });
     Ok(defs)
 }

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use guppy::graph::{BuildTargetId, PackageGraph};
 use guppy::{PackageId, Version};
@@ -12,7 +12,14 @@ use crate::static_item::StaticItem;
 /// The result of partitioning types across per-crate headers.
 pub struct PartitionedTypes {
     /// Types assigned to each header file, keyed by package.
-    pub per_crate: HashMap<PackageId, Vec<CTypeDefinition>>,
+    /// `BTreeMap` (not `HashMap`) so iteration order is deterministic. This
+    /// matters because: when two packages export a type with the same C-level
+    /// name (e.g. `search_result` defines `pub struct SearchResult` and
+    /// `search_result_ffi` aliases it via `pub type SearchResult = ...`), the
+    /// `type_to_package` lookup in `compute_header_deps` does last-write-wins
+    /// — and the "last" varied between runs, producing different forward
+    /// declarations in consuming headers.
+    pub per_crate: BTreeMap<PackageId, Vec<CTypeDefinition>>,
     /// Opaque types (from packages marked `types = "opaque"`).
     /// These are NOT placed in any header but are available for forward declarations.
     pub opaque_types: Vec<CTypeDefinition>,
@@ -69,7 +76,7 @@ pub fn partition_types(
 
     // Step 1: Assign non-generic types to their defining crate.
     // Ensure every target package has an entry (even if it has no types of its own).
-    let mut per_crate: HashMap<PackageId, Vec<CTypeDefinition>> = HashMap::new();
+    let mut per_crate: BTreeMap<PackageId, Vec<CTypeDefinition>> = BTreeMap::new();
     for (pkg_id, _) in target_extern_items {
         per_crate.entry(pkg_id.clone()).or_default();
     }
