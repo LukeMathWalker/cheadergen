@@ -191,6 +191,14 @@ pub fn generate_c_header(
         out.push('\n');
     }
 
+    // Alignment macro: define `CHEADERGEN_ALIGNED(n)` once per header when any
+    // emitted type carries `#[repr(C, align(N))]`. Guarded by `#ifndef` so
+    // partitioned headers can be safely included together.
+    if type_defs.iter().any(has_alignment) {
+        out.push('\n');
+        write_aligned_macro_definition(out);
+    }
+
     // Build type metadata map for correct type references in declarations.
     // Include type_hints from included deps so renames and type tags propagate.
     let mut meta_map = build_type_meta_map(type_defs);
@@ -796,37 +804,43 @@ fn write_c_type_definitions(
 
     // For Plain (Type) style, emit forward declarations only for compounds
     // that are referenced by pointer before their definition (self-referential
-    // types, corecursive pointer back-references, etc.).
-    if matches!(style, Style::Type) && !compound_defs.is_empty() {
-        let forward_decls = compute_needed_forward_decls(&compound_defs);
-        if !forward_decls.is_empty() {
-            for def in &compound_defs {
-                if forward_decls.contains(def.name.as_str()) {
-                    let name = &def.name;
-                    match &def.kind {
-                        CTypeKind::Union(_)
-                        | CTypeKind::TaggedUnion(CTaggedUnionDef {
-                            repr: CEnumRepr::Int { .. },
-                            ..
-                        }) => {
-                            writeln!(out, "typedef union {name} {name};").unwrap();
-                        }
-                        _ => {
-                            writeln!(out, "typedef struct {name} {name};").unwrap();
-                        }
-                    }
-                }
-            }
-            out.push('\n');
-        }
-    }
-
-    // Structs and tagged unions.
+    // types, corecursive pointer back-references, etc.). Aligned compounds are
+    // also forced into the forward-decl set so they emit as a tagged
+    // definition — the only emission form where the `CHEADERGEN_ALIGNED(N)`
+    // macro placement works across GCC, Clang, and MSVC.
     let forward_declared: HashSet<&str> = if matches!(style, Style::Type) {
-        compute_needed_forward_decls(&compound_defs)
+        let mut set = compute_needed_forward_decls(&compound_defs);
+        for def in &compound_defs {
+            if has_alignment(def) {
+                set.insert(def.name.as_str());
+            }
+        }
+        set
     } else {
         HashSet::new()
     };
+    if matches!(style, Style::Type) && !compound_defs.is_empty() && !forward_declared.is_empty() {
+        for def in &compound_defs {
+            if forward_declared.contains(def.name.as_str()) {
+                let name = &def.name;
+                match &def.kind {
+                    CTypeKind::Union(_)
+                    | CTypeKind::TaggedUnion(CTaggedUnionDef {
+                        repr: CEnumRepr::Int { .. },
+                        ..
+                    }) => {
+                        writeln!(out, "typedef union {name} {name};").unwrap();
+                    }
+                    _ => {
+                        writeln!(out, "typedef struct {name} {name};").unwrap();
+                    }
+                }
+            }
+        }
+        out.push('\n');
+    }
+
+    // Structs and tagged unions.
     for (i, def) in compound_defs.iter().enumerate() {
         // In partitioned mode, generic instantiations are wrapped in #ifndef
         // guards to prevent redefinition errors when the same instantiation
@@ -931,24 +945,25 @@ fn write_c_struct_definition(
         }
     };
 
+    let align = align_attr_fragment(def.align);
     match style {
         Style::Type if has_fwd_decl => {
-            writeln!(out, "struct {name} {{").unwrap();
+            writeln!(out, "struct{align} {name} {{").unwrap();
             write_fields(style, out);
             writeln!(out, "}};").unwrap();
         }
         Style::Type => {
-            writeln!(out, "typedef struct {{").unwrap();
+            writeln!(out, "typedef struct{align} {{").unwrap();
             write_fields(style, out);
             writeln!(out, "}} {name};").unwrap();
         }
         Style::Tag => {
-            writeln!(out, "struct {name} {{").unwrap();
+            writeln!(out, "struct{align} {name} {{").unwrap();
             write_fields(&Style::Tag, out);
             writeln!(out, "}};").unwrap();
         }
         Style::Both => {
-            writeln!(out, "typedef struct {name} {{").unwrap();
+            writeln!(out, "typedef struct{align} {name} {{").unwrap();
             write_fields(style, out);
             writeln!(out, "}} {name};").unwrap();
         }
@@ -976,28 +991,79 @@ fn write_c_union_definition(
         }
     };
 
+    let align = align_attr_fragment(def.align);
     match style {
         Style::Type if has_fwd_decl => {
-            writeln!(out, "union {name} {{").unwrap();
+            writeln!(out, "union{align} {name} {{").unwrap();
             write_fields(style, out);
             writeln!(out, "}};").unwrap();
         }
         Style::Type => {
-            writeln!(out, "typedef union {{").unwrap();
+            writeln!(out, "typedef union{align} {{").unwrap();
             write_fields(style, out);
             writeln!(out, "}} {name};").unwrap();
         }
         Style::Tag => {
-            writeln!(out, "union {name} {{").unwrap();
+            writeln!(out, "union{align} {name} {{").unwrap();
             write_fields(&Style::Tag, out);
             writeln!(out, "}};").unwrap();
         }
         Style::Both => {
-            writeln!(out, "typedef union {name} {{").unwrap();
+            writeln!(out, "typedef union{align} {name} {{").unwrap();
             write_fields(style, out);
             writeln!(out, "}} {name};").unwrap();
         }
     }
+}
+
+/// Format the alignment annotation slot for a compound's `struct`/`union`
+/// header (e.g. `" CHEADERGEN_ALIGNED(16)"`, with a leading space). Returns
+/// an empty string when no alignment is requested.
+fn align_attr_fragment(align: Option<u64>) -> String {
+    match align {
+        Some(n) => format!(" {ALIGNED_MACRO}({n})"),
+        None => String::new(),
+    }
+}
+
+/// Whether a compound carries an explicit `#[repr(C, align(N))]` annotation.
+fn has_alignment(def: &CTypeDefinition) -> bool {
+    match &def.kind {
+        CTypeKind::Struct(s) => s.align.is_some(),
+        CTypeKind::Union(u) => u.align.is_some(),
+        _ => false,
+    }
+}
+
+/// Name of the alignment macro emitted in the header prologue and referenced
+/// from each aligned compound's definition.
+const ALIGNED_MACRO: &str = "CHEADERGEN_ALIGNED";
+
+/// Emit the cross-compiler `CHEADERGEN_ALIGNED(n)` macro into the header
+/// prologue. The expansion picks the right alignment specifier for the
+/// active compiler/standard; the outer `#ifndef` guard keeps this safe
+/// across partitioned headers that include each other.
+///
+/// The macro is interpolated between `struct`/`union` and the tag name, so
+/// the expansion must be valid in that position. Pure-C `_Alignas`/`alignas`
+/// is intentionally not used: the C standard restricts alignment specifiers
+/// to declaration-specifier-seq, not inside a struct-or-union-specifier.
+/// We rely on the GCC/Clang and MSVC compiler extensions for C, and on the
+/// C++11 `alignas` (which the language explicitly permits in a class-head).
+fn write_aligned_macro_definition(out: &mut String) {
+    out.push_str("#ifndef CHEADERGEN_ALIGNED\n");
+    out.push_str("#  if defined(__cplusplus) && __cplusplus >= 201103L\n");
+    out.push_str("#    define CHEADERGEN_ALIGNED(n) alignas(n)\n");
+    out.push_str("#  elif defined(_MSC_VER)\n");
+    out.push_str("#    define CHEADERGEN_ALIGNED(n) __declspec(align(n))\n");
+    out.push_str("#  elif defined(__GNUC__) || defined(__clang__)\n");
+    out.push_str("#    define CHEADERGEN_ALIGNED(n) __attribute__((aligned(n)))\n");
+    out.push_str("#  else\n");
+    out.push_str(
+        "#    error \"cheadergen: don't know how to express alignment for this compiler\"\n",
+    );
+    out.push_str("#  endif\n");
+    out.push_str("#endif\n");
 }
 
 /// Emit a fieldless C enum.

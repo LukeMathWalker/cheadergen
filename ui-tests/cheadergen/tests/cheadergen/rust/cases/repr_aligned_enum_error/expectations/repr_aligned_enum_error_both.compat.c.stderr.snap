@@ -1,0 +1,18 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 271
+expression: stderr_str
+---
+error: enum `AlignedEnum` uses `#[repr(align(N))]`, which cheadergen does not yet support for enums
+ --> repr_aligned_enum_error/src/lib.rs:5:2
+  |
+5 |   pub enum AlignedEnum {
+  |  __^
+6 | |     A,
+7 | |     B,
+8 | |     C,
+9 | | }
+  | |_^ `align(N)` on enums not supported
+  |
+  = help: support for aligned enums is planned; remove the `align(N)` modifier or open an issue if you need it
+Error: aborting due to previous error(s)

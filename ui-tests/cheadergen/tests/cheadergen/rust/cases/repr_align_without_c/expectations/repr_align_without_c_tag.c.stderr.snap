@@ -1,0 +1,16 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 271
+expression: stderr_str
+---
+error: struct `BareAligned` uses `#[repr(align(N))]` without `#[repr(C)]`
+ --> repr_align_without_c/src/lib.rs:5:2
+  |
+5 |   pub struct BareAligned {
+  |  __^
+6 | |     pub value: u64,
+7 | | }
+  | |_^ `align(N)` without `#[repr(C)]`
+  |
+  = help: add `#[repr(C)]` alongside `align(N)` so cheadergen can emit a layout-stable definition
+Error: aborting due to previous error(s)

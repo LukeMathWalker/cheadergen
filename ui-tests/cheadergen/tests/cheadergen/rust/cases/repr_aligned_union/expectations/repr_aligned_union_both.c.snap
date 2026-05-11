@@ -1,0 +1,28 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 332
+expression: output
+---
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+#ifndef CHEADERGEN_ALIGNED
+#  if defined(__cplusplus) && __cplusplus >= 201103L
+#    define CHEADERGEN_ALIGNED(n) alignas(n)
+#  elif defined(_MSC_VER)
+#    define CHEADERGEN_ALIGNED(n) __declspec(align(n))
+#  elif defined(__GNUC__) || defined(__clang__)
+#    define CHEADERGEN_ALIGNED(n) __attribute__((aligned(n)))
+#  else
+#    error "cheadergen: don't know how to express alignment for this compiler"
+#  endif
+#endif
+
+typedef union CHEADERGEN_ALIGNED(8) AlignedScalar {
+  int64_t as_i64;
+  double as_f64;
+} AlignedScalar;
+
+union AlignedScalar aligned_scalar_from_i64(int64_t value);

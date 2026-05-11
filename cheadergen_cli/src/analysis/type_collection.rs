@@ -215,6 +215,8 @@ pub struct CTypedefDef {
 pub struct CStructDef {
     /// The fields of the struct, in declaration order.
     pub fields: Vec<CStructField>,
+    /// Explicit minimum alignment from `#[repr(C, align(N))]`, in bytes.
+    pub align: Option<u64>,
 }
 
 /// A resolved `#[repr(C)]` union with its fields.
@@ -222,6 +224,8 @@ pub struct CStructDef {
 pub struct CUnionDef {
     /// The fields of the union, in declaration order.
     pub fields: Vec<CStructField>,
+    /// Explicit minimum alignment from `#[repr(C, align(N))]`, in bytes.
+    pub align: Option<u64>,
 }
 
 /// A single field of a C struct.

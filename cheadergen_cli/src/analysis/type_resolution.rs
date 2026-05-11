@@ -137,6 +137,115 @@ fn setup_generic_bindings(
     Ok(bindings)
 }
 
+/// Outcome of inspecting the `#[repr(...)]` attributes on a struct or union.
+#[derive(Debug)]
+enum ReprValidation {
+    /// `#[repr(C)]`, optionally combined with `align(N)`.
+    ReprC { align: Option<u64> },
+    /// `#[repr(transparent)]` (without `align(N)`, which the validator rejects).
+    ReprTransparent,
+    /// Neither C nor transparent, and no rejected modifiers — caller decides
+    /// whether to warn or stay silent.
+    NotCCompatible,
+    /// A disallowed combination was found; an error has already been emitted
+    /// to the sink. Caller should fall back to opaque to keep analysis going.
+    Errored,
+}
+
+/// Inspect the `#[repr(...)]` attributes on a struct or union, collapsing
+/// multiple repr attributes into a single decision and rejecting modifiers
+/// that cheadergen cannot honor.
+///
+/// Emits errors to `diagnostics` for: `#[repr(packed(...))]` (any form),
+/// `#[repr(align(N))]` without `#[repr(C)]`, and `#[repr(transparent, align(N))]`.
+fn validate_compound_repr(
+    name: &str,
+    kind_label: &str,
+    attrs: &[Attribute],
+    span: Option<&rustdoc_types::Span>,
+    diagnostics: &mut DiagnosticSink,
+) -> ReprValidation {
+    let mut has_c = false;
+    let mut has_transparent = false;
+    let mut align: Option<u64> = None;
+    let mut packed: Option<u64> = None;
+
+    for attr in attrs {
+        let Attribute::Repr(AttributeRepr {
+            kind,
+            align: a,
+            packed: p,
+            ..
+        }) = attr
+        else {
+            continue;
+        };
+        match kind {
+            ReprKind::C => has_c = true,
+            ReprKind::Transparent => has_transparent = true,
+            _ => {}
+        }
+        if let Some(value) = a {
+            align = Some(align.map_or(*value, |existing| existing.max(*value)));
+        }
+        if let Some(value) = p {
+            packed = Some(packed.map_or(*value, |existing| existing.min(*value)));
+        }
+    }
+
+    if packed.is_some() {
+        diagnostics
+            .error(format!(
+                "{kind_label} `{name}` uses `#[repr(packed)]`, which cheadergen does not yet support"
+            ))
+            .with_span_if(span)
+            .with_label("`#[repr(packed)]` not supported".to_string())
+            .with_help(
+                "support for packed types is planned; remove the attribute or open an issue if you need it",
+            )
+            .emit();
+        return ReprValidation::Errored;
+    }
+
+    if has_transparent && align.is_some() {
+        diagnostics
+            .error(format!(
+                "{kind_label} `{name}` combines `#[repr(transparent)]` with `#[repr(align(N))]`"
+            ))
+            .with_span_if(span)
+            .with_label("transparent + align not supported".to_string())
+            .with_help(
+                "cheadergen emits transparent types as C typedefs, which cannot carry an alignment",
+            )
+            .emit();
+        return ReprValidation::Errored;
+    }
+
+    if has_transparent {
+        return ReprValidation::ReprTransparent;
+    }
+
+    if has_c {
+        return ReprValidation::ReprC { align };
+    }
+
+    if align.is_some() {
+        diagnostics
+            .error(format!(
+                "{kind_label} `{name}` uses `#[repr(align(N))]` without `#[repr(C)]`"
+            ))
+            .with_span_if(span)
+            .with_label("`align(N)` without `#[repr(C)]`".to_string())
+            .with_help(
+                "add `#[repr(C)]` alongside `align(N)` so cheadergen can emit a layout-stable definition",
+            )
+            .emit();
+        return ReprValidation::Errored;
+    }
+
+    ReprValidation::NotCCompatible
+}
+
 /// Resolve a struct into a `CTypeKind`.
 #[expect(
     clippy::too_many_arguments,
@@ -153,52 +262,34 @@ fn resolve_struct_kind(
     usage: TypeUsage,
     diagnostics: &mut DiagnosticSink,
 ) -> anyhow::Result<CTypeKind> {
-    // Check for #[repr(C)] or #[repr(transparent)].
-    let is_repr_c = attrs.iter().any(|attr| {
-        matches!(
-            attr,
-            Attribute::Repr(AttributeRepr {
-                kind: ReprKind::C,
-                ..
-            })
-        )
-    });
-    let is_repr_transparent = attrs.iter().any(|attr| {
-        matches!(
-            attr,
-            Attribute::Repr(AttributeRepr {
-                kind: ReprKind::Transparent,
-                ..
-            })
-        )
-    });
-
-    if !is_repr_c && !is_repr_transparent {
-        // Only warn when the type is actually reached by value: if the only
-        // uses are behind a pointer/reference, an opaque forward declaration
-        // is exactly what callers want and the warning is noise.
-        if usage == TypeUsage::ByValue {
-            let global_id =
-                GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
-            let type_item = collection.get_item_by_global_type_id(&global_id);
-            diagnostics
-                .warning(format!("type `{name}` is not #[repr(C)]"))
-                .with_span_if(type_item.span.as_ref())
-                .with_label("not #[repr(C)]".to_string())
-                .with_help("emitting opaque forward declaration")
-                .emit();
-        }
-        return Ok(CTypeKind::OpaqueStruct);
-    }
-
     let global_id_for_span =
         GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
     let item_for_span = collection.get_item_by_global_type_id(&global_id_for_span);
+    let span_for_diag = item_for_span.span.as_ref();
+
+    let (is_repr_transparent, align) =
+        match validate_compound_repr(name, "struct", attrs, span_for_diag, diagnostics) {
+            ReprValidation::ReprC { align } => (false, align),
+            ReprValidation::ReprTransparent => (true, None),
+            ReprValidation::Errored => return Ok(CTypeKind::OpaqueStruct),
+            ReprValidation::NotCCompatible => {
+                if usage == TypeUsage::ByValue {
+                    diagnostics
+                        .warning(format!("type `{name}` is not #[repr(C)]"))
+                        .with_span_if(span_for_diag)
+                        .with_label("not #[repr(C)]".to_string())
+                        .with_help("emitting opaque forward declaration")
+                        .emit();
+                }
+                return Ok(CTypeKind::OpaqueStruct);
+            }
+        };
+
     let generic_bindings = match setup_generic_bindings(
         name,
         &struct_def.generics,
         path_type,
-        item_for_span.span.as_ref(),
+        span_for_diag,
         diagnostics,
     ) {
         Ok(bindings) => bindings,
@@ -215,26 +306,26 @@ fn resolve_struct_kind(
     )?;
     if is_repr_transparent {
         match fields.len() {
-            0 => Ok(CTypeKind::Struct(CStructDef { fields })),
+            0 => Ok(CTypeKind::Struct(CStructDef {
+                fields,
+                align: None,
+            })),
             1 => Ok(CTypeKind::Typedef(CTypedefDef {
                 inner: fields.into_iter().next().unwrap().type_,
             })),
             n => {
-                let global_id =
-                    GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
-                let item = collection.get_item_by_global_type_id(&global_id);
                 diagnostics
                     .warning(format!(
                         "repr(transparent) type `{name}` has {n} non-ZST fields"
                     ))
-                    .with_span_if(item.span.as_ref())
+                    .with_span_if(span_for_diag)
                     .with_help("emitting opaque forward declaration")
                     .emit();
                 Ok(CTypeKind::OpaqueStruct)
             }
         }
     } else {
-        Ok(CTypeKind::Struct(CStructDef { fields }))
+        Ok(CTypeKind::Struct(CStructDef { fields, align }))
     }
 }
 
@@ -376,40 +467,33 @@ fn resolve_union_kind(
     usage: TypeUsage,
     diagnostics: &mut DiagnosticSink,
 ) -> anyhow::Result<CTypeKind> {
-    let is_repr_c = attrs.iter().any(|attr| {
-        matches!(
-            attr,
-            Attribute::Repr(AttributeRepr {
-                kind: ReprKind::C,
-                ..
-            })
-        )
-    });
-    if !is_repr_c {
-        // Only warn when reached by value; opaque is the right output for
-        // pointer-only uses.
-        if usage == TypeUsage::ByValue {
-            let global_id =
-                GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
-            let item = collection.get_item_by_global_type_id(&global_id);
-            diagnostics
-                .warning(format!("union `{name}` is not #[repr(C)]"))
-                .with_span_if(item.span.as_ref())
-                .with_label("not #[repr(C)]".to_string())
-                .with_help("emitting opaque forward declaration")
-                .emit();
-        }
-        return Ok(CTypeKind::OpaqueUnion);
-    }
-
     let global_id_for_span =
         GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
     let item_for_span = collection.get_item_by_global_type_id(&global_id_for_span);
+    let span_for_diag = item_for_span.span.as_ref();
+
+    let align = match validate_compound_repr(name, "union", attrs, span_for_diag, diagnostics) {
+        ReprValidation::ReprC { align } => align,
+        ReprValidation::Errored => return Ok(CTypeKind::OpaqueUnion),
+        // Unions can't legally be `#[repr(transparent)]`; treat as "not C-compatible".
+        ReprValidation::ReprTransparent | ReprValidation::NotCCompatible => {
+            if usage == TypeUsage::ByValue {
+                diagnostics
+                    .warning(format!("union `{name}` is not #[repr(C)]"))
+                    .with_span_if(span_for_diag)
+                    .with_label("not #[repr(C)]".to_string())
+                    .with_help("emitting opaque forward declaration")
+                    .emit();
+            }
+            return Ok(CTypeKind::OpaqueUnion);
+        }
+    };
+
     let generic_bindings = match setup_generic_bindings(
         name,
         &union_def.generics,
         path_type,
-        item_for_span.span.as_ref(),
+        span_for_diag,
         diagnostics,
     ) {
         Ok(bindings) => bindings,
@@ -423,7 +507,10 @@ fn resolve_union_kind(
         collection,
         rename_all,
     )?;
-    Ok(CTypeKind::Union(CUnionDef { fields: c_fields }))
+    Ok(CTypeKind::Union(CUnionDef {
+        fields: c_fields,
+        align,
+    }))
 }
 
 /// Returns true if the generics contain unbound type or const parameters.
@@ -497,32 +584,79 @@ fn build_generic_bindings(
     Some(bindings)
 }
 
+/// Outcome of inspecting the `#[repr(...)]` attributes on an enum.
+#[derive(Debug)]
+enum EnumReprValidation {
+    /// A valid C-compatible repr.
+    Valid(Option<CEnumRepr>),
+    /// A rejected modifier (`align(N)` or `packed`) was found; an error has
+    /// already been emitted to the sink.
+    Errored,
+}
+
 /// Extract a `CEnumRepr` from the item's attributes.
-/// Returns `None` if the enum has no valid C-compatible repr.
-fn extract_enum_repr(attrs: &[Attribute]) -> anyhow::Result<Option<CEnumRepr>> {
+///
+/// Returns `Valid(None)` if the enum has no C-compatible repr (caller decides
+/// whether to warn). Emits errors via `diagnostics` and returns `Errored` when
+/// `align(N)` or `packed` modifiers are present — both are rejected for enums
+/// in the initial release.
+fn extract_enum_repr(
+    name: &str,
+    attrs: &[Attribute],
+    span: Option<&rustdoc_types::Span>,
+    diagnostics: &mut DiagnosticSink,
+) -> anyhow::Result<EnumReprValidation> {
+    let mut chosen: Option<CEnumRepr> = None;
     for attr in attrs {
-        if let Attribute::Repr(repr) = attr {
+        let Attribute::Repr(repr) = attr else { continue };
+        if repr.packed.is_some() {
+            diagnostics
+                .error(format!(
+                    "enum `{name}` uses `#[repr(packed)]`, which cheadergen does not yet support"
+                ))
+                .with_span_if(span)
+                .with_label("`#[repr(packed)]` not supported".to_string())
+                .with_help(
+                    "support for packed types is planned; remove the attribute or open an issue if you need it",
+                )
+                .emit();
+            return Ok(EnumReprValidation::Errored);
+        }
+        if repr.align.is_some() {
+            diagnostics
+                .error(format!(
+                    "enum `{name}` uses `#[repr(align(N))]`, which cheadergen does not yet support for enums"
+                ))
+                .with_span_if(span)
+                .with_label("`align(N)` on enums not supported".to_string())
+                .with_help(
+                    "support for aligned enums is planned; remove the `align(N)` modifier or open an issue if you need it",
+                )
+                .emit();
+            return Ok(EnumReprValidation::Errored);
+        }
+        if chosen.is_none() {
             match (&repr.kind, &repr.int) {
-                (ReprKind::C, None) => return Ok(Some(CEnumRepr::C)),
+                (ReprKind::C, None) => chosen = Some(CEnumRepr::C),
                 (ReprKind::C, Some(int_str)) => {
                     let int_type = ReprIntType::parse(int_str)?;
-                    return Ok(Some(CEnumRepr::Int {
+                    chosen = Some(CEnumRepr::Int {
                         is_repr_c: true,
                         int_type,
-                    }));
+                    });
                 }
                 (ReprKind::Rust, Some(int_str)) => {
                     let int_type = ReprIntType::parse(int_str)?;
-                    return Ok(Some(CEnumRepr::Int {
+                    chosen = Some(CEnumRepr::Int {
                         is_repr_c: false,
                         int_type,
-                    }));
+                    });
                 }
                 _ => {}
             }
         }
     }
-    Ok(None)
+    Ok(EnumReprValidation::Valid(chosen))
 }
 
 /// Resolve an enum into a `CTypeKind`.
@@ -542,20 +676,25 @@ fn resolve_enum_kind(
     usage: TypeUsage,
     diagnostics: &mut DiagnosticSink,
 ) -> anyhow::Result<CTypeKind> {
-    let Some(repr) = extract_enum_repr(attrs)? else {
-        // Only warn when reached by value; opaque is the right output for
-        // pointer-only uses.
-        if usage == TypeUsage::ByValue {
-            let global_id =
-                GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
-            let item = collection.get_item_by_global_type_id(&global_id);
-            diagnostics
-                .warning(format!("enum `{name}` has no C-compatible repr"))
-                .with_span_if(item.span.as_ref())
-                .with_help("emitting opaque forward declaration")
-                .emit();
+    let global_id_for_repr =
+        GlobalItemId::new(path_type.rustdoc_id.unwrap(), path_type.package_id.clone());
+    let item_for_repr = collection.get_item_by_global_type_id(&global_id_for_repr);
+    let repr_span = item_for_repr.span.as_ref();
+    let repr = match extract_enum_repr(name, attrs, repr_span, diagnostics)? {
+        EnumReprValidation::Errored => return Ok(CTypeKind::OpaqueStruct),
+        EnumReprValidation::Valid(Some(repr)) => repr,
+        EnumReprValidation::Valid(None) => {
+            // Only warn when reached by value; opaque is the right output for
+            // pointer-only uses.
+            if usage == TypeUsage::ByValue {
+                diagnostics
+                    .warning(format!("enum `{name}` has no C-compatible repr"))
+                    .with_span_if(repr_span)
+                    .with_help("emitting opaque forward declaration")
+                    .emit();
+            }
+            return Ok(CTypeKind::OpaqueStruct);
         }
-        return Ok(CTypeKind::OpaqueStruct);
     };
 
     let global_id_for_span =

@@ -1,0 +1,17 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+assertion_line: 271
+expression: stderr_str
+---
+error: struct `PackedN` uses `#[repr(packed)]`, which cheadergen does not yet support
+ --> repr_packed_n/src/lib.rs:5:2
+  |
+5 |   pub struct PackedN {
+  |  __^
+6 | |     pub a: u8,
+7 | |     pub b: u64,
+8 | | }
+  | |_^ `#[repr(packed)]` not supported
+  |
+  = help: support for packed types is planned; remove the attribute or open an issue if you need it
+Error: aborting due to previous error(s)
