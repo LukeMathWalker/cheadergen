@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4](https://github.com/LukeMathWalker/cheadergen/compare/0.1.3...0.1.4) - 2026-05-11
+
+### ⛰️ Features
+
+- Support Rust types with custom alignment (by @LukeMathWalker)
+
+### Contributors
+
+- @LukeMathWalker
+
 ## [0.1.3](https://github.com/LukeMathWalker/cheadergen/compare/0.1.2...0.1.3) - 2026-05-10
 
 ### 🐛 Bug Fixes
