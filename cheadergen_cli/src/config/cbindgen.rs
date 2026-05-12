@@ -244,6 +244,15 @@ fn translate_config(cb: &CbindgenConfig) -> (RawConfig, Vec<String>) {
         .collect();
     includes.extend(cb.includes.clone().unwrap_or_default());
 
+    // cbindgen emits no autogen warning unless one is configured; cheadergen
+    // synthesizes a path-aware default. To preserve cbindgen's behavior after
+    // translation, suppress the default with an empty string when the source
+    // config didn't set one.
+    let autogen_warning = cb
+        .autogen_warning
+        .clone()
+        .or_else(|| Some(String::new()));
+
     let mut config = RawConfig {
         preamble: cb.header.clone(),
         trailer: cb.trailer.clone(),
@@ -251,7 +260,7 @@ fn translate_config(cb: &CbindgenConfig) -> (RawConfig, Vec<String>) {
         no_includes,
         after_includes: cb.after_includes.clone(),
         includes,
-        autogen_warning: cb.autogen_warning.clone(),
+        autogen_warning,
         documentation,
         documentation_style,
         documentation_length,
@@ -473,7 +482,7 @@ mod tests {
     #[test]
     fn empty_config_produces_empty_output() {
         let output = translate_to_toml("");
-        insta::assert_snapshot!(output, @"");
+        insta::assert_snapshot!(output, @r#"autogen_warning = """#);
     }
 
     #[test]
@@ -523,7 +532,7 @@ cpp_compat = false
 style = "Type"
 "#,
         );
-        insta::assert_snapshot!(output, @"");
+        insta::assert_snapshot!(output, @r###"autogen_warning = """###);
     }
 
     #[test]
@@ -534,19 +543,22 @@ language = "Cxx"
 header = "/* C++ */"
 "#,
         );
-        insta::assert_snapshot!(output, @r#"
+        insta::assert_snapshot!(output, @r###"
         preamble = "/* C++ */"
+        autogen_warning = ""
 
         [cxx]
-        "#);
+        "###);
     }
 
     #[test]
     fn cpp_language_alias() {
         let output = translate_to_toml(r#"language = "C++""#);
-        insta::assert_snapshot!(output, @r"
+        insta::assert_snapshot!(output, @r###"
+        autogen_warning = ""
+
         [cxx]
-        ");
+        "###);
     }
 
     #[test]
@@ -557,10 +569,12 @@ language = "C"
 style = "Both"
 "#,
         );
-        insta::assert_snapshot!(output, @r#"
+        insta::assert_snapshot!(output, @r###"
+        autogen_warning = ""
+
         [c]
         style = "Both"
-        "#);
+        "###);
     }
 
     #[test]
@@ -579,8 +593,9 @@ cpp_compat = true
         // Verify the output parses back as valid cheadergen config.
         let _: RawConfig = toml::from_str(&output).unwrap();
 
-        insta::assert_snapshot!(output, @r#"
+        insta::assert_snapshot!(output, @r###"
         preamble = "/* License */"
+        autogen_warning = ""
         includes = [
             "<stdint.h>",
             "foo.h",
@@ -591,7 +606,7 @@ cpp_compat = true
         cpp_compat = true
 
         # `include_guard` was skipped: not supported by cheadergen
-        "#);
+        "###);
     }
 
     #[test]
@@ -604,10 +619,12 @@ braces = "SameLine"
 include = ["Foo"]
 "#,
         );
-        insta::assert_snapshot!(output, @r#"
+        insta::assert_snapshot!(output, @r###"
+        autogen_warning = ""
+
         # `braces` was skipped: not supported by cheadergen
         # `export.include` was skipped: not supported by cheadergen
-        "#);
+        "###);
     }
 
     #[test]
@@ -622,29 +639,34 @@ line_length = 100
 include = ["Foo"]
 "#,
         );
-        insta::assert_snapshot!(output, @r#"
+        insta::assert_snapshot!(output, @r###"
         preamble = "/* License */"
+        autogen_warning = ""
 
         # `braces` was skipped: not supported by cheadergen
         # `line_length` was skipped: not supported by cheadergen
         # `export.include` was skipped: not supported by cheadergen
-        "#);
+        "###);
     }
 
     #[test]
     fn cython_language_skipped() {
         let output = translate_to_toml(r#"language = "Cython""#);
-        insta::assert_snapshot!(output, @r#"
+        insta::assert_snapshot!(output, @r###"
+        autogen_warning = ""
+
         # `language = "Cython"` was skipped: not supported by cheadergen
-        "#);
+        "###);
     }
 
     #[test]
     fn unrecognized_style_skipped() {
         let output = translate_to_toml(r#"style = "Unknown""#);
-        insta::assert_snapshot!(output, @r"
+        insta::assert_snapshot!(output, @r###"
+        autogen_warning = ""
+
         # `style` was skipped: not supported by cheadergen
-        ");
+        "###);
     }
 
     #[test]
@@ -665,11 +687,12 @@ after_includes = "#define VERSION 1"
         translate(&input_path, &output_path).unwrap();
 
         let output = fs_err::read_to_string(&output_path).unwrap();
-        insta::assert_snapshot!(output, @r##"
+        insta::assert_snapshot!(output, @r###"
+        autogen_warning = ""
         after_includes = "#define VERSION 1"
 
         # `include_guard` was skipped: not supported by cheadergen
-        "##);
+        "###);
     }
 
     #[test]
@@ -693,10 +716,12 @@ include = ["Foo"]
         translate(&input_path, &output_path).unwrap();
 
         let output = fs_err::read_to_string(&output_path).unwrap();
-        insta::assert_snapshot!(output, @r#"
+        insta::assert_snapshot!(output, @r###"
+        autogen_warning = ""
+
         # `braces` was skipped: not supported by cheadergen
         # `export.include` was skipped: not supported by cheadergen
         # `include_guard` was skipped: not supported by cheadergen
-        "#);
+        "###);
     }
 }

@@ -2,10 +2,11 @@ preamble = """
 #define NOINLINE __attribute__((noinline))
 #define NODISCARD [[nodiscard]]
 """
+autogen_warning = ""
 
 # `export.body` was skipped: not supported by cheadergen
+# `enum.derive_tagged_enum_copy_constructor` was skipped: not supported by cheadergen
+# `enum.derive_helper_methods` was skipped: not supported by cheadergen
+# `enum.derive_tagged_enum_copy_assignment` was skipped: not supported by cheadergen
 # `enum.derive_tagged_enum_destructor` was skipped: not supported by cheadergen
 # `enum.private_default_tagged_enum_constructor` was skipped: not supported by cheadergen
-# `enum.derive_tagged_enum_copy_constructor` was skipped: not supported by cheadergen
-# `enum.derive_tagged_enum_copy_assignment` was skipped: not supported by cheadergen
-# `enum.derive_helper_methods` was skipped: not supported by cheadergen

@@ -11,3 +11,4 @@ struct NonZeroI64;
 ' '''
 #endif
 """
+autogen_warning = ""

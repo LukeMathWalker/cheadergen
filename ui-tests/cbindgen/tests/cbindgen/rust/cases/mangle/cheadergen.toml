@@ -1,1 +1,3 @@
+autogen_warning = ""
+
 # `export.mangle` was skipped: not supported by cheadergen

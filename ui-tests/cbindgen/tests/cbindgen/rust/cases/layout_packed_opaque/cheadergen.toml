@@ -2,6 +2,7 @@ preamble = """
 #define CBINDGEN_PACKED        __attribute__ ((packed))
 #define CBINDGEN_ALIGNED(n)    __attribute__ ((aligned(n)))
 """
+autogen_warning = ""
 
 # `export.include` was skipped: not supported by cheadergen
 # `layout.aligned_n` was skipped: not supported by cheadergen

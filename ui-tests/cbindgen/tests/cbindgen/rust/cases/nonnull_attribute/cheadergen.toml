@@ -5,5 +5,6 @@ preamble = """
 #define CBINDGEN_NONNULL
 #endif
 """
+autogen_warning = ""
 
 # `ptr.non_null_attribute` was skipped: not supported by cheadergen

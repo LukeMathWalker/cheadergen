@@ -1,2 +1,4 @@
+autogen_warning = ""
+
 [fn]
 sort_by = "name"

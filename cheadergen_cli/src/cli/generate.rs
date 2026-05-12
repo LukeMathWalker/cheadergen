@@ -311,6 +311,33 @@ fn target_base_name(
         .unwrap_or_else(|| fallback_name.replace('-', "_"))
 }
 
+/// Format the crate this header was generated from, for use as the
+/// `<path>` placeholder in the default `autogen_warning` message.
+///
+/// For workspace members, returns the crate root relative to the workspace
+/// root. When the crate sits at the workspace root itself, the relative path
+/// would be empty — substitute the crate name so readers see something
+/// meaningful instead of a bare `.`. For non-workspace dependencies
+/// (registry/git/etc.), the absolute path is per-machine, so fall back to
+/// `name@version` to keep the generated header portable. The return type is
+/// `String` rather than a path because both fallbacks are package
+/// identifiers, not filesystem locations.
+fn crate_origin(graph: &guppy::graph::PackageGraph, pkg_id: &PackageId) -> String {
+    let Ok(meta) = graph.metadata(pkg_id) else {
+        return pkg_id.repr().to_string();
+    };
+    if !meta.in_workspace() {
+        return format!("{}@{}", meta.name(), meta.version());
+    }
+    let ws_root = graph.workspace().root();
+    let crate_root = meta.manifest_path().parent().unwrap_or(ws_root);
+    match pathdiff::diff_utf8_paths(crate_root, ws_root) {
+        Some(rel) if rel.as_str().is_empty() || rel.as_str() == "." => meta.name().to_string(),
+        Some(rel) => rel.into_string(),
+        None => crate_root.to_string(),
+    }
+}
+
 /// Entry point for the `generate` subcommand — validates CLI args, loads
 /// config and cargo metadata, then iterates over the selected crates.
 pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
@@ -707,6 +734,7 @@ fn generate_partitioned(
         let type_hints = deps.map(|d| &d.type_hints[..]).unwrap_or(&[]);
 
         let mut header = String::new();
+        let origin = crate_origin(graph, &pkg_id);
         codegen::generate_c_header(
             c_cfg,
             &type_defs,
@@ -719,6 +747,7 @@ fn generate_partitioned(
             &type_overrides.skipped,
             multi_header,
             collection,
+            &origin,
             &mut header,
         );
 
@@ -877,6 +906,7 @@ fn generate_one_crate(
             analysis::find_assoc_constants(&type_defs, krate, collection, diagnostics);
 
         let mut header = String::new();
+        let origin = crate_origin(collection.package_graph(), package_id);
         codegen::generate_c_header(
             c_config,
             &type_defs,
@@ -889,6 +919,7 @@ fn generate_one_crate(
             &overrides.skipped,
             false,
             collection,
+            &origin,
             &mut header,
         );
 

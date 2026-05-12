@@ -1,2 +1,4 @@
+autogen_warning = ""
+
 # `struct.associated_constants_in_body` was skipped: not supported by cheadergen
 # `const.allow_constexpr` was skipped: not supported by cheadergen

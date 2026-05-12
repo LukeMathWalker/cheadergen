@@ -3,6 +3,7 @@ preamble = """
 #define MUST_USE_STRUCT __attribute__((warn_unused))
 #define MUST_USE_ENUM /* nothing */
 """
+autogen_warning = ""
 
 # `fn.must_use` was skipped: not supported by cheadergen
 # `struct.must_use` was skipped: not supported by cheadergen

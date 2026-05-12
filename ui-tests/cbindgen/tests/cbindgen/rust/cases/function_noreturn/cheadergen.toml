@@ -1,3 +1,4 @@
+autogen_warning = ""
 after_includes = """
 #ifndef NO_RETURN_ATTR
   #ifdef __GNUC__

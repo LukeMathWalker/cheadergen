@@ -15,3 +15,4 @@ struct DefaultHasher;
 ' '''
 #endif
 """
+autogen_warning = ""

@@ -20,3 +20,4 @@ trailer = """
 ' '''
 #endif
 """
+autogen_warning = ""

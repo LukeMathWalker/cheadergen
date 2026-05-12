@@ -4,6 +4,7 @@ DEF DEFINED = 1
 DEF NOT_DEFINED = 0
 #endif
 """
+autogen_warning = ""
 
 # `defines.macos` was skipped: not supported by cheadergen
 # `defines.unix` was skipped: not supported by cheadergen

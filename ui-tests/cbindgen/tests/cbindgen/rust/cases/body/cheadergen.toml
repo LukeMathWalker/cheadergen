@@ -1,2 +1,4 @@
+autogen_warning = ""
+
 # `export.body` was skipped: not supported by cheadergen
 # `export.pre_body` was skipped: not supported by cheadergen

@@ -1,3 +1,5 @@
+autogen_warning = ""
+
 [enum]
 prefix_with_name = true
 

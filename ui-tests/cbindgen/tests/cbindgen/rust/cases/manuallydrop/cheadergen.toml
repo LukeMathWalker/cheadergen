@@ -12,5 +12,6 @@ using ManuallyDrop = T;
 ' '''
 #endif
 """
+autogen_warning = ""
 
 # `export.exclude` was skipped: not supported by cheadergen

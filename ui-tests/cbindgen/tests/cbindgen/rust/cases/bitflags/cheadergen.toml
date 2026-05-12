@@ -1,2 +1,4 @@
+autogen_warning = ""
+
 # `const.allow_constexpr` was skipped: not supported by cheadergen
 # `macro_expansion.bitflags` was skipped: not supported by cheadergen

@@ -1,4 +1,4 @@
+autogen_warning = ""
 no_includes = true
 
-[header.include_guard]
-include_guard = "INCLUDE_GUARD_H"
+# `include_guard` was skipped: not supported by cheadergen

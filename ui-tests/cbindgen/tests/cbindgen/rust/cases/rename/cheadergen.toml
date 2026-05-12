@@ -1,2 +1,4 @@
+autogen_warning = ""
+
 # `export.prefix` was skipped: not supported by cheadergen
 # `export.rename` was skipped: not supported by cheadergen

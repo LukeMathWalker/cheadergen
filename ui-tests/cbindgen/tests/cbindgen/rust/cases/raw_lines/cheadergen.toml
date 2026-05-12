@@ -1,3 +1,4 @@
+autogen_warning = ""
 after_includes = "#define VERSION 1"
 
 [header.raw_lines]

@@ -8,4 +8,5 @@ trailer = """
 # This is a simple test to ensure that trailers do not cause extra newlines in files
 #endif
 """
+autogen_warning = ""
 no_includes = true

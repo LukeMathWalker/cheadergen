@@ -1,1 +1,3 @@
+autogen_warning = ""
+
 # `struct.rename_associated_constant` was skipped: not supported by cheadergen

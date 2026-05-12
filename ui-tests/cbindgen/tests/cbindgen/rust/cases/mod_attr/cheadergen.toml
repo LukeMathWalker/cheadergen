@@ -4,6 +4,7 @@ DEF FOO = 0
 DEF BAR = 0
 #endif
 """
+autogen_warning = ""
 
 # `defines.bar` was skipped: not supported by cheadergen
 # `defines.foo` was skipped: not supported by cheadergen

@@ -1,2 +1,4 @@
+autogen_warning = ""
+
 # `cython.cimports` was skipped: not supported by cheadergen
 # `cython.header` was skipped: not supported by cheadergen

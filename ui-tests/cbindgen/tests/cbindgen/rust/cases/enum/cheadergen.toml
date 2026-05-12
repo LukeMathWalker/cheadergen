@@ -28,6 +28,7 @@ static_assert(sizeof(CBINDGEN_STRUCT(P)) == 4, "unexpected size for P");
 ' '''
 #endif
 """
+autogen_warning = ""
 
 # `export.exclude` was skipped: not supported by cheadergen
 # `export.rename` was skipped: not supported by cheadergen

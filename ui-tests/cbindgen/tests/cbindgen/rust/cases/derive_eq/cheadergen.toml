@@ -1,3 +1,5 @@
+autogen_warning = ""
+
 # `fn.rename_args` was skipped: not supported by cheadergen
 # `struct.derive_eq` was skipped: not supported by cheadergen
 # `struct.derive_neq` was skipped: not supported by cheadergen

@@ -13,6 +13,7 @@ trailer = """
 ' '''
 #endif
 """
+autogen_warning = ""
 
 # `struct.associated_constants_in_body` was skipped: not supported by cheadergen
 # `enum.enum_class` was skipped: not supported by cheadergen
