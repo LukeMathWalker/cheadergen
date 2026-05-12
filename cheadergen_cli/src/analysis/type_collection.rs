@@ -12,7 +12,7 @@ use crate::analysis::exported_via_annotations;
 use crate::analysis::extern_items::ExternItems;
 use crate::cli::generate::PackageTypeOverrides;
 use crate::diagnostic::DiagnosticSink;
-use crate::indexing::{ExportMode, RenameRule};
+use crate::indexing::RenameRule;
 
 /// C and C++ reserved keywords that cannot be used as identifiers.
 ///
@@ -618,9 +618,9 @@ pub(super) fn collect_paths_from_type(
             }
 
             // Package-level opaque: never upgrade to ByValue,
-            // same as annotation-level `#[cheadergen::export(opaque)]`.
+            // same as annotation-level `#[cheadergen::config(opaque)]`.
             let must_stay_opaque = overrides.opaque.contains(&p.package_id)
-                || annotation.as_ref().and_then(|ann| ann.export) == Some(ExportMode::Opaque);
+                || annotation.as_ref().is_some_and(|ann| ann.opaque);
 
             let canonical = CCanonicalType::new(ty.canonicalize(collection));
             let entry = seen.entry(canonical).or_insert(TypeUsage::BehindPointer);

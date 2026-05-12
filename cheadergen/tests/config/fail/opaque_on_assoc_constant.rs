@@ -1,7 +1,7 @@
 pub struct Foo;
 
 impl Foo {
-    #[cheadergen::config(export(opaque))]
+    #[cheadergen::config(opaque)]
     pub const BAR: u32 = 1;
 }
 

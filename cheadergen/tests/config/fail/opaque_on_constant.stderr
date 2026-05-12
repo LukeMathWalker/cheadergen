@@ -1,0 +1,5 @@
+error: `opaque` can only be applied to structs, enums, unions, or type aliases
+ --> tests/config/fail/opaque_on_constant.rs:1:22
+  |
+1 | #[cheadergen::config(opaque)]
+  |                      ^^^^^^

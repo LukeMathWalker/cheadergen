@@ -18,7 +18,7 @@ Using one attribute rather than many (`export`, `rename`, `skip`, …) keeps
 directives composable:
 
 ```rust
-#[cheadergen::config(export(opaque), rename = "Handle")]
+#[cheadergen::config(export, opaque, rename = "Handle")]
 pub struct InternalHandle { /* ... */ }
 ```
 
@@ -32,17 +32,17 @@ container attribute.
 Applied via `#[cheadergen::config(...)]` to structs, enums, unions, type aliases,
 functions, or statics.
 
-| Directive                   | Applies to                                        | Semantics                                                                                               |
-| --------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `export`                    | struct, enum, union, type alias                   | Force inclusion in the header with a full definition, even if not reachable from any `extern "C"` item. |
-| `export(opaque)`            | struct, enum, union, type alias                   | Force inclusion as an opaque forward declaration only.                                                  |
-| `skip`                      | struct, enum, union, type alias, function, static | Exclude the item from the header even if discovered via FFI traversal.                                  |
-| `rename = "CName"`          | struct, enum, union, type alias, function, static | Override the C name emitted in the header.                                                              |
-| `prefix_with_name`          | enum                                              | Prefix each variant name with the enum name (e.g. `Status_Ok`).                                         |
-| `prefix_with_name = false`  | enum                                              | Explicitly disable variant prefixing for this enum.                                                     |
-| `field_names(a, b, …)`      | struct (tuple only)                               | Assign C field names to positional fields.                                                              |
-| `rename_all = "..."`        | struct, enum, union                               | Bulk-rename fields (struct/union) or variants (enum) using a casing rule.                               |
-| `rename_all_fields = "..."` | enum (with at least one struct variant)           | Bulk-rename fields inside the enum's struct variants.                                                   |
+| Directive                   | Applies to                                        | Semantics                                                                                                |
+| --------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `export`                    | struct, enum, union, type alias                   | Force inclusion in the header with a full definition, even if not reachable from any `extern "C"` item.  |
+| `opaque`                    | struct, enum, union, type alias                   | When the type is included in the header, emit it as an opaque forward declaration. No effect on its own. |
+| `skip`                      | struct, enum, union, type alias, function, static | Exclude the item from the header even if discovered via FFI traversal.                                   |
+| `rename = "CName"`          | struct, enum, union, type alias, function, static | Override the C name emitted in the header.                                                               |
+| `prefix_with_name`          | enum                                              | Prefix each variant name with the enum name (e.g. `Status_Ok`).                                          |
+| `prefix_with_name = false`  | enum                                              | Explicitly disable variant prefixing for this enum.                                                      |
+| `field_names(a, b, …)`      | struct (tuple only)                               | Assign C field names to positional fields.                                                               |
+| `rename_all = "..."`        | struct, enum, union                               | Bulk-rename fields (struct/union) or variants (enum) using a casing rule.                                |
+| `rename_all_fields = "..."` | enum (with at least one struct variant)           | Bulk-rename fields inside the enum's struct variants.                                                    |
 
 `export` is only meaningful on types. Functions and statics with `extern "C"` +
 `#[no_mangle]` are auto-included; applying `export` to them is a compile error.
@@ -51,6 +51,12 @@ functions, or statics.
 traversal has no extra effect on inclusion, but the remaining directives
 (`rename`, etc.) still apply. This avoids needing a separate "modify-only" form
 for types that are already discovered.
+
+`opaque` is a hint that only fires when the type is actually included in the
+header (either via FFI reachability or via `export`). On its own, `opaque` does
+not force inclusion — combine it with `export` to force a type to appear as an
+opaque forward declaration regardless of reachability. This mirrors how
+`rename` modifies an item without itself triggering inclusion.
 
 #### Casing rules
 
@@ -112,9 +118,17 @@ pub struct Config2 {
     pub flags: u8,
 }
 
-// Opaque forward declaration
-#[cheadergen::config(export(opaque))]
+// Force-exported as an opaque forward declaration
+#[cheadergen::config(export, opaque)]
 pub struct OpaqueHandle {
+    _inner: u64,
+}
+
+// Pure hint: if this type ends up in the header (because something else
+// references it), emit it as an opaque forward declaration instead of
+// exposing its layout.
+#[cheadergen::config(opaque)]
+pub struct OpaqueIfReachable {
     _inner: u64,
 }
 
@@ -179,7 +193,7 @@ This is the same encoding trick used by [Pavex](https://github.com/LukeMathWalke
 | User writes                        | Proc macro emits                                             |
 | ---------------------------------- | ------------------------------------------------------------ |
 | `export`                           | `#[diagnostic::cheadergen::export]`                          |
-| `export(opaque)`                   | `#[diagnostic::cheadergen::export(opaque)]`                  |
+| `opaque`                           | `#[diagnostic::cheadergen::opaque]`                          |
 | `skip`                             | `#[diagnostic::cheadergen::skip]`                            |
 | `rename = "Foo"`                   | `#[diagnostic::cheadergen::rename("Foo")]`                   |
 | `prefix_with_name`                 | `#[diagnostic::cheadergen::prefix_with_name]`                |
@@ -211,7 +225,8 @@ struct fields are already accessed individually at that point.
 The proc macro rejects invalid usage at compile time:
 
 - `export` on a function or static → error.
-- `opaque` outside of `export(...)` → error (it's not a standalone directive).
+- `opaque` on a function, static, or constant → error (`opaque` only makes
+  sense for types).
 - `prefix_with_name` on a non-enum → error.
 - `field_names` on a non-tuple struct → error.
 - `bitfield` on a non-field → error.

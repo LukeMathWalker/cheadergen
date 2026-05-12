@@ -8,24 +8,6 @@ use rustdoc_processor::indexing::{CrateIndexer, IndexResult, IndexingVisitor};
 use rustdoc_processor::queries::Crate;
 use rustdoc_types::Attribute;
 
-/// Whether a type should be exported with its full definition or as an opaque
-/// forward declaration.
-#[derive(
-    Copy,
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    serde::Serialize,
-    serde::Deserialize,
-    bincode::Encode,
-    bincode::Decode,
-)]
-pub enum ExportMode {
-    Full,
-    Opaque,
-}
-
 /// Casing rule used by `rename_all` and `rename_all_fields`.
 #[derive(
     Copy,
@@ -78,8 +60,12 @@ impl RenameRule {
     Clone, Debug, Default, serde::Serialize, serde::Deserialize, bincode::Encode, bincode::Decode,
 )]
 pub struct ItemAnnotation {
-    /// If set, force-include this type in the header.
-    pub export: Option<ExportMode>,
+    /// If true, force-include this item in the header.
+    pub export: bool,
+    /// If true, emit the type as an opaque forward declaration when it is
+    /// included in the header. Has no effect on items that aren't otherwise
+    /// included.
+    pub opaque: bool,
     /// If true, exclude this item from the header.
     pub skip: bool,
     /// Override the C name emitted in the header.
@@ -164,9 +150,9 @@ fn parse_cheadergen_attr(s: &str, ann: &mut ItemAnnotation) -> bool {
     let rest = rest.strip_suffix(']').unwrap_or(rest);
 
     if rest == "export" {
-        ann.export = Some(ExportMode::Full);
-    } else if rest == "export(opaque)" {
-        ann.export = Some(ExportMode::Opaque);
+        ann.export = true;
+    } else if rest == "opaque" {
+        ann.opaque = true;
     } else if rest == "skip" {
         ann.skip = true;
     } else if let Some(inner) = rest.strip_prefix("rename(") {
@@ -231,6 +217,7 @@ impl ItemAnnotation {
     pub fn is_empty(&self) -> bool {
         let Self {
             export,
+            opaque,
             skip,
             rename,
             prefix_with_name,
@@ -238,7 +225,8 @@ impl ItemAnnotation {
             rename_all,
             rename_all_fields,
         } = self;
-        export.is_none()
+        !export
+            && !opaque
             && !skip
             && rename.is_none()
             && prefix_with_name.is_none()

@@ -71,6 +71,7 @@
 /// | Name | Applies to | Required |
 /// |------|-----------|----------|
 /// | [`export`](#export) | struct, enum, union, type alias | No |
+/// | [`opaque`](#opaque) | struct, enum, union, type alias | No |
 /// | [`skip`](#skip) | struct, enum, union, type alias, function, static | No |
 /// | [`rename`](#rename) | struct, enum, union, type alias, function, static | No |
 /// | [`prefix_with_name`](#prefix_with_name) | enum | No |
@@ -94,12 +95,13 @@
 /// }
 /// ```
 ///
-/// Pass `opaque` to emit the type as a forward declaration without exposing its layout:
+/// Combine with [`opaque`](#opaque) to force inclusion as a forward declaration
+/// without exposing the layout:
 ///
 /// ```ignore
-/// #[cheadergen::config(export(opaque))]
+/// #[cheadergen::config(export, opaque)]
 /// //                   ~~~~~~~~~~~~~~
-/// //                   └ Include as an opaque (forward-declared) type
+/// //                   └ Force-include as an opaque (forward-declared) type
 /// pub struct OpaqueHandle {
 ///     _inner: u64,
 /// }
@@ -107,6 +109,28 @@
 ///
 /// Cannot be applied to functions or statics (they are included via `#[unsafe(no_mangle)]`).
 /// Cannot be combined with [`skip`](#skip).
+///
+/// ## `opaque`
+///
+/// Emit the type as an opaque forward declaration whenever it appears in the
+/// generated header — i.e. without exposing its fields or variants. On its own,
+/// `opaque` is a hint: it does not force inclusion. The type is still subject
+/// to the usual reachability rules and `skip` overrides.
+///
+/// ```ignore
+/// #[cheadergen::config(opaque)]
+/// //                   ~~~~~~
+/// //                   └ If included, emit as a forward declaration
+/// pub struct InternalHandle {
+///     _inner: u64,
+/// }
+/// ```
+///
+/// Combine with [`export`](#export) to force inclusion as an opaque
+/// forward declaration regardless of reachability.
+///
+/// Cannot be applied to functions, statics, or constants — opaque only makes
+/// sense for types.
 ///
 /// ## `skip`
 ///

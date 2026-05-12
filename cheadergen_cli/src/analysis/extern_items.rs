@@ -16,7 +16,7 @@ use super::type_transform;
 
 use crate::analysis::{CTypeDefinition, sort_local_ids_by_key};
 use crate::constant_item::{ConstantItem, resolve_assoc_constant, resolve_constant};
-use crate::indexing::{ExportMode, item_annotation_from_attrs};
+use crate::indexing::item_annotation_from_attrs;
 use crate::static_item::{StaticItem, resolve_static};
 
 /// An extern "C" free function paired with cheadergen-resolved per-item
@@ -86,12 +86,7 @@ impl ExternItemCoordinates {
                 ItemEnum::Static(_) if has_export_attr(&item.attrs) => {
                     static_ids.push(*id);
                 }
-                ItemEnum::Constant { .. }
-                    if matches!(
-                        item_ann.and_then(|a| a.export.as_ref()),
-                        Some(ExportMode::Full)
-                    ) =>
-                {
+                ItemEnum::Constant { .. } if item_ann.is_some_and(|a| a.export) => {
                     if !matches!(item.visibility, rustdoc_types::Visibility::Public) {
                         let name = item.name.as_deref().unwrap_or("<unnamed>");
                         diagnostics
@@ -391,7 +386,7 @@ pub fn find_assoc_constants(
                 // does not cascade. We read the attribute directly from the
                 // item because the indexer does not recurse into impl blocks.
                 let assoc_ann = item_annotation_from_attrs(&assoc_item.attrs);
-                if !matches!(assoc_ann.export, Some(ExportMode::Full)) {
+                if !assoc_ann.export {
                     continue;
                 }
                 if !matches!(assoc_item.visibility, rustdoc_types::Visibility::Public) {

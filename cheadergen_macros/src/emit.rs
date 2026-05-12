@@ -11,11 +11,11 @@ pub fn emit_diagnostic_attrs(directives: &[Directive]) -> Vec<TokenStream> {
 
 fn emit_one(directive: &Directive) -> TokenStream {
     match directive {
-        Directive::Export { opaque: false, .. } => {
+        Directive::Export { .. } => {
             quote! { #[diagnostic::cheadergen::export] }
         }
-        Directive::Export { opaque: true, .. } => {
-            quote! { #[diagnostic::cheadergen::export(opaque)] }
+        Directive::Opaque { .. } => {
+            quote! { #[diagnostic::cheadergen::opaque] }
         }
         Directive::Skip { .. } => {
             quote! { #[diagnostic::cheadergen::skip] }

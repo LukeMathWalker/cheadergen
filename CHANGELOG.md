@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ‼️ Breaking changes
+
+- `opaque` is now a standalone directive on `#[cheadergen::config(...)]` rather
+  than an argument to `export`. Write `export, opaque` to force-include a type
+  as an opaque forward declaration (previously `export(opaque)`), or `opaque`
+  on its own to mark a type as opaque only when it is otherwise included in
+  the header.
+
 ## [0.1.4](https://github.com/LukeMathWalker/cheadergen/compare/0.1.3...0.1.4) - 2026-05-11
 
 ### ⛰️ Features

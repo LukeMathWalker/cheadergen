@@ -1,5 +1,0 @@
-error: `export(opaque)` cannot be applied to constants — opaque only makes sense for types
- --> tests/config/fail/export_opaque_on_constant.rs:1:22
-  |
-1 | #[cheadergen::config(export(opaque))]
-  |                      ^^^^^^

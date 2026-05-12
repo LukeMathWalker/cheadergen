@@ -30,7 +30,7 @@ pub fn validate(directives: &[Directive], item: &Item) -> Vec<syn::Error> {
 
     for directive in directives {
         match directive {
-            Directive::Export { opaque, span } => match item {
+            Directive::Export { .. } => match item {
                 Item::Fn(f) => {
                     errors.push(syn::Error::new(
                         f.sig.fn_token.span(),
@@ -43,13 +43,16 @@ pub fn validate(directives: &[Directive], item: &Item) -> Vec<syn::Error> {
                         "`export` cannot be applied to statics",
                     ));
                 }
-                Item::Const(_) if *opaque => {
+                _ => {}
+            },
+            Directive::Opaque { span } => match item {
+                Item::Struct(_) | Item::Enum(_) | Item::Union(_) | Item::Type(_) => {}
+                _ => {
                     errors.push(syn::Error::new(
                         *span,
-                        "`export(opaque)` cannot be applied to constants — opaque only makes sense for types",
+                        "`opaque` can only be applied to structs, enums, unions, or type aliases",
                     ));
                 }
-                _ => {}
             },
             Directive::PrefixWithName { .. } => {
                 if !matches!(item, Item::Enum(_)) {
@@ -152,18 +155,30 @@ mod tests {
     }
 
     #[test]
-    fn export_opaque_on_const_is_rejected() {
-        let directives = parse_directives("export(opaque)");
+    fn opaque_on_const_is_rejected() {
+        let directives = parse_directives("opaque");
         let item: Item = parse_quote! { pub const FOO: u32 = 1; };
         let errors = validate(&directives, &item);
         assert_eq!(errors.len(), 1);
         assert!(
-            errors[0]
-                .to_string()
-                .contains("`export(opaque)` cannot be applied to constants"),
+            errors[0].to_string().contains("`opaque` can only be applied"),
             "unexpected error: {}",
             errors[0]
         );
+    }
+
+    #[test]
+    fn export_and_opaque_on_struct_is_accepted() {
+        let directives = parse_directives("export, opaque");
+        let item: Item = parse_quote! { pub struct Foo { _inner: u64 } };
+        assert!(validate(&directives, &item).is_empty());
+    }
+
+    #[test]
+    fn opaque_on_struct_alone_is_accepted() {
+        let directives = parse_directives("opaque");
+        let item: Item = parse_quote! { pub struct Foo { _inner: u64 } };
+        assert!(validate(&directives, &item).is_empty());
     }
 
     #[test]

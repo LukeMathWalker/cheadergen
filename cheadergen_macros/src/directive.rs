@@ -47,7 +47,8 @@ impl RenameRule {
 /// Item-level directives parsed from `#[cheadergen::config(...)]`.
 #[derive(Debug)]
 pub enum Directive {
-    Export { opaque: bool, span: Span },
+    Export { span: Span },
+    Opaque { span: Span },
     Skip { span: Span },
     Rename { name: String, span: Span },
     PrefixWithName { value: Option<bool>, span: Span },
@@ -60,6 +61,7 @@ impl Directive {
     pub fn span(&self) -> Span {
         match self {
             Directive::Export { span, .. }
+            | Directive::Opaque { span, .. }
             | Directive::Skip { span, .. }
             | Directive::Rename { span, .. }
             | Directive::PrefixWithName { span, .. }
@@ -102,23 +104,8 @@ impl Parse for Directive {
         let span = ident.span();
 
         match ident.to_string().as_str() {
-            "export" => {
-                let opaque = if input.peek(syn::token::Paren) {
-                    let content;
-                    syn::parenthesized!(content in input);
-                    let inner: Ident = content.parse()?;
-                    if inner != "opaque" {
-                        return Err(syn::Error::new(
-                            inner.span(),
-                            format!("unknown export option `{inner}`, expected `opaque`"),
-                        ));
-                    }
-                    true
-                } else {
-                    false
-                };
-                Ok(Directive::Export { opaque, span })
-            }
+            "export" => Ok(Directive::Export { span }),
+            "opaque" => Ok(Directive::Opaque { span }),
             "skip" => Ok(Directive::Skip { span }),
             "rename" => {
                 input.parse::<Token![=]>()?;

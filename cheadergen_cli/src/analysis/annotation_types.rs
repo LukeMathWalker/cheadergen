@@ -8,11 +8,9 @@ use rustdoc_types::ItemEnum;
 use crate::Collection;
 use crate::analysis::CCanonicalType;
 use crate::diagnostic::DiagnosticSink;
-use crate::indexing::ExportMode;
 
-/// Types annotated with `#[cheadergen::config(export)]` or
-/// `#[cheadergen::config(export(opaque))]` in a given crate,
-/// split by export mode.
+/// Types force-included via `#[cheadergen::config(export)]` (optionally
+/// combined with `opaque`) in a given crate, split by emission mode.
 ///
 /// Types are stored in lifetime-erased canonical form so that "contains"
 /// checks are robust against lifetime and unassigned-generic differences.
@@ -50,9 +48,9 @@ pub fn exported_via_annotations(
     let mut full = HashSet::new();
     let mut opaque = HashSet::new();
     for (id, ann) in &annotations.items {
-        let Some(export_mode) = &ann.export else {
+        if !ann.export {
             continue;
-        };
+        }
 
         let Some(item) = krate.core.krate.index.get(id) else {
             diagnostics
@@ -99,10 +97,11 @@ pub fn exported_via_annotations(
             };
         let canonical = CCanonicalType::new(ty.canonicalize(collection));
 
-        match export_mode {
-            ExportMode::Full => full.insert(canonical),
-            ExportMode::Opaque => opaque.insert(canonical),
-        };
+        if ann.opaque {
+            opaque.insert(canonical);
+        } else {
+            full.insert(canonical);
+        }
     }
 
     Ok(AnnotatedExports {
