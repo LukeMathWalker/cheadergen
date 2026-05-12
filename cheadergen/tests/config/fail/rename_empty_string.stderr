@@ -1,0 +1,5 @@
+error: `rename` cannot be empty
+ --> tests/config/fail/rename_empty_string.rs:1:31
+  |
+1 | #[cheadergen::config(rename = "")]
+  |                               ^^

@@ -123,10 +123,11 @@ impl Parse for Directive {
             "rename" => {
                 input.parse::<Token![=]>()?;
                 let lit: LitStr = input.parse()?;
-                Ok(Directive::Rename {
-                    name: lit.value(),
-                    span,
-                })
+                let name = lit.value();
+                if name.is_empty() {
+                    return Err(syn::Error::new(lit.span(), "`rename` cannot be empty"));
+                }
+                Ok(Directive::Rename { name, span })
             }
             "prefix_with_name" => {
                 let value = if input.peek(Token![=]) {
@@ -196,9 +197,11 @@ impl Parse for FieldDirective {
             "rename" => {
                 input.parse::<Token![=]>()?;
                 let lit: LitStr = input.parse()?;
-                Ok(FieldDirective::Rename {
-                    name: lit.value(),
-                })
+                let name = lit.value();
+                if name.is_empty() {
+                    return Err(syn::Error::new(lit.span(), "`rename` cannot be empty"));
+                }
+                Ok(FieldDirective::Rename { name })
             }
             "bitfield" => {
                 input.parse::<Token![=]>()?;
