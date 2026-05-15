@@ -47,7 +47,7 @@ pub fn create_collection(package_graph: PackageGraph) -> anyhow::Result<crate::C
     let disk_cache = RustdocGlobalFsCache::new(
         rustdoc_processor::CRATE_VERSION,
         &toolchain,
-        true,
+        false,
         &package_graph,
         &cache_dir,
     )?;
