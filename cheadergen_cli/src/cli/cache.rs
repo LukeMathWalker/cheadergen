@@ -9,7 +9,30 @@ use crate::metadata;
 use super::input::{PackageSelection, filter_library_targets, resolve_input, select_packages};
 
 #[derive(Debug, Parser)]
-pub(super) struct WarmCacheArgs {
+pub(super) struct CacheArgs {
+    #[command(subcommand)]
+    command: CacheCommand,
+}
+
+#[derive(Debug, clap::Subcommand)]
+enum CacheCommand {
+    /// Pre-warm the rustdoc JSON cache for all workspace members.
+    Warm(WarmArgs),
+    /// Remove the rustdoc JSON cache from disk.
+    Clear,
+    /// Print information about the rustdoc JSON cache.
+    #[command(subcommand)]
+    Show(ShowCommand),
+}
+
+#[derive(Debug, clap::Subcommand)]
+enum ShowCommand {
+    /// Print the cache directory path to stdout.
+    Dir,
+}
+
+#[derive(Debug, Parser)]
+struct WarmArgs {
     /// Path to the Rust crate directory or its Cargo.toml (defaults to current directory).
     input: Option<PathBuf>,
 
@@ -25,9 +48,17 @@ pub(super) struct WarmCacheArgs {
     quiet: bool,
 }
 
-/// Entry point for the `warm-cache` subcommand — pre-computes rustdoc JSON
-/// for all workspace members so later `generate` runs hit the cache.
-pub(super) fn warm_cache(args: &WarmCacheArgs) -> anyhow::Result<()> {
+/// Entry point for the `cache` subcommand.
+pub(super) fn run(args: &CacheArgs) -> anyhow::Result<()> {
+    match &args.command {
+        CacheCommand::Warm(args) => warm(args),
+        CacheCommand::Clear => clear(),
+        CacheCommand::Show(ShowCommand::Dir) => show_dir(),
+    }
+}
+
+/// Pre-compute rustdoc JSON for all workspace members so later `generate` runs hit the cache.
+fn warm(args: &WarmArgs) -> anyhow::Result<()> {
     let resolved_input = args
         .input
         .as_ref()
@@ -85,6 +116,24 @@ pub(super) fn warm_cache(args: &WarmCacheArgs) -> anyhow::Result<()> {
 
     if had_errors {
         anyhow::bail!("aborting due to previous error(s)");
+    }
+    Ok(())
+}
+
+/// Print the cache directory path to stdout (useful for CI cache configuration).
+fn show_dir() -> anyhow::Result<()> {
+    println!("{}", metadata::cache_dir()?.display());
+    Ok(())
+}
+
+/// Remove the on-disk rustdoc JSON cache. Idempotent.
+fn clear() -> anyhow::Result<()> {
+    let cache_dir = metadata::cache_dir()?;
+    if cache_dir.exists() {
+        fs_err::remove_dir_all(&cache_dir)?;
+        eprintln!("Removed cache at {}.", cache_dir.display());
+    } else {
+        eprintln!("No cache found at {}.", cache_dir.display());
     }
     Ok(())
 }

@@ -23,5 +23,5 @@ echo "CBINDGEN_WORKSPACE_METADATA=$SCRIPT_DIR/cbindgen/rust/workspace/metadata.j
 # Pre-warm the rustdoc JSON cache to avoid cargo target-dir lock contention
 # when tests run in parallel.
 CHEADERGEN="$WORKSPACE_ROOT/target/debug/cheadergen"
-"$CHEADERGEN" warm-cache --metadata "$SCRIPT_DIR/cbindgen/rust/cases/metadata.json"
-"$CHEADERGEN" warm-cache --metadata "$SCRIPT_DIR/cbindgen/rust/workspace/metadata.json"
+"$CHEADERGEN" cache warm --metadata "$SCRIPT_DIR/cbindgen/rust/cases/metadata.json"
+"$CHEADERGEN" cache warm --metadata "$SCRIPT_DIR/cbindgen/rust/workspace/metadata.json"

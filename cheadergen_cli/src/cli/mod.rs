@@ -1,6 +1,6 @@
+mod cache;
 pub(crate) mod generate;
 mod input;
-mod warm_cache;
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -18,8 +18,8 @@ struct Cli {
 enum Command {
     /// Generate C/C++ headers from a Rust crate.
     Generate(generate::GenerateArgs),
-    /// Pre-warm the rustdoc JSON cache for all workspace members.
-    WarmCache(warm_cache::WarmCacheArgs),
+    /// Manage the rustdoc JSON cache.
+    Cache(cache::CacheArgs),
     /// Configuration utilities.
     Config(ConfigArgs),
 }
@@ -59,8 +59,8 @@ pub fn run() -> ExitCode {
                 ExitCode::SUCCESS
             }
         }
-        Command::WarmCache(args) => {
-            if let Err(e) = warm_cache::warm_cache(&args) {
+        Command::Cache(args) => {
+            if let Err(e) = cache::run(&args) {
                 eprintln!("Error: {e:?}");
                 ExitCode::FAILURE
             } else {

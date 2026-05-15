@@ -29,6 +29,13 @@ pub fn load_package_graph(
     Ok(metadata.build_graph()?)
 }
 
+/// On-disk location of the global rustdoc JSON cache.
+pub fn cache_dir() -> anyhow::Result<PathBuf> {
+    Ok(xdg_home::home_dir()
+        .ok_or_else(|| anyhow::anyhow!("Failed to get the user's home directory"))?
+        .join(".cheadergen/cache"))
+}
+
 /// Resolve the toolchain and create a `CrateCollection`.
 pub fn create_collection(package_graph: PackageGraph) -> anyhow::Result<crate::Collection> {
     let toolchain =
@@ -36,9 +43,7 @@ pub fn create_collection(package_graph: PackageGraph) -> anyhow::Result<crate::C
 
     let project_fingerprint = package_graph.workspace().root().to_string();
 
-    let cache_dir = xdg_home::home_dir()
-        .ok_or_else(|| anyhow::anyhow!("Failed to get the user's home directory"))?
-        .join(".cheadergen/cache");
+    let cache_dir = cache_dir()?;
     let disk_cache = RustdocGlobalFsCache::new(
         rustdoc_processor::CRATE_VERSION,
         &toolchain,

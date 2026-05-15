@@ -18,4 +18,4 @@ echo "CHEADERGEN_CASES_METADATA=$SCRIPT_DIR/cheadergen/rust/cases/metadata.json"
 # Pre-warm the rustdoc JSON cache to avoid cargo target-dir lock contention
 # when tests run in parallel.
 CHEADERGEN="$WORKSPACE_ROOT/target/debug/cheadergen"
-"$CHEADERGEN" warm-cache --metadata "$SCRIPT_DIR/cheadergen/rust/cases/metadata.json"
+"$CHEADERGEN" cache warm --metadata "$SCRIPT_DIR/cheadergen/rust/cases/metadata.json"
