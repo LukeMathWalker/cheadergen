@@ -37,7 +37,7 @@ type MySet = HashTable<Str, c_char, false>;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn new_set() -> *mut MySet {
-    Box::into_raw(Box::new(HashSet::new()))
+    Box::into_raw(Box::new(HashTable::<Str, c_char, false>::new()))
 }
 
 type SetCallback = unsafe extern "C" fn(key: Str);

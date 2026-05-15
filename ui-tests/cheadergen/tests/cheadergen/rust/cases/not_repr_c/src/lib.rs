@@ -15,6 +15,7 @@ pub struct Visible {
 }
 
 #[unsafe(no_mangle)]
+#[expect(improper_ctypes_definitions)]
 pub extern "C" fn takes_opaque(v: Opaque) -> Visible {
     let _ = v;
     Visible { a: 1, b: 2 }

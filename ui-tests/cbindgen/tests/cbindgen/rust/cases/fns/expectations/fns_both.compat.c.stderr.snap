@@ -1,14 +1,15 @@
 ---
 source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 231
 expression: stderr_str
 ---
 error: failed to resolve return type of function `no_return`
-  --> fns/src/lib.rs:18:2
+  --> fns/src/lib.rs:20:2
    |
-18 |   pub extern "C" fn no_return() -> ! {
+20 |   pub extern "C" fn no_return() -> ! {
    |  __^
-19 | |     loop {}
-20 | | }
+21 | |     loop {}
+22 | | }
    | |_^
    |
    = note: Failed to resolve a type, Primitive("never").

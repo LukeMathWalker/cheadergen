@@ -7,6 +7,7 @@ pub struct BareAligned {
 }
 
 #[unsafe(no_mangle)]
+#[expect(improper_ctypes_definitions)]
 pub extern "C" fn bare_aligned(v: BareAligned) -> u64 {
     v.value
 }

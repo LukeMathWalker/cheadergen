@@ -97,6 +97,7 @@ pub extern "C" fn root(a: BarHandle, c: C)
 { }
 
 #[unsafe(no_mangle)]
+#[expect(improper_ctypes_definitions)]
 pub extern "C" fn cond(a: ConditionalField)
 { }
 

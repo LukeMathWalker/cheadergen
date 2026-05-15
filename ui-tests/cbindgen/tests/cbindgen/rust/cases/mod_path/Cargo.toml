@@ -10,3 +10,6 @@ crate-type = ["lib", "dylib"]
 
 [dependencies]
 cheadergen.workspace = true
+
+[lints]
+workspace = true

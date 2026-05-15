@@ -11,9 +11,12 @@ no_parse = []
 cbindgen = []
 
 [lib]
-name = "expand"
+name = "expand_features"
 crate-type = ["lib", "dylib"]
 
 [[bin]]
-name = "expand"
+name = "expand_features"
 path = "src/main.rs"
+
+[lints]
+workspace = true

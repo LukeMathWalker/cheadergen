@@ -14,6 +14,7 @@ unsafe extern "C" {
     fn bar(a: Normal);
 }
 
+#[expect(missing_abi)]
 unsafe extern {
     fn baz() -> i32;
 }

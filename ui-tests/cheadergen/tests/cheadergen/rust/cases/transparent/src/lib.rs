@@ -93,6 +93,7 @@ pub struct UsesTransparent {
 // --- Root function to ensure all types appear in the header ---
 
 #[unsafe(no_mangle)]
+#[expect(improper_ctypes_definitions)]
 pub extern "C" fn root(
     _a: TransparentPrimitive,
     _b: TransparentStruct,

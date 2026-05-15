@@ -1,5 +1,12 @@
 set positional-arguments
 
+# Nightly toolchain used for `cargo rustdoc` JSON generation and for building
+# UI test workspaces (which use unstable features like `sync_unsafe_cell`).
+# Single source of truth is `rust-docs-toolchain` at the repo root, also
+# read by `cheadergen_cli::metadata::DOCS_TOOLCHAIN`. Override locally with
+# `CHEADERGEN_DOCS_TOOLCHAIN=...` if needed.
+docs_toolchain := env_var_or_default("CHEADERGEN_DOCS_TOOLCHAIN", trim(shell("cat rust-docs-toolchain")))
+
 # Format all files
 # Use `just fmt check` to verify rather than format
 fmt action="fmt":
@@ -109,5 +116,17 @@ ui-tests +args:
 ui-tests-translate-configs:
     cargo run -p ui-tests -- translate-configs
 
+# Build the UI test workspaces with `-D warnings` to ensure they stay warning-free.
+# Also runs `cargo doc` since cheadergen's tests rely on rustdoc output and
+# any rustdoc warning would leak into snapshotted test stderr.
+# Requires a nightly toolchain because some fixtures use unstable features.
+# We `cd` into each workspace so cargo picks up its `.cargo/config.toml`
+# (which suppresses the future-incompat report for known fixtures).
+lint-ui-tests:
+    cd ui-tests/cbindgen/tests/cbindgen/rust/cases && RUSTFLAGS="-D warnings" cargo +{{ docs_toolchain }} build --workspace
+    cd ui-tests/cbindgen/tests/cbindgen/rust/cases && RUSTDOCFLAGS="-D warnings" cargo +{{ docs_toolchain }} doc --workspace --no-deps
+    cd ui-tests/cheadergen/tests/cheadergen/rust/cases && RUSTFLAGS="-D warnings" cargo +{{ docs_toolchain }} build --workspace
+    cd ui-tests/cheadergen/tests/cheadergen/rust/cases && RUSTDOCFLAGS="-D warnings" cargo +{{ docs_toolchain }} doc --workspace --no-deps
+
 # Run all checks
-verify: lint doc (fmt "check") test
+verify: lint doc (fmt "check") test lint-ui-tests

@@ -12,6 +12,7 @@ static SECOND: u32 = 42;
 extern "C" fn first()
 { }
 
+#[expect(missing_abi)]
 #[unsafe(export_name = "renamed")]
 extern fn second()
 { }

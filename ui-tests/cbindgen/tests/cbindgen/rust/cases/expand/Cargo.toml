@@ -11,3 +11,6 @@ crate-type = ["lib", "dylib"]
 [[bin]]
 name = "expand"
 path = "src/main.rs"
+
+[lints]
+workspace = true

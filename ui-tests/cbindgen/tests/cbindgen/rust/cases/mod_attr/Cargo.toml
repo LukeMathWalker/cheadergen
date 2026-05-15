@@ -13,3 +13,6 @@ foobar = []
 
 [dependencies]
 cheadergen.workspace = true
+
+[lints]
+workspace = true

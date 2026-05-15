@@ -23,6 +23,7 @@ enum E {
     Float(f32),
 }
 
+#[expect(non_camel_case_types)]
 #[repr(C, u8)]
 enum F {
     double(f64),

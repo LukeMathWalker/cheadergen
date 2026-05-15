@@ -6,3 +6,6 @@ edition = "2018"
 
 [dependencies]
 dep-2-dep = { path = "dep" }
+
+[lints]
+workspace = true

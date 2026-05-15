@@ -10,7 +10,7 @@ members = [
     "rename_crate/old_dep",
 ]
 # `cmse` uses the `cmse-nonsecure-entry` ABI, which is only supported on thumbv8m targets.
-exclude = ["target", "cmse"]
+exclude = ["target", "cmse", ".cargo"]
 resolver = "3"
 
 [workspace.package]
@@ -18,3 +18,16 @@ edition = "2024"
 
 [workspace.dependencies]
 cheadergen = { path = "../../../../../../cheadergen" }
+
+[workspace.lints.rust]
+dead_code = { level = "allow" }
+deprecated = { level = "allow" }
+private_interfaces = { level = "allow" }
+unexpected_cfgs = { level = "allow" }
+unsafe_op_in_unsafe_fn = { level = "allow" }
+unused_variables = { level = "allow" }
+
+[workspace.lints.rustdoc]
+bare_urls = { level = "allow" }
+broken_intra_doc_links = { level = "allow" }
+invalid_html_tags = { level = "allow" }

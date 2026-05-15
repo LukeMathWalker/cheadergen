@@ -9,6 +9,7 @@ impl Foo {
     const FOO: i32 = 0;
 }
 
+#[expect(non_upper_case_globals)]
 #[cheadergen::config(export)]
 pub const Foo_FOO: u32 = 42;
 

@@ -6,6 +6,7 @@
 pub extern "C" fn first()
 { }
 
+#[expect(missing_abi)]
 #[unsafe(no_mangle)]
 pub extern fn second()
 { }

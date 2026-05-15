@@ -6,3 +6,6 @@ edition.workspace = true
 
 [dependencies]
 fallible_collections = "0.5"
+
+[lints]
+workspace = true

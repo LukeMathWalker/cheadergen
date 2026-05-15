@@ -31,6 +31,7 @@ pub extern "C" fn create_with_phantom_data() -> WithPhantomData {
 }
 
 #[unsafe(no_mangle)]
+#[expect(improper_ctypes_definitions)]
 pub extern "C" fn create_with_phantom_pinned() -> WithPhantomPinned {
     WithPhantomPinned {
         value: 0,

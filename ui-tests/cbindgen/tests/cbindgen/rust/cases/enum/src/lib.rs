@@ -7,6 +7,7 @@ enum Opaque {
     Bar,
 }
 
+#[expect(non_camel_case_types)]
 #[repr(u64)]
 enum A {
     a1 = 0,
@@ -15,6 +16,7 @@ enum A {
     a4 = 5,
 }
 
+#[expect(non_camel_case_types)]
 #[repr(u32)]
 enum B {
     b1 = 0,
@@ -23,6 +25,7 @@ enum B {
     b4 = 5,
 }
 
+#[expect(non_camel_case_types)]
 #[repr(u16)]
 enum C {
     c1 = 0,
@@ -31,6 +34,7 @@ enum C {
     c4 = 5,
 }
 
+#[expect(non_camel_case_types)]
 #[repr(u8)]
 enum D {
     d1 = 0,
@@ -39,6 +43,7 @@ enum D {
     d4 = 5,
 }
 
+#[expect(non_camel_case_types)]
 #[repr(usize)]
 enum E {
     e1 = 0,
@@ -47,6 +52,7 @@ enum E {
     e4 = 5,
 }
 
+#[expect(non_camel_case_types)]
 #[repr(isize)]
 enum F {
     f1 = 0,
@@ -78,6 +84,7 @@ enum I {
     Baz,
 }
 
+#[expect(conflicting_repr_hints)]
 #[repr(C, u8, u16)]
 enum J {
     Foo(i16),
@@ -92,6 +99,7 @@ enum K {
     Baz,
 }
 
+#[expect(non_camel_case_types)]
 #[repr(C)]
 enum L {
     l1,
@@ -100,6 +108,7 @@ enum L {
     l4,
 }
 
+#[expect(non_camel_case_types)]
 #[repr(i8)]
 enum M {
     m1 = -1,
@@ -108,6 +117,7 @@ enum M {
 }
 
 /// cbindgen:enum-class=false
+#[expect(non_camel_case_types)]
 #[repr(C)]
 enum N {
     n1,
@@ -117,6 +127,7 @@ enum N {
 }
 
 /// cbindgen:enum-class=false
+#[expect(non_camel_case_types)]
 #[repr(i8)]
 enum O {
     o1,

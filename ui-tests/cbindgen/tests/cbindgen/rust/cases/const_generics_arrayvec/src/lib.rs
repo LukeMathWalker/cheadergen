@@ -12,7 +12,7 @@ pub struct ArrayVec<T, const CAP: usize> {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn push(v: *mut ArrayVec<*mut u8, 100>, elem: *mut u8) -> i32 {
     if (*v).len < 100 {
-        (*v).xs[(*v).len] = elem;
+        (*v).xs[(*v).len as usize] = elem;
         (*v).len += 1;
         1
     } else {

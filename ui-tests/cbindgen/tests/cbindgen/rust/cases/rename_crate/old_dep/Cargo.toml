@@ -6,3 +6,6 @@ edition = "2018"
 
 [target.'cfg(not(target_os = "freebsd"))'.dependencies]
 no_extern = { path = "../no_extern/" }
+
+[lints]
+workspace = true

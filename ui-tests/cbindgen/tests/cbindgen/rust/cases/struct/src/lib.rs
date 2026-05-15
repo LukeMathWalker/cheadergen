@@ -33,6 +33,7 @@ struct TupleRenamed(i32, f32);
 struct TupleNamed(i32, f32);
 
 #[unsafe(no_mangle)]
+#[expect(improper_ctypes_definitions)]
 pub extern "C" fn root(
     a: *mut Opaque,
     b: Normal,

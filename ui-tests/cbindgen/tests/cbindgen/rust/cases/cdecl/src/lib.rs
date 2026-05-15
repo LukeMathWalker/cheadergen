@@ -20,12 +20,14 @@ type M = [fn (i32, i32) -> bool; 16];
 type N = [fn (i32, i32) -> (); 16];
 
 #[unsafe(no_mangle)]
+#[expect(improper_ctypes_definitions)]
 pub extern "C" fn O() -> fn ()
-{ }
+{ todo!() }
 
 type P = fn (named1st: i32, bool, named3rd: bool, _: i32);
 
 #[unsafe(no_mangle)]
+#[expect(improper_ctypes_definitions)]
 pub extern "C" fn root(
     a: A,
     b: B,

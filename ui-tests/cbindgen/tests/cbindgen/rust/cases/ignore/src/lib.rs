@@ -23,7 +23,6 @@ pub struct IgnoreStructWithImpl;
 
 /// cbindgen:ignore
 impl IgnoreStructWithImpl {
-    #[unsafe(no_mangle)]
     pub extern "C" fn ignore_associated_method() {}
 
     pub const IGNORE_INNER_CONST: u32 = 0;

@@ -3,13 +3,11 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 use bitflags::bitflags;
-use malloc_size_of_derive::MallocSizeOf;
 
 bitflags! {
     /// Constants shared by multiple CSS Box Alignment properties
     ///
     /// These constants match Gecko's `NS_STYLE_ALIGN_*` constants.
-    #[derive(MallocSizeOf)]
     #[repr(C)]
     pub struct AlignFlags: u8 {
         /// 'auto'

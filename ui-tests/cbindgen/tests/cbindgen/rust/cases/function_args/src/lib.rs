@@ -3,27 +3,29 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #[unsafe(no_mangle)]
-pub unsafe extern fn array_print(a: &[u64]) {
+#[expect(improper_ctypes_definitions)]
+pub unsafe extern "C" fn array_print(a: &[u64]) {
     eprintln!("{:?}", a);
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern fn array_test(a: [u64; 3]) {
+#[expect(improper_ctypes_definitions)]
+pub unsafe extern "C" fn array_test(a: [u64; 3]) {
     array_print(&a);
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern fn unnamed(_: *const u64) {
+pub unsafe extern "C" fn unnamed(_: *const u64) {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern fn pointer_test(a: *const u64) {
+pub unsafe extern "C" fn pointer_test(a: *const u64) {
     let a = std::slice::from_raw_parts(a, 3);
     array_print(a);
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern fn print_from_rust() {
+pub unsafe extern "C" fn print_from_rust() {
     let a = [0, 1, 2];
     array_print(&a);
 }

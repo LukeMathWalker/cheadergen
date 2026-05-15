@@ -66,6 +66,7 @@ impl EnumWithAssociatedConstantInImpl {
 }
 
 #[unsafe(no_mangle)]
+#[expect(improper_ctypes_definitions)]
 pub extern "C" fn root(
     a: TransparentComplexWrappingStructTuple,
     b: TransparentPrimitiveWrappingStructTuple,
