@@ -8,6 +8,7 @@ pub struct Packed {
 }
 
 #[unsafe(no_mangle)]
+#[expect(improper_ctypes_definitions)]
 pub extern "C" fn packed_new() -> Packed {
     Packed { a: 0, b: 0 }
 }

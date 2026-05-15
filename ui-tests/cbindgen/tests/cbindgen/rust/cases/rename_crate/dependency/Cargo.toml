@@ -5,3 +5,6 @@ authors = ["Ryan Hunt <rhunt@eqrion.net>"]
 edition.workspace = true
 
 [dependencies]
+
+[lints]
+workspace = true

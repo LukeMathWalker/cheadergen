@@ -20,6 +20,7 @@ union Tuple<T, E> {
 type Indirection<T> = Tuple<T, f32>;
 
 #[unsafe(no_mangle)]
+#[expect(improper_ctypes_definitions)]
 pub extern "C" fn root(
     a: Foo<i32>,
     b: Foo<f32>,

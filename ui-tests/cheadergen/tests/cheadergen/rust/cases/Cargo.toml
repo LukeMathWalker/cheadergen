@@ -118,5 +118,14 @@ edition = "2024"
 [workspace.dependencies]
 cheadergen = { path = "../../../../../../cheadergen" }
 
+[workspace.lints.rust]
+dead_code = { level = "allow" }
+private_interfaces = { level = "allow" }
+unexpected_cfgs = { level = "allow" }
+unused_variables = { level = "allow" }
+
 [workspace.lints.rustdoc]
+bare_urls = { level = "allow" }
+broken_intra_doc_links = { level = "allow" }
+invalid_html_tags = { level = "allow" }
 missing_crate_level_docs = "deny"

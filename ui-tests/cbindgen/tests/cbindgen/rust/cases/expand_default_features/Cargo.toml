@@ -10,9 +10,12 @@ extra_headers = []
 no_parse = []
 
 [lib]
-name = "expand"
+name = "expand_default_features"
 crate-type = ["lib", "dylib"]
 
 [[bin]]
-name = "expand"
+name = "expand_default_features"
 path = "src/main.rs"
+
+[lints]
+workspace = true

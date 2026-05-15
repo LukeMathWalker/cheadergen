@@ -23,6 +23,7 @@ union Bar<'a> {
 }
 
 #[unsafe(no_mangle)]
+#[expect(improper_ctypes_definitions)]
 pub extern "C" fn root<'a>(
 	a: Option<&'a Opaque>,
     b: Option<&'a mut Opaque>,

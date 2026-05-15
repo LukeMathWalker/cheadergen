@@ -16,12 +16,15 @@ pub enum AbsoluteFontWeight {
 }
 
 #[unsafe(no_mangle)]
+#[expect(improper_ctypes_definitions)]
 pub extern "C" fn root(x: NamedLenArray, y: ValuedLenArray, z: AbsoluteFontWeight) {}
 
+#[expect(no_mangle_const_items)]
 #[unsafe(no_mangle)]
 #[cheadergen::config(export)]
 pub const X: i64 = 22 << 22;
 
+#[expect(no_mangle_const_items)]
 #[unsafe(no_mangle)]
 #[cheadergen::config(export)]
 pub const Y: i64 = X + X;

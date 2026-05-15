@@ -24,4 +24,5 @@ pub const BAR: Foo = Foo { a: 42, b: 1337, };
 pub const BAZZ: Bar = Bar { a: 42, b: 1337, };
 
 #[unsafe(no_mangle)]
+#[expect(improper_ctypes_definitions)]
 pub extern "C" fn root(x: Foo, bar: Bar) { }

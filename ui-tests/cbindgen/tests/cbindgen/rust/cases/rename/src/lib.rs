@@ -24,6 +24,7 @@ union D {
     y: f32,
 }
 
+#[expect(non_camel_case_types)]
 #[repr(u8)]
 enum E {
     x = 0,
@@ -42,6 +43,7 @@ pub const H: i32 = 10;
 pub const I: isize = 10;
 
 #[unsafe(no_mangle)]
+#[expect(improper_ctypes_definitions)]
 pub extern "C" fn root(
     a: *const A,
     b: B,

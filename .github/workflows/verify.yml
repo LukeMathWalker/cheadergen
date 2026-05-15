@@ -11,35 +11,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: ./.github/actions/setup
         with:
           components: clippy
-      - uses: extractions/setup-just@v2
       - run: just lint
 
   doc:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
-      - uses: extractions/setup-just@v2
+      - uses: ./.github/actions/setup
       - run: just doc
 
   coverage:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: ./.github/actions/setup
         with:
           components: llvm-tools-preview
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          toolchain: nightly-2026-05-01
-          components: rust-docs-json
-          override: false
+          nightly: "true"
+          nightly-components: rust-docs-json
       - uses: taiki-e/install-action@cargo-llvm-cov
       - uses: taiki-e/install-action@nextest
-      - uses: extractions/setup-just@v2
       - uses: astral-sh/setup-uv@v6
       - run: uv tool install cython
       - run: just coverage codecov
@@ -48,6 +42,15 @@ jobs:
           files: codecov.json
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
+
+  lint-ui-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          nightly: "true"
+      - run: just lint-ui-tests
 
   fmt:
     runs-on: ubuntu-latest

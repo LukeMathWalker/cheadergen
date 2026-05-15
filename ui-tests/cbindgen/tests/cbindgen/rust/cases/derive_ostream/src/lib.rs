@@ -20,6 +20,7 @@ pub enum C {
 
 /// cbindgen:derive-ostream
 #[repr(C)]
+#[expect(non_snake_case)]
 pub struct D {
     List: u8,
     Of: usize,

@@ -6,3 +6,6 @@ edition.workspace = true
 
 [target.x86_64-pc-windows-gnu.dependencies]
 workspace-dep = { path = "../../workspace/dep" }
+
+[lints]
+workspace = true

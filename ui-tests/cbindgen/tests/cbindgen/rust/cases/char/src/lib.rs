@@ -8,4 +8,5 @@ struct Foo {
 }
 
 #[unsafe(no_mangle)]
+#[expect(improper_ctypes_definitions)]
 pub extern "C" fn root(a: Foo) {}

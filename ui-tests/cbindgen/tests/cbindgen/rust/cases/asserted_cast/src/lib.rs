@@ -14,6 +14,7 @@ pub enum H {
 }
 
 /// cbindgen:prefix-with-name
+#[expect(conflicting_repr_hints)]
 #[repr(C, u8, u16)]
 pub enum I {
     /// cbindgen:variant-constructor-attributes=MY_ATTRS

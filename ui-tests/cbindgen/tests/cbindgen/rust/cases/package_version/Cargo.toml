@@ -6,3 +6,6 @@ edition.workspace = true
 
 [features]
 cbindgen = []
+
+[lints]
+workspace = true

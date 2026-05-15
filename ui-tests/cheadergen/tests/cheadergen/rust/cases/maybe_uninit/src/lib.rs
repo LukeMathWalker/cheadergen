@@ -41,6 +41,7 @@ pub extern "C" fn nested_manually_drop_maybe_uninit(x: ManuallyDrop<MaybeUninit<
 /// `Option<MaybeUninit<NonNull<Point>>>` must NOT be simplified via NPO.
 /// `MaybeUninit` disables niche optimization even though `NonNull` is NPO-eligible.
 #[unsafe(no_mangle)]
+#[expect(improper_ctypes_definitions)]
 pub extern "C" fn option_maybe_uninit_nonnull(
     x: Option<MaybeUninit<NonNull<Point>>>,
 ) {}

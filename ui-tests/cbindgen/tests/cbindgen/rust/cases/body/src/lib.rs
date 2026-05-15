@@ -34,6 +34,7 @@ pub struct MyFancyStruct_Prepended {
     i: i32,
 }
 
+#[expect(non_camel_case_types)]
 #[repr(C)]
 pub enum MyFancyEnum_Prepended {
     Foo_Prepended,
@@ -41,6 +42,7 @@ pub enum MyFancyEnum_Prepended {
     Baz_Prepended(i32),
 }
 
+#[expect(non_camel_case_types)]
 #[repr(C)]
 pub enum MyCLikeEnum_Prepended {
     Foo1_Prepended,

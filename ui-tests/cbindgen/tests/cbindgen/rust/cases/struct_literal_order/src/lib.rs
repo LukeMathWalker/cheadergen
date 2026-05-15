@@ -16,12 +16,14 @@ struct BAC {
     pub c: i32,
 }
 
+#[expect(non_upper_case_globals)]
 impl ABC {
     pub const abc: ABC = ABC { a: 1.0, b: 2, c: 3 };
     pub const bac: ABC = ABC { b: 2, a: 1.0, c: 3 };
     pub const cba: ABC = ABC { c: 3, b: 2, a: 1.0 };
 }
 
+#[expect(non_upper_case_globals)]
 impl BAC {
     pub const abc: BAC = BAC { a: 2.0, b: 1, c: 3 };
     pub const bac: BAC = BAC { b: 1, a: 2.0, c: 3 };

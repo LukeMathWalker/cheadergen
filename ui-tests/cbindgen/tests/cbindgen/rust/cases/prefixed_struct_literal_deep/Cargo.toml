@@ -3,3 +3,6 @@ name = "prefixed_struct_literal_deep"
 version = "0.1.0"
 authors = ["cbindgen"]
 edition.workspace = true
+
+[lints]
+workspace = true

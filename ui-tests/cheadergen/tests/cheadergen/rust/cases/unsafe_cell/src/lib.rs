@@ -37,6 +37,7 @@ pub extern "C" fn nested_manually_drop_unsafe_cell(x: ManuallyDrop<UnsafeCell<Po
 /// `Option<UnsafeCell<NonNull<Point>>>` must NOT be simplified via NPO.
 /// `UnsafeCell` disables niche optimization even though `NonNull` is NPO-eligible.
 #[unsafe(no_mangle)]
+#[expect(improper_ctypes_definitions)]
 pub extern "C" fn option_unsafe_cell_nonnull(
     x: Option<UnsafeCell<NonNull<Point>>>,
 ) {}

@@ -8,3 +8,6 @@ edition = "2018"
 dep = { path = "../expand_dep/dep" }
 expand-dep = { path = "../expand_dep" }
 expand-dep-2-dep-2 = { path = "dep_v2" }
+
+[lints]
+workspace = true

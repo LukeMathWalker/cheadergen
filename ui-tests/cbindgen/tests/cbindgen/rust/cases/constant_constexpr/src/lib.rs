@@ -15,6 +15,7 @@ struct Foo {
     x: i32,
 }
 
+#[expect(non_upper_case_globals)]
 pub const SomeFoo: Foo = Foo { x: 99, };
 
 impl Foo {

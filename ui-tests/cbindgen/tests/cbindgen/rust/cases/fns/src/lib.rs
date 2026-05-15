@@ -3,6 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #[repr(C)]
+#[expect(non_snake_case)]
 pub struct Fns {
   noArgs: fn(),
   anonymousArg: fn(i32),
@@ -12,6 +13,7 @@ pub struct Fns {
 }
 
 #[unsafe(no_mangle)]
+#[expect(improper_ctypes_definitions)]
 pub extern "C" fn root(_fns: Fns) {}
 
 #[unsafe(no_mangle)]

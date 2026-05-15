@@ -8,12 +8,12 @@ use std::ffi::VaList;
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn va_list_test(count: i32, mut ap: VaList) -> i32 {
-    ap.arg()
+    ap.next_arg::<i32>()
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn va_list_test2(count: i32, mut ap: ...) -> i32 {
-    ap.arg()
+    ap.next_arg::<i32>()
 }
 
 type VaListFnPtr = Option<unsafe extern "C" fn(count: i32, VaList) -> i32>;

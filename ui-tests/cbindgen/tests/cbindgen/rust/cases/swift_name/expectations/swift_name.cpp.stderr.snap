@@ -1,6 +1,0 @@
----
-source: ui-tests/cbindgen/src/lib.rs
-assertion_line: 201
-expression: stderr_str
----
-Error: C++ output is not yet supported
