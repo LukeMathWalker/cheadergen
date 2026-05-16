@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1](https://github.com/LukeMathWalker/cheadergen/compare/0.2.0...0.2.1) - 2026-05-16
+
+### ⛰️ Features
+
+- Introduce new CLI commands for cache management: cache clear, cache warm and cache show dir (by @LukeMathWalker)
+
+### 🐛 Bug Fixes
+
+- Ensure nightly toolchain version is available in packaging context (by @LukeMathWalker)
+- Don't cache JSON docs for workspace members. Invalidation logic doesn't seem to be as tight as we previously thought, so disable while we investigate further. (by @LukeMathWalker)
+
+### Contributors
+
+- @LukeMathWalker
+
 ## [0.2.0](https://github.com/LukeMathWalker/cheadergen/compare/0.1.4...0.2.0) - 2026-05-12
 
 ### ‼️ Breaking changes
