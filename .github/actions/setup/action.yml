@@ -27,7 +27,7 @@ runs:
     - id: docs-toolchain
       if: inputs.nightly == 'true'
       shell: bash
-      run: echo "version=$(cat rust-docs-toolchain)" >> "$GITHUB_OUTPUT"
+      run: echo "version=$(cat 'cheadergen_cli/rust-docs-toolchain')" >> "$GITHUB_OUTPUT"
     - uses: actions-rust-lang/setup-rust-toolchain@v1
       if: inputs.nightly == 'true'
       with:

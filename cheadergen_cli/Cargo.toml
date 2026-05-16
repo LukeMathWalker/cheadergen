@@ -7,6 +7,7 @@ license.workspace = true
 repository.workspace = true
 keywords = ["bindings", "ffi", "code-generation"]
 categories = ["external-ffi-bindings", "development-tools::ffi"]
+include = ["rust-docs-toolchain", "src"]
 
 [[bin]]
 name = "cheadergen"

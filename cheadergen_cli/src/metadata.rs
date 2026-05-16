@@ -11,7 +11,7 @@ use crate::indexing::CheadergenIndexer;
 /// Must match the FORMAT_VERSION expected by `rustdoc_types`.
 /// Single source of truth is `rust-docs-toolchain` at the repo root,
 /// also read by the `justfile`.
-pub const DOCS_TOOLCHAIN: &str = include_str!("../../rust-docs-toolchain");
+pub const DOCS_TOOLCHAIN: &str = include_str!("../rust-docs-toolchain");
 
 /// Load cargo metadata and build a package graph.
 pub fn load_package_graph(
