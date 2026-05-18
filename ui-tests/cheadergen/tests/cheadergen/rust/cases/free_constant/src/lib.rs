@@ -43,6 +43,23 @@ pub const PTR_OFFSET: isize = -8;
 #[cheadergen::config(export)]
 pub const HALF_PRECISION: f32 = 2.5;
 
+// Whole-number floats: rustdoc evaluates these without a decimal part,
+// so cheadergen must append `.0` to keep C from inferring `int`.
+#[cheadergen::config(export)]
+pub const WHOLE_F32: f32 = 3.0;
+
+#[cheadergen::config(export)]
+pub const WHOLE_F64: f64 = 1024.0;
+
+#[cheadergen::config(export)]
+pub const NEG_WHOLE_F64: f64 = -7.0;
+
+#[cheadergen::config(export)]
+pub const ZERO_F64: f64 = 0.0;
+
+#[cheadergen::config(export)]
+pub const EXP_F64: f64 = 1.5e10;
+
 /// This function uses MAX_SIZE to demonstrate constants alongside functions.
 #[unsafe(no_mangle)]
 pub extern "C" fn get_max_size() -> usize {

@@ -39,6 +39,16 @@ expression: output
 
 #define HALF_PRECISION 2.5
 
+#define WHOLE_F32 3.0
+
+#define WHOLE_F64 1024.0
+
+#define NEG_WHOLE_F64 -7.0
+
+#define ZERO_F64 0.0
+
+#define EXP_F64 1.5E+10
+
 /**
  * This function uses MAX_SIZE to demonstrate constants alongside functions.
  */

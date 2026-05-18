@@ -230,7 +230,10 @@ fn sanitize_char_literal(expr: &str) -> String {
 /// Convert a Rust numeric literal to a C-compatible form.
 ///
 /// Strips Rust type suffixes (`u8`, `i32`, `usize`, `f64`, …) and
-/// underscores used as digit separators.
+/// underscores used as digit separators. For floating-point types,
+/// also appends `.0` when the resulting value is otherwise indistinguishable
+/// from an integer literal (no decimal point and no exponent), so that
+/// C compilers infer `float`/`double` instead of `int` for the `#define`.
 fn sanitize_rust_number(value: &str, prim: &ScalarPrimitive) -> String {
     let suffix = match prim {
         ScalarPrimitive::U8 => "u8",
@@ -256,8 +259,25 @@ fn sanitize_rust_number(value: &str, prim: &ScalarPrimitive) -> String {
         }
     };
 
-    value
+    let cleaned = value
         .strip_suffix(suffix)
         .unwrap_or(value)
-        .replace('_', "")
+        .replace('_', "");
+
+    if matches!(prim, ScalarPrimitive::F32 | ScalarPrimitive::F64)
+        && looks_like_integer_literal(&cleaned)
+    {
+        format!("{cleaned}.0")
+    } else {
+        cleaned
+    }
+}
+
+/// Whether `s` would be parsed as an integer literal by a C compiler.
+///
+/// Returns `false` for empty input, anything containing a decimal point or
+/// exponent marker, and non-numeric tokens such as `inf` or `NaN`.
+fn looks_like_integer_literal(s: &str) -> bool {
+    let digits = s.strip_prefix(['-', '+']).unwrap_or(s);
+    !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit())
 }
