@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2](https://github.com/LukeMathWalker/cheadergen/compare/0.2.1...0.2.2) - 2026-05-18
+
+### 🐛 Bug Fixes
+
+- Ensure that generated floating point constants are inferred as floats by the C compiler. (by @LukeMathWalker)
+
+### Contributors
+
+- @LukeMathWalker
+
 ## [0.2.1](https://github.com/LukeMathWalker/cheadergen/compare/0.2.0...0.2.1) - 2026-05-16
 
 ### ⛰️ Features
