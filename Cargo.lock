@@ -274,7 +274,7 @@ dependencies = [
 
 [[package]]
 name = "cheadergen"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "cheadergen_macros",
  "trybuild",
@@ -291,7 +291,7 @@ dependencies = [
 
 [[package]]
 name = "cheadergen_cli"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "annotate-snippets",
  "anyhow",
@@ -317,7 +317,7 @@ dependencies = [
 
 [[package]]
 name = "cheadergen_macros"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "proc-macro2",
  "quote",
