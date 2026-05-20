@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3](https://github.com/LukeMathWalker/cheadergen/compare/0.2.2...0.2.3) - 2026-05-20
+
+### 🐛 Bug Fixes
+
+- Work around a `guppy` issue which affected workspaces with crates that depend on themselves as dev dependencies. (by @LukeMathWalker)
+
 ## [0.2.2](https://github.com/LukeMathWalker/cheadergen/compare/0.2.1...0.2.2) - 2026-05-18
 
 ### 🐛 Bug Fixes
