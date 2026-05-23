@@ -21,7 +21,11 @@ echo "CBINDGEN_CASES_METADATA=$SCRIPT_DIR/cbindgen/rust/cases/metadata.json" >> 
 echo "CBINDGEN_WORKSPACE_METADATA=$SCRIPT_DIR/cbindgen/rust/workspace/metadata.json" >> "$NEXTEST_ENV"
 
 # Pre-warm the rustdoc JSON cache to avoid cargo target-dir lock contention
-# when tests run in parallel.
+# when tests run in parallel. The env var opts into caching workspace-package
+# rustdoc — that's off by default because the cache key doesn't yet track
+# every input rustdoc output can depend on (e.g. files pulled in via
+# `include_str!`). The test suite doesn't exercise those edge cases.
+export __CHEADERGEN_CACHE_WORKSPACE_DOCS=1
 CHEADERGEN="$WORKSPACE_ROOT/target/debug/cheadergen"
 "$CHEADERGEN" cache warm --metadata "$SCRIPT_DIR/cbindgen/rust/cases/metadata.json"
 "$CHEADERGEN" cache warm --metadata "$SCRIPT_DIR/cbindgen/rust/workspace/metadata.json"

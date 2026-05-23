@@ -45,9 +45,11 @@ pub fn create_collection(package_graph: PackageGraph) -> anyhow::Result<crate::C
 
     let project_fingerprint = package_graph.workspace().root().to_string();
 
-    // Internal-only knob: the test suite owns its case crates and accepts the
-    // risk of caching workspace-package rustdoc. End-users must not set this —
-    // edits to workspace crates would silently produce stale headers.
+    // Internal-only knob. Workspace-package rustdoc caching isn't yet ready
+    // for end-users: the cache key doesn't track every input rustdoc output
+    // can depend on (e.g. files pulled in via `include_str!`), so edits in
+    // those edge cases would silently yield stale headers. The test suite
+    // doesn't exercise those patterns, so it's safe to opt in there.
     let cache_workspace_package_docs =
         std::env::var_os("__CHEADERGEN_CACHE_WORKSPACE_DOCS").is_some();
 
