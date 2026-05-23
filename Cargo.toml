@@ -26,7 +26,7 @@ rustdoc_ext = "0.1.1"
 rustdoc_ir = "0.1.1"
 rustdoc_processor = "0.1.1"
 rustdoc_resolver = "0.1.1"
-guppy = "0.17"
+guppy = "0.17.26"
 
 # The profile that 'cargo dist' will build with
 [profile.dist]

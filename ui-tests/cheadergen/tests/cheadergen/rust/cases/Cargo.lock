@@ -56,14 +56,14 @@ dependencies = [
 
 [[package]]
 name = "cheadergen"
-version = "0.2.1"
+version = "0.2.3"
 dependencies = [
  "cheadergen_macros",
 ]
 
 [[package]]
 name = "cheadergen_macros"
-version = "0.2.1"
+version = "0.2.3"
 dependencies = [
  "proc-macro2",
  "quote",
