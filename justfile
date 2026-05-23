@@ -40,6 +40,10 @@ test-cheadergen +args="":
 test-generate +args="":
     cargo nextest run --no-fail-fast -p cbindgen-ui-tests -p cheadergen-ui-tests --no-tests pass -E 'test(~::generate::)' "$@"
 
+# Run only compilation tests (no generation)
+test-compile +args="":
+    cargo nextest run --no-fail-fast -p cbindgen-ui-tests -p cheadergen-ui-tests --no-tests pass -E 'test(~::compile::)' "$@"
+
 # Run only symbol tests
 test-symbol +args="":
     cargo nextest run --no-fail-fast -p cbindgen-ui-tests -p cheadergen-ui-tests --no-tests pass -E 'test(~::symbol::)' "$@"
@@ -56,7 +60,7 @@ coverage format="html":
     set -euo pipefail
     source <(cargo llvm-cov show-env --sh --no-cfg-coverage)
     cargo llvm-cov clean --workspace
-    just test
+    just test -E 'not test(~::compile::)'
     report_args=()
     case "{{ format }}" in
         html)    report_args+=(--html) ;;

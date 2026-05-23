@@ -34,14 +34,22 @@ jobs:
           nightly-components: rust-docs-json
       - uses: taiki-e/install-action@cargo-llvm-cov
       - uses: taiki-e/install-action@nextest
-      - uses: astral-sh/setup-uv@v6
-      - run: uv tool install cython
       - run: just coverage codecov
       - uses: codecov/codecov-action@v5
         with:
           files: codecov.json
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
+
+  test-compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - uses: taiki-e/install-action@nextest
+      - uses: astral-sh/setup-uv@v6
+      - run: uv tool install cython
+      - run: just test-compile
 
   lint-ui-tests:
     runs-on: ubuntu-latest
