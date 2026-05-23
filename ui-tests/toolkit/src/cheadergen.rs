@@ -50,6 +50,7 @@ pub fn run_cheadergen_symbols(
     command.arg("generate");
     command.arg("--quiet");
     command.env("NO_COLOR", "1");
+    command.env("__CHEADERGEN_CACHE_WORKSPACE_DOCS", "1");
     command.arg("--metadata").arg(metadata);
     command.arg("--no-header");
     command.arg("--symbol-file").arg(symbol_file);
@@ -92,7 +93,8 @@ pub fn run_cheadergen(
         .env("NO_COLOR", "1")
         // Ensure consistent output for CLI errors
         .env("RUST_BACKTRACE", "0")
-        .env("RUST_LIB_BACKTRACE", "0");
+        .env("RUST_LIB_BACKTRACE", "0")
+        .env("__CHEADERGEN_CACHE_WORKSPACE_DOCS", "1");
     command.arg("--metadata").arg(metadata);
 
     match language {
