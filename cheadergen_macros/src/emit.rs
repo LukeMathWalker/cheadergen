@@ -53,6 +53,9 @@ fn emit_field_diagnostic(directive: &FieldDirective) -> TokenStream {
         FieldDirective::Bitfield { width, .. } => {
             quote! { #[diagnostic::cheadergen::bitfield(#width)] }
         }
+        FieldDirective::ConstPtr { .. } => {
+            quote! { #[diagnostic::cheadergen::const_ptr] }
+        }
     }
 }
 
@@ -171,6 +174,14 @@ fn parse_and_rewrite(
             return Err(syn::Error::new(
                 *span,
                 "`bitfield` cannot be applied to enum variants",
+            ));
+        }
+        if is_variant
+            && let FieldDirective::ConstPtr { span } = directive
+        {
+            return Err(syn::Error::new(
+                *span,
+                "`const_ptr` cannot be applied to enum variants",
             ));
         }
         tokens.extend(emit_field_diagnostic(directive));

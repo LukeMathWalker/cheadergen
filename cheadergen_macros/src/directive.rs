@@ -77,6 +77,7 @@ impl Directive {
 pub enum FieldDirective {
     Rename { name: String },
     Bitfield { width: u64, span: Span },
+    ConstPtr { span: Span },
 }
 
 
@@ -198,6 +199,7 @@ impl Parse for FieldDirective {
                     span,
                 })
             }
+            "const_ptr" => Ok(FieldDirective::ConstPtr { span }),
             unknown => Err(syn::Error::new(
                 span,
                 format!("unknown field directive `{unknown}`"),

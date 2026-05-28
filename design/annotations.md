@@ -84,10 +84,11 @@ explicit C name is used verbatim as the prefix.
 
 Applied to struct fields via `#[cheadergen(...)]`.
 
-| Directive           | Semantics                                    |
-| ------------------- | -------------------------------------------- |
-| `rename = "c_name"` | Override the C field name.                   |
-| `bitfield = N`      | Emit the field as a C bitfield with width N. |
+| Directive           | Semantics                                      |
+| ------------------- | ---------------------------------------------- |
+| `rename = "c_name"` | Override the C field name.                     |
+| `bitfield = N`      | Emit the field as a C bitfield with width N.   |
+| `const_ptr`         | Qualify a pointer field as a constant pointer. |
 
 ### Variant-level
 
@@ -177,6 +178,14 @@ pub enum Color {
     Green,
     Blue,
 }
+
+// Qualify a pointer field as a constant pointer in the generated C header
+#[cheadergen::config(export)]
+#[repr(C)]
+pub struct View {
+    #[cheadergen(const_ptr)]
+    pub data: std::ptr::NonNull<u8>, // -> `const uint8_t *data`
+}
 ```
 
 ## Encoding via diagnostic attributes
@@ -202,6 +211,7 @@ This is the same encoding trick used by [Pavex](https://github.com/LukeMathWalke
 | `rename_all = "camelCase"`         | `#[diagnostic::cheadergen::rename_all("camelCase")]`         |
 | `rename_all_fields = "snake_case"` | `#[diagnostic::cheadergen::rename_all_fields("snake_case")]` |
 | `bitfield = 8`                     | `#[diagnostic::cheadergen::bitfield(8)]`                     |
+| `const_ptr`                        | `#[diagnostic::cheadergen::const_ptr]`                       |
 
 ### Field and variant attributes
 
@@ -217,8 +227,8 @@ The `CheadergenVisitor` in the indexer inspects `Attribute::Other` strings
 during crate traversal, looking for the `diagnostic::cheadergen::` prefix.
 Item-level directives (`export`, `skip`, `rename`, `prefix_with_name`,
 `field_names`) are captured during indexing. Field-level directives (`rename`,
-`bitfield`) are read from `field_item.attrs` during type resolution, since
-struct fields are already accessed individually at that point.
+`bitfield`, `const_ptr`) are read from `field_item.attrs` during type
+resolution, since struct fields are already accessed individually at that point.
 
 ## Validation
 
@@ -228,6 +238,12 @@ The proc macro rejects invalid usage at compile time:
 - `opaque` on a function, static, or constant → error (`opaque` only makes
   sense for types).
 - `prefix_with_name` on a non-enum → error.
+- `const_ptr` on an enum variant → error.
+
+`const_ptr` is type-aware: if the resolved C field type is not a pointer after
+type simplification (for example after `NonNull<T>` has lowered to a raw
+pointer), header generation fails with an error.
+
 - `field_names` on a non-tuple struct → error.
 - `bitfield` on a non-field → error.
 - `rename_all` on a function, static, or type alias → error.

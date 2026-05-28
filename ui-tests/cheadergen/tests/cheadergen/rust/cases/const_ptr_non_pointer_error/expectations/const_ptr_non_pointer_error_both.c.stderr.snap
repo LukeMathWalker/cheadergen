@@ -1,0 +1,12 @@
+---
+source: ui-tests/cheadergen/src/lib.rs
+expression: stderr_str
+---
+error: field `Config::value` is annotated with `#[cheadergen(const_ptr)]`, but its resolved C type is not a pointer
+ --> const_ptr_non_pointer_error/src/lib.rs:7:6
+  |
+7 |     pub value: u32,
+  |      ^^^^^^^^^^^^^^ not a pointer field
+  |
+  = help: remove `const_ptr` or use it on a field that lowers to a C pointer type
+Error: aborting due to previous error(s)

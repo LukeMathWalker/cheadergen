@@ -63,6 +63,10 @@
 ///     //           ~~~~~~~~~~~
 ///     //           └ Emit as a C bitfield with width 8
 ///     pub flags: u8,
+///     #[cheadergen(const_ptr)]
+///     //           ~~~~~~~~~
+///     //           └ Emit a pointer field as a constant pointer
+///     pub data: std::ptr::NonNull<u8>,
 /// }
 /// ```
 ///
@@ -270,6 +274,7 @@
 /// |------|-----------|----------|
 /// | [`rename`](#field-rename) | field, variant | No |
 /// | [`bitfield`](#bitfield) | field (not variant) | No |
+/// | [`const_ptr`](#const_ptr) | field (not variant) | No |
 ///
 /// ## `rename` (field) {#field-rename}
 ///
@@ -301,6 +306,30 @@
 ///     pub mode: u8,
 /// }
 /// ```
+///
+/// Cannot be applied to enum variants.
+///
+/// ## `const_ptr`
+///
+/// Qualify a pointer field as a constant pointer in the generated C header.
+/// This is useful for Rust field types like `NonNull<T>`, which normally lower
+/// to `T *` but may need to be exposed as `const T *` to C consumers.
+///
+/// ```ignore
+/// use std::ptr::NonNull;
+///
+/// #[cheadergen::config(export)]
+/// #[repr(C)]
+/// pub struct View {
+///     #[cheadergen(const_ptr)]
+///     //           ~~~~~~~~~
+///     //           └ Emit as `const uint8_t *data`
+///     pub data: NonNull<u8>,
+/// }
+/// ```
+///
+/// The directive is checked after type simplification. If the field does not
+/// resolve to a pointer type in C, header generation fails.
 ///
 /// Cannot be applied to enum variants.
 pub use cheadergen_macros::config;

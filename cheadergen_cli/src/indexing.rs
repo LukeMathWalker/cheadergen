@@ -245,6 +245,8 @@ pub struct FieldAnnotation {
     pub rename: Option<String>,
     /// Emit the field as a C bitfield with the given width.
     pub bitfield_width: Option<u64>,
+    /// Qualify pointer fields as pointers-to-const in the generated C header.
+    pub const_ptr: bool,
 }
 
 impl FieldAnnotation {
@@ -253,6 +255,7 @@ impl FieldAnnotation {
         let mut result = FieldAnnotation {
             rename: None,
             bitfield_width: None,
+            const_ptr: false,
         };
         for attr in attrs {
             if let Attribute::Other(s) = attr {
@@ -273,6 +276,8 @@ impl FieldAnnotation {
                     if let Ok(width) = inner.parse::<u64>() {
                         result.bitfield_width = Some(width);
                     }
+                } else if rest == "const_ptr" {
+                    result.const_ptr = true;
                 }
             }
         }

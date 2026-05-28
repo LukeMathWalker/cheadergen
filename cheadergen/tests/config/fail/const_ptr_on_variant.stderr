@@ -1,0 +1,5 @@
+error: `const_ptr` cannot be applied to enum variants
+ --> tests/config/fail/const_ptr_on_variant.rs:4:18
+  |
+4 |     #[cheadergen(const_ptr)]
+  |                  ^^^^^^^^^

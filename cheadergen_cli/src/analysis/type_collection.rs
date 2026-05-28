@@ -237,6 +237,8 @@ pub struct CStructField {
     pub type_: Type,
     /// If set, emit this field as a C bitfield with the given width in bits.
     pub bitfield_width: Option<u64>,
+    /// If set, qualify this pointer field as a constant pointer in C.
+    pub const_ptr: bool,
     /// The global rustdoc item ID for this field, used for doc-comment
     /// lookup at codegen time.
     pub rustdoc_id: Option<GlobalItemId>,

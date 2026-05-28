@@ -78,6 +78,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "const_ptr_fields"
+version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
+
+[[package]]
+name = "const_ptr_non_pointer_error"
+version = "0.1.0"
+dependencies = [
+ "cheadergen",
+]
+
+[[package]]
 name = "constant_optin_default_skipped"
 version = "0.1.0"
 

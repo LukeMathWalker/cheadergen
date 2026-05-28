@@ -99,7 +99,80 @@ pub(super) fn resolve_type_kind(
         }
     }?;
     type_transform::simplify_kind(&mut kind, collection);
+    apply_const_ptr_annotations(&mut kind, name, collection, diagnostics);
     Ok(kind)
+}
+
+fn apply_const_ptr_annotations(
+    kind: &mut CTypeKind,
+    parent_type_name: &str,
+    collection: &Collection,
+    diagnostics: &mut DiagnosticSink,
+) {
+    match kind {
+        CTypeKind::Struct(def) => {
+            for field in &mut def.fields {
+                apply_const_ptr_to_field(field, parent_type_name, collection, diagnostics);
+            }
+        }
+        CTypeKind::Union(def) => {
+            for field in &mut def.fields {
+                apply_const_ptr_to_field(field, parent_type_name, collection, diagnostics);
+            }
+        }
+        CTypeKind::TaggedUnion(def) => {
+            for variant in &mut def.variants {
+                if let Some(body) = &mut variant.body {
+                    for field in &mut body.fields {
+                        apply_const_ptr_to_field(field, parent_type_name, collection, diagnostics);
+                    }
+                }
+            }
+        }
+        CTypeKind::Typedef(_)
+        | CTypeKind::OpaqueStruct
+        | CTypeKind::OpaqueUnion
+        | CTypeKind::FieldlessEnum(_) => {}
+    }
+}
+
+fn apply_const_ptr_to_field(
+    field: &mut CStructField,
+    parent_type_name: &str,
+    collection: &Collection,
+    diagnostics: &mut DiagnosticSink,
+) {
+    if !field.const_ptr {
+        return;
+    }
+
+    match &mut field.type_ {
+        Type::RawPointer(pointer) => {
+            pointer.is_mutable = false;
+            return;
+        }
+        Type::Reference(reference) => {
+            reference.is_mutable = false;
+            return;
+        }
+        _ => {}
+    }
+
+    let span = field
+        .rustdoc_id
+        .as_ref()
+        .map(|id| collection.get_item_by_global_type_id(id))
+        .and_then(|item| item.span.clone());
+    diagnostics
+        .error(format!(
+            "field `{}::{}` is annotated with `#[cheadergen(const_ptr)]`, but its resolved C type is not a pointer",
+            parent_type_name,
+            field.name.as_str()
+        ))
+        .with_span_if(span.as_ref())
+        .with_label("not a pointer field")
+        .with_help("remove `const_ptr` or use it on a field that lowers to a C pointer type")
+        .emit();
 }
 
 /// Build generic bindings for a type with type parameters, returning
@@ -914,6 +987,7 @@ fn resolve_plain_fields(
             name: CIdentifier::new(field_name),
             type_: resolved,
             bitfield_width: field_ann.bitfield_width,
+            const_ptr: field_ann.const_ptr,
             rustdoc_id: Some(global_id),
         });
     }
@@ -964,11 +1038,13 @@ fn resolve_tuple_fields(
             .and_then(|names| names.get(index))
             .cloned()
             .unwrap_or_else(|| format!("m{index}"));
+        let field_ann = FieldAnnotation::from_attrs(&field_item.attrs);
 
         c_fields.push(CStructField {
             name: CIdentifier::new(field_name),
             type_: resolved,
             bitfield_width: None,
+            const_ptr: field_ann.const_ptr,
             rustdoc_id: Some(global_id),
         });
         index += 1;
