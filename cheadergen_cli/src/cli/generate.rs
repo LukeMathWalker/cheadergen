@@ -752,11 +752,12 @@ fn generate_partitioned(
         );
 
         let filename = filenames.filename(&pkg_id, cli.lang.extension());
-        fs_err::write(cli.output_dir.join(&filename), &header)?;
+        let did_write = write_header_if_changed(&cli.output_dir.join(&filename), &header)?;
 
         if !cli.quiet {
             let kind = if is_target { "target" } else { "dependency" };
-            eprintln!("Wrote {kind} header: {filename}");
+            let status = if did_write { "Wrote" } else { "Unchanged" };
+            eprintln!("{status} {kind} header: {filename}");
         }
 
         written.insert(filename);
@@ -767,6 +768,26 @@ fn generate_partitioned(
     }
 
     Ok(all_symbols)
+}
+
+/// Write `contents` to `path`, but only when it differs from the file already
+/// there — leaving the existing file (and its mtime) untouched.
+///
+/// Build systems that consume the generated headers commonly track them by
+/// mtime (e.g. Cargo's `rerun-if-changed`). Rewriting a byte-identical header
+/// would bump its mtime and trigger spurious downstream rebuilds, so skip the
+/// write when the content already matches.
+///
+/// Returns `true` if the file was (re)written, `false` if it was already
+/// up to date.
+fn write_header_if_changed(path: &std::path::Path, contents: &str) -> std::io::Result<bool> {
+    if let Ok(existing) = fs_err::read(path)
+        && existing == contents.as_bytes()
+    {
+        return Ok(false);
+    }
+    fs_err::write(path, contents)?;
+    Ok(true)
 }
 
 /// Delete top-level files in `output_dir` whose extension matches
@@ -927,8 +948,34 @@ fn generate_one_crate(
             .unwrap_or_else(|| package_name.replace('-', "_"));
         let filename = format!("{}.{}", base, cli.lang.extension());
         fs_err::create_dir_all(&cli.output_dir)?;
-        fs_err::write(cli.output_dir.join(filename), &header)?;
+        write_header_if_changed(&cli.output_dir.join(filename), &header)?;
     }
 
     Ok(symbols)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::write_header_if_changed;
+
+    #[test]
+    fn write_header_if_changed_skips_identical_content() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("header.h");
+
+        // First write: file is created.
+        assert!(write_header_if_changed(&path, "one").unwrap());
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "one");
+        let mtime = std::fs::metadata(&path).unwrap().modified().unwrap();
+
+        // Identical content: no write, mtime preserved (so downstream build
+        // systems that watch the file by mtime don't see a spurious change).
+        assert!(!write_header_if_changed(&path, "one").unwrap());
+        let new_mtime = std::fs::metadata(&path).unwrap().modified().unwrap();
+        assert_eq!(new_mtime, mtime);
+
+        // Changed content: file is rewritten.
+        assert!(write_header_if_changed(&path, "two").unwrap());
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "two");
+    }
 }
