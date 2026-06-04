@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4](https://github.com/LukeMathWalker/cheadergen/compare/0.2.3...0.2.4) - 2026-06-04
+
+### ⛰️ Features
+
+- Add const_ptr as a field annotation to coerce the generated C pointer field to be a constant pointer (by @LukeMathWalker)
+
+### 🐛 Bug Fixes
+
+- skip rewriting unchanged generated headers (by @gdesmott) - #11
+
+### 🧪 Testing
+
+- Ensure JSON docs for workspace dependencies are generated in the cache warming pre-testing script (by @LukeMathWalker)
+- Enable JSON caching for workspace dependencies in our UI test suite (by @LukeMathWalker)
+
+### Contributors
+
+- @LukeMathWalker
+- @gdesmott
+
 ## [0.2.3](https://github.com/LukeMathWalker/cheadergen/compare/0.2.2...0.2.3) - 2026-05-20
 
 ### 🐛 Bug Fixes
