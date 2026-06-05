@@ -65,3 +65,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dprint/check@v2.2
+
+  book:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: mdbook@0.5.3
+      - run: mdbook build docs
