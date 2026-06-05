@@ -20,6 +20,19 @@ lint:
 doc:
     RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --document-private-items --lib
 
+# Build the user guide (mdbook) into docs/book
+book:
+    mdbook build docs
+
+# Serve the user guide locally with live reload
+book-serve:
+    mdbook serve docs --open
+
+# Check that version-pinned URLs in docs/src/ match the workspace package version.
+# Run automatically on release PRs; can be invoked locally before bumping a release.
+docs-check-version *args:
+    bash scripts/check_docs_version.sh {{ args }}
+
 # Run tests
 # Use `just test <nextest args>` to pass filters and flags
 # For example:
