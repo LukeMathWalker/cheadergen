@@ -11,7 +11,7 @@ for more details.
 
 ## Documentation
 
-- [User guide](https://cheadergen.com).
+- [User guide](https://cheadergen.com)
 - References:
-  - [`#[cheadergen::config(...)]`: per-item configuration](https://docs.rs/cheadergen/latest/cheadergen/attr.config.html) macro reference.
+  - [`#[cheadergen::config(...)]`: per-item configuration](https://docs.rs/cheadergen/latest/cheadergen/attr.config.html).
   - [`cheadergen.toml`: project-level configuration](https://docs.rs/cheadergen/latest/cheadergen/config_reference/index.html).

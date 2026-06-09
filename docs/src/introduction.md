@@ -6,8 +6,8 @@ C-compatible API.
 It is an alternative to
 [`cbindgen`](https://github.com/mozilla/cbindgen) that uses
 [`rustdoc-json`](https://rust-lang.github.io/rfcs/2963-rustdoc-json.html) as its
-reflection mechanism instead of source parsing. Check out our [detailed comparison](explanation/vs-cbindgen.md)
-to see how they compare.
+reflection mechanism instead of source parsing. Check out our [comparison page](https://cheadergen.com/explanation/vs-cbindgen.html)
+for more details.
 
 ## What it does
 
