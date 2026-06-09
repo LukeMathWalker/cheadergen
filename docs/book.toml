@@ -11,7 +11,7 @@ edition = "2024"
 [output.html]
 git-repository-url = "https://github.com/LukeMathWalker/cheadergen"
 edit-url-template = "https://github.com/LukeMathWalker/cheadergen/edit/main/docs/{path}"
-site-url = "/cheadergen/"
+site-url = "/"
 default-theme = "rust"
 preferred-dark-theme = "ayu"
 
