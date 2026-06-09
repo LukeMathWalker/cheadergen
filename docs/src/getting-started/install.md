@@ -44,7 +44,7 @@ cargo binstall cheadergen_cli
 
 ## Nightly toolchain
 
-`cheadergen` invokes `cargo rustdoc -- --output-format=json`, which is only
+`cheadergen` invokes `cargo doc --output-format=json`, which is only
 available on nightly. You don't need to make nightly your default toolchain:
 `cheadergen` calls a pinned nightly via `cargo +<toolchain>`.
 
