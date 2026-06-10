@@ -14,7 +14,7 @@ There is **no auto-discovery**. `cheadergen` only reads a config file when
 you point at one explicitly:
 
 ```bash
-cheadergen generate --config cheadergen.toml --output-dir include .
+cheadergen generate --config cheadergen.toml --output-dir include
 ```
 
 Without `--config`, `cheadergen` runs with the same defaults as an empty

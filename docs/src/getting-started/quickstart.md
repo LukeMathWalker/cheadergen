@@ -54,7 +54,7 @@ pub extern "C" fn distance(a: Point, b: Point) -> f64 {
 ## 2. Generate the header
 
 ```bash
-cheadergen generate --output-dir include .
+cheadergen generate --output-dir include
 ```
 
 You should see something like:

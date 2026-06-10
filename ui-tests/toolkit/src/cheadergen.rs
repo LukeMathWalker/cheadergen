@@ -63,7 +63,7 @@ pub fn run_cheadergen_symbols(
         command.arg("--config").arg(config);
     }
 
-    command.arg(path);
+    command.arg("--input-dir").arg(path);
 
     println!("Running: {command:?}");
     command
@@ -126,11 +126,11 @@ pub fn run_cheadergen(
         command.arg("--config").arg(config);
     }
 
-    // When a specific package is selected, don't pass the directory as
-    // a positional arg — it would add all crates under it to the selection.
-    // Instead, pass no input so cheadergen uses the workspace root from metadata.
+    // When a specific package is selected, don't pass --input-dir — it would
+    // add every crate under the directory to the selection. Instead, pass
+    // no input so cheadergen uses the workspace root from metadata.
     if package.is_none() {
-        command.arg(path);
+        command.arg("--input-dir").arg(path);
     }
 
     println!("Running: {command:?}");

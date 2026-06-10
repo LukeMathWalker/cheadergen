@@ -15,14 +15,16 @@ use crate::config::{Language, PackageConfig, PackageTypeMode, Style};
 use crate::diagnostic::{DiagnosticSink, render_diagnostics};
 use crate::{analysis, codegen, config, metadata, topological_sort};
 
-use super::input::{PackageSelection, filter_library_targets, resolve_input, select_packages};
+use super::input::{PackageSelection, filter_library_targets, select_packages};
 use crate::Collection;
 
 #[derive(Debug, Parser)]
 pub(super) struct GenerateArgs {
-    /// Path to a directory or Cargo.toml. A Cargo.toml selects a single crate;
-    /// a directory selects all workspace members inside it (defaults to current directory).
-    input: Option<PathBuf>,
+    /// Directory containing one or more workspace members to generate
+    /// headers for. Repeatable. Each path must live inside the workspace
+    /// rooted at the current working directory.
+    #[arg(long = "input-dir")]
+    input_dirs: Vec<PathBuf>,
 
     #[command(flatten)]
     package_selection: PackageSelection,
@@ -39,7 +41,7 @@ pub(super) struct GenerateArgs {
     #[arg(short, long)]
     config: Option<PathBuf>,
 
-    /// Target language for the generated bindings. Defaults to `c`.
+    /// Target language for the generated bindings.
     #[arg(short, long, default_value = "c")]
     lang: Language,
 
@@ -345,8 +347,6 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
         anyhow::bail!("--no-header requires --symbol-file");
     }
 
-    let resolved_input = cli.input.as_ref().map(|p| resolve_input(p)).transpose()?;
-
     // Load config file (or use defaults).
     let raw_config = if let Some(ref config_path) = cli.config {
         config::RawConfig::from_toml_file(config_path)?
@@ -374,13 +374,9 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
         );
     }
 
-    let metadata_dir = resolved_input
-        .as_ref()
-        .map(|r| r.dir().clone())
-        .unwrap_or_else(|| PathBuf::from("."));
-    let package_graph = metadata::load_package_graph(cli.metadata.as_ref(), Some(&metadata_dir))?;
+    let package_graph = metadata::load_package_graph(cli.metadata.as_ref())?;
     let packages = select_packages(
-        resolved_input.as_ref(),
+        &cli.input_dirs,
         &cli.package_selection,
         &package_graph.workspace(),
     )?;

@@ -1,6 +1,6 @@
 ---
 source: ui-tests/cbindgen/src/lib.rs
-assertion_line: 201
+assertion_line: 231
 expression: stderr_str
 ---
-Error: No packages selected (after applying --package and --exclude filters)
+Error: --input-dir `[WORKSPACE]/ui-tests/cbindgen/tests/cbindgen/rust/cases/cmse` does not contain any workspace members

@@ -6,7 +6,7 @@ use clap::Parser;
 use crate::diagnostic::{DiagnosticSink, Severity, render_diagnostics};
 use crate::metadata;
 
-use super::input::{PackageSelection, filter_library_targets, resolve_input, select_packages};
+use super::input::{PackageSelection, filter_library_targets, select_packages};
 
 #[derive(Debug, Parser)]
 pub(super) struct CacheArgs {
@@ -16,7 +16,7 @@ pub(super) struct CacheArgs {
 
 #[derive(Debug, clap::Subcommand)]
 enum CacheCommand {
-    /// Pre-warm the rustdoc JSON cache for all workspace members.
+    /// Pre-warm the rustdoc JSON cache for the selected workspace members.
     Warm(WarmArgs),
     /// Remove the rustdoc JSON cache from disk.
     Clear,
@@ -33,8 +33,11 @@ enum ShowCommand {
 
 #[derive(Debug, Parser)]
 struct WarmArgs {
-    /// Path to the Rust crate directory or its Cargo.toml (defaults to current directory).
-    input: Option<PathBuf>,
+    /// Directory containing one or more workspace members to warm.
+    /// Repeatable. Each path must live inside the workspace rooted at the
+    /// current working directory.
+    #[arg(long = "input-dir")]
+    input_dirs: Vec<PathBuf>,
 
     #[command(flatten)]
     package_selection: PackageSelection,
@@ -57,23 +60,13 @@ pub(super) fn run(args: &CacheArgs) -> anyhow::Result<()> {
     }
 }
 
-/// Pre-compute rustdoc JSON for all workspace members so later `generate` runs hit the cache.
+/// Pre-compute rustdoc JSON for the selected workspace members so later
+/// `generate` runs hit the cache.
 fn warm(args: &WarmArgs) -> anyhow::Result<()> {
-    let resolved_input = args
-        .input
-        .as_ref()
-        .map(|p| resolve_input(p))
-        .transpose()?;
-
-    let metadata_dir = resolved_input
-        .as_ref()
-        .map(|r| r.dir().clone())
-        .unwrap_or_else(|| PathBuf::from("."));
-    let package_graph =
-        metadata::load_package_graph(args.metadata.as_ref(), Some(&metadata_dir))?;
+    let package_graph = metadata::load_package_graph(args.metadata.as_ref())?;
 
     let packages = select_packages(
-        resolved_input.as_ref(),
+        &args.input_dirs,
         &args.package_selection,
         &package_graph.workspace(),
     )?;
