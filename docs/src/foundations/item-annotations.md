@@ -1,4 +1,4 @@
-# Annotations: the mental model
+# Item annotations
 
 `cheadergen` uses a procedural macro to customize header generation
 on a per-item basis: [`#[cheadergen::config(...)]`][config_ref].

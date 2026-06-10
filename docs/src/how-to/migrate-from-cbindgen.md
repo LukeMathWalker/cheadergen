@@ -2,8 +2,8 @@
 
 This guide walks through moving an existing `cbindgen`-using crate to
 `cheadergen`. Before you start, read
-[Comparison with `cbindgen`](../explanation/vs-cbindgen.md) and
-[Limitations](../explanation/limitations.md) so you know what features won't
+[Comparison with `cbindgen`](../limits-and-alternatives/vs-cbindgen.md) and
+[Limitations](../limits-and-alternatives/limitations.md) so you know what features won't
 carry over.
 
 ## 1. Install `cheadergen`
@@ -97,7 +97,7 @@ Expect differences in these places:
 
 - **`#[cfg]`-gated items.** `cheadergen` sees only the items reachable for the
   current build target; `cbindgen` translates them to `#ifdef`s. There is no
-  way to make these match — see [Limitations](../explanation/limitations.md).
+  way to make these match — see [Limitations](../limits-and-alternatives/limitations.md).
 - **Array length constants.** `[i32; FOO]` becomes `int32_t x[FOO]` in
   `cbindgen` and `int32_t x[10]` in `cheadergen`.
 - **Whitespace.** Both tools format their output, but the rules differ;
@@ -114,7 +114,7 @@ and a diff.
 
 `--bundle` is the closest match to `cbindgen`'s behaviour. Once the bundled
 output is right, consider whether
-[partitioned mode](../explanation/partitioning.md) would suit your project
+[partitioned mode](../what-you-get/partitioning.md) would suit your project
 better:
 
 - Workspaces with multiple FFI-facing crates almost always benefit.

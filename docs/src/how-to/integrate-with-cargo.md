@@ -63,6 +63,6 @@ There's no universal convention; pick what works for your project.
 It's common to use a directory in the crate root (e.g. `/include`), committed alongside the Rust source.
 Easy for downstream C consumers: they `-I path/to/crate/include`.
 
-If you're using [partitioned mode](../explanation/partitioning.md), pass
+If you're using [partitioned mode](../what-you-get/partitioning.md), pass
 `--prune-orphans` to keep the output directory clean as types are added and
 removed.

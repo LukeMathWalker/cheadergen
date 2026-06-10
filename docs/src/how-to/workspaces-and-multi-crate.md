@@ -5,7 +5,9 @@ crates that share types. In partitioned mode (the default) the right shape
 falls out automatically: each crate that contributes types gets its own
 header, and consuming crates `#include` it.
 
-This guide shows the common patterns.
+This guide shows the common patterns. For the mental model of which
+crates participate in a run and why, see
+[Target packages](../foundations/target-packages.md).
 
 ## Select multiple target packages
 
@@ -115,9 +117,9 @@ get cleaned up.
 
 ## See also
 
-- [Bundled vs partitioned output](../explanation/partitioning.md) — the
+- [Bundled vs partitioned output](../what-you-get/partitioning.md) — the
   conceptual model behind the per-crate header layout.
-- [Generics and monomorphization](../explanation/generics-and-monomorphization.md) —
+- [Generics and monomorphization](../how-it-works/generics-and-monomorphization.md) —
   where `Wrapper<i32>` actually ends up.
 - The [`cheadergen.toml` reference](https://docs.rs/cheadergen/latest/cheadergen/config_reference/index.html)
   for the full `[package.<name>]` schema.

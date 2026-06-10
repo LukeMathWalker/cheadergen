@@ -8,6 +8,11 @@ options that influence each section.
 Knowing the structure helps when **reading a generated header** and if you're trying to
 **customise the output**.
 
+Options like `preamble`, `[header.<name>].include_guard`, and `[package.<name>]`
+live in `cheadergen.toml`. See [Global configuration](../foundations/global-configuration.md) for how
+the file is discovered and loaded; this page focuses on _which_ section
+each option affects.
+
 ## The sections, in order
 
 | #  | Section                                                                            | Configured by                                                                                                                   |
