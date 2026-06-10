@@ -5,7 +5,7 @@ the hood, which is the slowest step of the whole pipeline. To keep iteration
 fast, `cheadergen` keeps the resulting JSON in a per-crate on-disk cache and
 reuses it on subsequent runs.
 
-You normally don't have to touch the cach, it builds up incrementally as
+You normally don't have to touch the cache, it builds up incrementally as
 you run `cheadergen generate`. This page documents the `cheadergen cache`
 subcommands for the cases where you do.
 
