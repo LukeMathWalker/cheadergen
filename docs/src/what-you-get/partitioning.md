@@ -2,13 +2,14 @@
 
 `cheadergen` has two output modes: **bundled** and **partitioned**
 
-**Bundled** emits a self-contained header for a single target crate, with
-every reachable dependency type inlined. It can't be used if you're trying
-to generate C headers for _multiple_ Rust crates at once.
+**Bundled** emits a self-contained header for a single
+[target package](../foundations/target-packages.md), with every reachable dependency type
+inlined. It only handles one target per run.
 
 **Partitioned** (the default) generates a C header for each _defining_ crate,
 with cross-crate references wired up automatically via `#include` directives.
-Partitioned supports generating C headers for multiple Rust crates at once.
+Use partitioned when you have multiple target packages, or when you want
+shared types to live in their own header.
 
 This page explains the model, the trade-offs, and the knobs you can turn.
 
@@ -24,12 +25,12 @@ This page explains the model, the trade-offs, and the knobs you can turn.
 
 ## Bundled mode
 
-Bundled mode is a single-target mode. Pass `--bundle` (or set
-`bundle = true` in `cheadergen.toml`) with exactly one target package and
-`cheadergen` will produce one self-contained header. Every type the target
-references (whether it's defined in the target itself, in a workspace
-member, or in a crates.io dependency) is inlined into that single output
-file.
+Bundled mode handles one target package per run. Pass `--bundle` (or set
+`bundle = true` in `cheadergen.toml`) with exactly one
+[target package](../foundations/target-packages.md) and `cheadergen` produces a single
+self-contained header. Every type the target references (whether it's
+defined in the target itself, in a workspace member, or in a crates.io
+dependency) is inlined into that output file.
 
 If you select more than one target package with `--bundle`, `cheadergen`
 errors out: two bundles built from overlapping dependency graphs would
@@ -103,7 +104,7 @@ outside `cheadergen`'s control.
 `Wrapper<i32>` doesn't belong to the crate that _defines_ `Wrapper<T>`, it
 belongs to whichever crate _consumes_ the instantiation. This rule avoids
 synthetic cross-crate include dependencies and circular includes. See
-[Generics and monomorphization](./generics-and-monomorphization.md) for the
+[Generics and monomorphization](../how-it-works/generics-and-monomorphization.md) for the
 full treatment.
 
 ## The partitioned-only CLI flags

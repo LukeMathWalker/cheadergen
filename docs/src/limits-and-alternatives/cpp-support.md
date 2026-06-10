@@ -48,7 +48,7 @@ needs to consume `cheadergen` output from C++.
 
 - [Limitations](./limitations.md) for a wider view of what `cheadergen` does
   and doesn't do today.
-- [Anatomy of a generated header](./header-structure.md) for where the
+- [Anatomy of a generated header](../what-you-get/header-structure.md) for where the
   `extern "C"` block lands in the generated file.
 - [Comparison with `cbindgen`](./vs-cbindgen.md). `cbindgen` does ship some
   C++-idiomatic features that `cheadergen` doesn't.

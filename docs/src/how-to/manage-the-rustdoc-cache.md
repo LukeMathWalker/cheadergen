@@ -49,7 +49,7 @@ In practice you rarely need this. Reasons you might:
 
 ## See also
 
-- [The processing pipeline](../explanation/pipeline.md) for where the cache
+- [The processing pipeline](../how-it-works/pipeline.md) for where the cache
   fits into a `generate` invocation.
 - [Integrate with Cargo](./integrate-with-cargo.md) for the broader
   workflow `cheadergen` slots into.

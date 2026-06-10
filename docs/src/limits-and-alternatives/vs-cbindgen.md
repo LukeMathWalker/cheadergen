@@ -79,31 +79,6 @@ Furthermore, this requires you have to a `nightly` toolchain installed,
 at least on dev machines. This issue may go away in the future,
 once `rustdoc-json` stabilizes.
 
-## Annotation translation table
-
-If you're moving from `cbindgen`, this table covers the most common
-directives:
-
-| `cbindgen`                                       | `cheadergen`                                                 |
-| ------------------------------------------------ | ------------------------------------------------------------ |
-| `/// cbindgen:no-export` / `/// cbindgen:ignore` | `#[cheadergen::config(skip)]`                                |
-| `/// cbindgen:rename-all=ScreamingSnakeCase`     | `#[cheadergen::config(rename_all = "SCREAMING_SNAKE_CASE")]` |
-| `/// cbindgen:field-names=[x, y]`                | `#[cheadergen::config(field_names(x, y))]`                   |
-| `/// cbindgen:prefix-with-name`                  | `#[cheadergen::config(prefix_with_name)]`                    |
-| `/// cbindgen:bitfield` (field-level)            | `#[cheadergen(bitfield = N)]`                                |
-
-## Translating `cbindgen.toml` automatically
-
-You don't have to convert your existing config file by hand:
-
-```bash
-cheadergen config translate --from cbindgen.toml --to cheadergen.toml
-```
-
-The translator covers the option set `cheadergen` supports today. Anything that
-doesn't translate is reported as a warning so you know to handle it
-manually.
-
 ## When you'd pick `cbindgen`
 
 - You need `#[cfg]`-to-`#ifdef` translation (Firefox-style multi-platform
@@ -122,4 +97,4 @@ manually.
   isn't a blocker.
 
 If you're using `cbindgen` on a project, and you want to migrate over,
-check out out [migration guide](../how-to/migrate-from-cbindgen.md).
+check out our [migration guide](../how-to/migrate-from-cbindgen.md).

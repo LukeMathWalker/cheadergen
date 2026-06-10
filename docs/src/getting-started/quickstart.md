@@ -40,10 +40,12 @@ pub extern "C" fn distance(a: Point, b: Point) -> f64 {
 ```
 
 > **Why these annotations?**
-> `#[unsafe(no_mangle)]` keeps the function name intact for the linker.
-> `extern "C"` selects the C calling convention.
-> Without those annotations, `distance` wouldn't be a valid C entrypoint,
-> and `cheadergen` would skip it.
+> `#[unsafe(no_mangle)]` keeps the symbol name intact so a C linker can
+> resolve it. `extern "C"` makes the function use the C calling
+> convention so a C caller passes arguments and reads the return value the
+> way Rust expects. Together they make `distance` callable from C.
+> Without them, `cheadergen` has no signal that you intend the function to
+> be reachable from C and skips it.
 >
 > Same reasoning applies to `Point`: `#[repr(C)]` guarantees that the
 > struct's layout matches a C struct. Without it, `cheadergen` would
@@ -61,7 +63,7 @@ You should see something like:
 Generating headers for 1 crate(s) using toolchain `nightly-...`
 Successfully loaded rustdoc JSON for `distance`: root module `distance`
 `distance`: 1 function(s), 0 static(s), 0 constant(s)
-Wrote target header: distance.h
+Wrote target header: include/distance.h
 ```
 
 ## 3. Read the output
@@ -87,11 +89,11 @@ double distance(Point a, Point b);
 ```
 
 That's the whole loop. To understand how the generated C header is structured
-(and how to customise it), read [Anatomy of a generated header](../explanation/header-structure.md).
+(and how to customise it), read [Anatomy of a generated header](../what-you-get/header-structure.md).
 
 ## Where to go next
 
 - Customise emission via [`cheadergen.toml`](https://docs.rs/cheadergen/latest/cheadergen/config_reference/index.html).
-- Customise how Rust items are exposed to C via [`#[cheadergen::config(...)]`](https://docs.rs/cheadergen/latest/cheadergen/attr.config.html). Start from the [annotations mental model](../explanation/annotations-overview.md).
+- Customise how Rust items are exposed to C via [`#[cheadergen::config(...)]`](https://docs.rs/cheadergen/latest/cheadergen/attr.config.html). Start from the [annotations mental model](../foundations/item-annotations.md).
 - Wire header generation into your build system with
   [Integrate with Cargo](../how-to/integrate-with-cargo.md).

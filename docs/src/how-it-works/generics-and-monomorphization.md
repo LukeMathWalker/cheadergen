@@ -55,7 +55,7 @@ and `Either_i32` (the outer struct). All members of a family travel together; se
 
 ## Placement
 
-In [bundled mode](./partitioning.md) the question is moot: every
+In [bundled mode](../what-you-get/partitioning.md) the question is moot: every
 monomorphization ends up in the single output header. In partitioned mode
 `cheadergen` has to pick one of (potentially) several headers as the owner.
 
@@ -110,4 +110,4 @@ exactly once, so guards aren't needed and would just clutter the output.
 
 ## See also
 
-- [Bundled vs partitioned output](./partitioning.md) to understand why partitioned mode needs these rules at all.
+- [Bundled vs partitioned output](../what-you-get/partitioning.md) to understand why partitioned mode needs these rules at all.

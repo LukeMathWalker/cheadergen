@@ -752,12 +752,13 @@ fn generate_partitioned(
         );
 
         let filename = filenames.filename(&pkg_id, cli.lang.extension());
-        let did_write = write_header_if_changed(&cli.output_dir.join(&filename), &header)?;
+        let output_path = cli.output_dir.join(&filename);
+        let did_write = write_header_if_changed(&output_path, &header)?;
 
         if !cli.quiet {
             let kind = if is_target { "target" } else { "dependency" };
             let status = if did_write { "Wrote" } else { "Unchanged" };
-            eprintln!("{status} {kind} header: {filename}");
+            eprintln!("{status} {kind} header: {}", output_path.display());
         }
 
         written.insert(filename);
