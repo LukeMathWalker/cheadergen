@@ -4,6 +4,7 @@ resolver = "3"
 
 [workspace.package]
 edition = "2024"
+homepage = "https://cheadergen.com"
 repository = "https://github.com/LukeMathWalker/cheadergen"
 license = "Apache-2.0"
 version = "0.2.4"

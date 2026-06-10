@@ -4,7 +4,12 @@ version.workspace = true
 edition.workspace = true
 description = "Annotations for controlling C/C++ header generation from Rust."
 license.workspace = true
+homepage.workspace = true
 repository.workspace = true
+documentation = "https://docs.rs/cheadergen"
+readme = "../README.md"
+keywords = ["bindings", "ffi", "header", "code-generation"]
+categories = ["external-ffi-bindings", "development-tools::ffi"]
 
 [dependencies]
 cheadergen_macros = { workspace = true }
