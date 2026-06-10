@@ -39,8 +39,8 @@ pub(super) struct GenerateArgs {
     #[arg(short, long)]
     config: Option<PathBuf>,
 
-    /// Target language for the generated bindings.
-    #[arg(short, long)]
+    /// Target language for the generated bindings. Defaults to `c`.
+    #[arg(short, long, default_value = "c")]
     lang: Language,
 
     /// Add C++ compatibility features to the generated C header (C only).

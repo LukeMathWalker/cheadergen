@@ -23,7 +23,7 @@ A minimal `justfile`:
 ```just
 # Regenerate C headers
 headers:
-    cheadergen generate --lang c --output-dir include --prune-orphans .
+    cheadergen generate --output-dir include --prune-orphans .
 
 # Build the crate, refreshing headers first
 build: headers
@@ -36,7 +36,7 @@ A minimal `Makefile`:
 .PHONY: headers build
 
 headers:
-	cheadergen generate --lang c --output-dir include --prune-orphans .
+	cheadergen generate --output-dir include --prune-orphans .
 
 build: headers
 	cargo build --release

@@ -83,7 +83,7 @@ The proc-macro lives in the `cheadergen` crate; you don't need to depend on
 ## 4. Regenerate and diff
 
 ```bash
-cheadergen generate --lang c --output-dir include --bundle .
+cheadergen generate --output-dir include --bundle .
 ```
 
 Pass `--bundle` to match `cbindgen`'s "single file per crate" shape. Once you
