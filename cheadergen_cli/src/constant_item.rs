@@ -75,7 +75,19 @@ pub fn resolve_constant(
                     .emit();
                 return None;
             }
-            sanitize_char_literal(&const_.expr)
+            match sanitize_char_literal(&const_.expr) {
+                Some(value) => value,
+                None => {
+                    diagnostics
+                        .error(format!(
+                            "constant `{name}` has a malformed char literal: `{}`",
+                            const_.expr
+                        ))
+                        .with_span_if(item.span.as_ref())
+                        .emit();
+                    return None;
+                }
+            }
         }
         // Numeric types: strip Rust suffixes and underscores.
         Type::ScalarPrimitive(prim)
@@ -177,7 +189,20 @@ pub fn resolve_assoc_constant(
 
     let value = match &resolved {
         Type::ScalarPrimitive(ScalarPrimitive::Bool) => raw_value.clone(),
-        Type::ScalarPrimitive(ScalarPrimitive::Char) => sanitize_char_literal(raw_value),
+        Type::ScalarPrimitive(ScalarPrimitive::Char) => {
+            match sanitize_char_literal(raw_value) {
+                Some(value) => value,
+                None => {
+                    diagnostics
+                        .error(format!(
+                            "assoc constant `{type_name}_{const_name}` has a malformed char literal: `{raw_value}`"
+                        ))
+                        .with_span_if(item.span.as_ref())
+                        .emit();
+                    return None;
+                }
+            }
+        }
         Type::ScalarPrimitive(prim)
             if !matches!(
                 prim,
@@ -209,21 +234,38 @@ pub fn resolve_assoc_constant(
 
 /// Convert a Rust char literal (from rustdoc's `expr`) to a C-compatible form.
 ///
-/// ASCII chars and standard escape sequences pass through unchanged.
-/// Non-ASCII Unicode chars are converted to C11 universal character names.
-fn sanitize_char_literal(expr: &str) -> String {
+/// ASCII chars pass through unchanged, as do the escape sequences C shares
+/// with Rust (`\n`, `\t`, `\\`, `\'`, `\0`, `\xNN`, …). Rust-only `\u{…}`
+/// escapes and non-ASCII chars are converted to C11 universal character
+/// names. Returns `None` if the literal is malformed.
+fn sanitize_char_literal(expr: &str) -> Option<String> {
     // expr is like "'X'" — strip surrounding quotes
-    let inner = &expr[1..expr.len() - 1];
-    if inner.starts_with('\\') {
-        // Escape sequence — ASCII-compatible, pass through
-        expr.to_string()
-    } else {
-        let ch = inner.chars().next().expect("empty char literal");
-        if ch.is_ascii() {
-            expr.to_string()
+    let inner = expr.strip_prefix('\'')?.strip_suffix('\'')?;
+    if let Some(escape) = inner.strip_prefix('\\') {
+        if let Some(hex) = escape.strip_prefix("u{").and_then(|h| h.strip_suffix('}')) {
+            // Rust-only `\u{…}` escape: C universal character names use
+            // `\uXXXX`/`\UXXXXXXXX`, without braces.
+            let code = u32::from_str_radix(&hex.replace('_', ""), 16).ok()?;
+            Some(char_to_c_literal(char::from_u32(code)?))
         } else {
-            format!("U'\\U{:08X}'", ch as u32)
+            // The remaining Rust escapes (`\n`, `\t`, `\r`, `\\`, `\'`,
+            // `\"`, `\0`, `\xNN`) are also valid C escapes.
+            Some(expr.to_string())
         }
+    } else {
+        Some(char_to_c_literal(inner.chars().next()?))
+    }
+}
+
+/// Render a char as a C literal: plain for printable ASCII, `\xNN` for ASCII
+/// control codes, `U'\UXXXXXXXX'` for everything else.
+fn char_to_c_literal(ch: char) -> String {
+    match ch {
+        '\'' => r"'\''".to_string(),
+        '\\' => r"'\\'".to_string(),
+        ch if ch.is_ascii_control() => format!("'\\x{:02X}'", ch as u32),
+        ch if ch.is_ascii() => format!("'{ch}'"),
+        ch => format!("U'\\U{:08X}'", ch as u32),
     }
 }
 

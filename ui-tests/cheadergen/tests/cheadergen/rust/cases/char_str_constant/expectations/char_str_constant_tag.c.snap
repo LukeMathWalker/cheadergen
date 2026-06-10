@@ -30,6 +30,21 @@ expression: output
 
 #define EQUID U'\U00010083'
 
+/**
+ * A Unicode escape — C has no braced `\u{…}` form.
+ */
+#define ESCAPED_HEART U'\U00002764'
+
+/**
+ * A Unicode escape that lands in the ASCII range.
+ */
+#define ESCAPED_AT '@'
+
+/**
+ * A hex escape, valid in both Rust and C.
+ */
+#define ESCAPE_CHAR '\x1B'
+
 #define GREETING "hello world"
 
 void anchor(void);
