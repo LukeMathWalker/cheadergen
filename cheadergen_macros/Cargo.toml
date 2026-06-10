@@ -2,9 +2,11 @@
 name = "cheadergen_macros"
 version.workspace = true
 edition.workspace = true
-description = "Proc-macro attributes for cheadergen."
+description = "Proc-macro attributes for cheadergen. Use the `cheadergen` crate instead of depending on this directly."
 license.workspace = true
+homepage.workspace = true
 repository.workspace = true
+documentation = "https://docs.rs/cheadergen_macros"
 
 [lib]
 proc-macro = true
