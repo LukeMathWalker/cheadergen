@@ -26,7 +26,7 @@ they stay in sync.
    non-empty:
 
    ```bash
-   cheadergen generate --lang c --output-dir include --prune-orphans .
+   cheadergen generate --output-dir include --prune-orphans .
    git diff --exit-code include/
    ```
 

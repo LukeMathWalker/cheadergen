@@ -14,7 +14,6 @@ in one invocation:
 
 ```bash
 cheadergen generate \
-    --lang c \
     --output-dir include \
     --package alpha \
     --package beta
@@ -28,7 +27,6 @@ target every library member in that directory:
 
 ```bash
 cheadergen generate \
-    --lang c \
     --output-dir include \
     /workspace/directory
 ```
@@ -83,7 +81,6 @@ that this run didn't write. Useful when you remove types or packages:
 
 ```bash
 cheadergen generate \
-    --lang c \
     --output-dir include \
     --prune-orphans \
     -p alpha \
@@ -106,7 +103,6 @@ Pass `--skip-empty` to suppress the empty files:
 
 ```bash
 cheadergen generate \
-    --lang c \
     --output-dir include \
     --skip-empty \
     --prune-orphans \
