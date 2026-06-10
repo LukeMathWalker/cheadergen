@@ -24,14 +24,25 @@ cheadergen generate \
 Each `--package` argument names a workspace member that should produce a "target"
 header (one with `extern "C"` function declarations, not just types).
 
-Alternatively, omit `--package` and pass a workspace directory; `cheadergen` will
-target every library member in that directory:
+Alternatively, omit `--package` and use `--input-dir` to target every library
+member under one or more workspace directories:
 
 ```bash
 cheadergen generate \
     --output-dir include \
-    /workspace/directory
+    --input-dir crates/alpha \
+    --input-dir crates/beta
 ```
+
+Pass `--input-dir` multiple times to combine several directories. Each path
+must live inside the workspace rooted at the current directory.
+
+Omitting both `--package` and `--input-dir` falls back to a Cargo-style
+default: if the current directory sits inside a workspace member
+it targets just that member, otherwise it targets the workspace's
+`default-members` (every member, for a virtual workspace). See
+[Target packages](../foundations/target-packages.md#default) for the full
+rule.
 
 ## What gets generated
 
@@ -107,8 +118,7 @@ Pass `--skip-empty` to suppress the empty files:
 cheadergen generate \
     --output-dir include \
     --skip-empty \
-    --prune-orphans \
-    .
+    --prune-orphans
 ```
 
 `--skip-empty` is partitioned-only (it's rejected with `--bundle`).

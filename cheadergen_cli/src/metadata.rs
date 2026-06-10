@@ -14,19 +14,15 @@ use crate::indexing::CheadergenIndexer;
 pub const DOCS_TOOLCHAIN: &str = include_str!("../rust-docs-toolchain");
 
 /// Load cargo metadata and build a package graph.
-pub fn load_package_graph(
-    metadata_path: Option<&PathBuf>,
-    input: Option<&PathBuf>,
-) -> anyhow::Result<PackageGraph> {
+///
+/// When `metadata_path` is `None`, `cargo metadata` runs in the process's
+/// current working directory.
+pub fn load_package_graph(metadata_path: Option<&PathBuf>) -> anyhow::Result<PackageGraph> {
     let metadata = if let Some(metadata_path) = metadata_path {
         let json = fs_err::read_to_string(metadata_path)?;
         guppy::CargoMetadata::parse_json(&json)?
     } else {
-        let mut cmd = MetadataCommand::new();
-        if let Some(input) = input {
-            cmd.current_dir(input);
-        }
-        cmd.exec()?
+        MetadataCommand::new().exec()?
     };
     Ok(metadata.build_graph()?)
 }

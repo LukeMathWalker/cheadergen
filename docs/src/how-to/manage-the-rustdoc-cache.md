@@ -24,9 +24,10 @@ action.
 ## Pre-warm the cache
 
 ```bash
-cheadergen cache warm                    # all workspace members in cwd
-cheadergen cache warm path/to/Cargo.toml # one crate
-cheadergen cache warm -p alpha -p beta   # specific workspace members
+cheadergen cache warm                                # Cargo-style default
+cheadergen cache warm --input-dir crates/alpha       # one workspace directory
+cheadergen cache warm --input-dir a --input-dir b    # several workspace directories
+cheadergen cache warm -p alpha -p beta               # specific workspace members by name
 ```
 
 `cache warm` issues a single batched `cargo doc -p crate1 -p crate2 ...`

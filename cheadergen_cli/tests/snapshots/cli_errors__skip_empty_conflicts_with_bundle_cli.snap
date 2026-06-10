@@ -5,6 +5,6 @@ expression: stderr
 ---
 error: the argument '--skip-empty' cannot be used with '--bundle'
 
-Usage: cheadergen generate --output-dir <OUTPUT_DIR> --config <CONFIG> --lang <LANG> --skip-empty [INPUT]
+Usage: cheadergen generate --output-dir <OUTPUT_DIR> --config <CONFIG> --lang <LANG> --skip-empty
 
 For more information, try '--help'.
