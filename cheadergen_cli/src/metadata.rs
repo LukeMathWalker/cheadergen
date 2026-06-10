@@ -1,3 +1,4 @@
+use anyhow::Context as _;
 use guppy::MetadataCommand;
 use guppy::graph::PackageGraph;
 use rustdoc_processor::CrateCollection;
@@ -68,7 +69,7 @@ pub fn create_collection(package_graph: PackageGraph) -> anyhow::Result<crate::C
     );
     collection
         .bootstrap(std::iter::empty())
-        .expect("Failed to bootstrap the crate collection");
+        .context("Failed to bootstrap the crate collection")?;
 
     Ok(collection)
 }
