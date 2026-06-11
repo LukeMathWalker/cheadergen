@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0](https://github.com/LukeMathWalker/cheadergen/compare/0.2.4...0.3.0) - 2026-06-11
+
+### ‼️ Breaking changes
+
+- Remove positional path argument. Alignment default behaviour with cargo. (by @LukeMathWalker) - #19
+
+### 🐛 Bug Fixes
+
+- Convert Rust-only char escapes to valid C in generated `#define` values (by @LukeMathWalker) - #20
+
+### 📚 Documentation
+
+- Publish a high-level user guide at <https://cheadergen.com> (by @LukeMathWalker)
+
+### Contributors
+
+- @LukeMathWalker
+
 ## [0.2.4](https://github.com/LukeMathWalker/cheadergen/compare/0.2.3...0.2.4) - 2026-06-04
 
 ### ⛰️ Features
