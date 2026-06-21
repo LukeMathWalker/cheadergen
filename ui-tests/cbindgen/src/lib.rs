@@ -3,10 +3,10 @@ use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 use std::{fs, str};
 
-pub use ui_tests_toolkit::types::{Language, Style};
-pub use ui_tests_toolkit::{compile, style_str};
 use ui_tests_toolkit::cheadergen::{get_metadata, run_cheadergen, run_cheadergen_symbols};
 use ui_tests_toolkit::generate::find_generated_file;
+pub use ui_tests_toolkit::types::{Language, Style};
+pub use ui_tests_toolkit::{compile, style_str};
 
 const SKIP_WARNING_AS_ERROR_SUFFIX: &str = ".skip_warning_as_error";
 
@@ -93,7 +93,9 @@ fn invoke_cheadergen(
     } else {
         &*CBINDGEN_WORKSPACE_METADATA
     };
-    run_cheadergen(path, language, cpp_compat, style, output_dir, metadata, package, true)
+    run_cheadergen(
+        path, language, cpp_compat, style, output_dir, metadata, package, true,
+    )
 }
 
 pub fn run_generate_test(
@@ -105,7 +107,15 @@ pub fn run_generate_test(
     package: Option<&str>,
 ) {
     let output_dir = tempfile::tempdir().expect("failed to create temp dir");
-    let output = invoke_cheadergen(name, path, language, style, cpp_compat, output_dir.path(), package);
+    let output = invoke_cheadergen(
+        name,
+        path,
+        language,
+        style,
+        cpp_compat,
+        output_dir.path(),
+        package,
+    );
     assert!(
         output.status.success(),
         "cheadergen failed for {path:?} with error: {}",
@@ -161,7 +171,15 @@ pub fn run_header_diff_test(
     package: Option<&str>,
 ) {
     let output_dir = tempfile::tempdir().expect("failed to create temp dir");
-    let output = invoke_cheadergen(name, path, language, style, cpp_compat, output_dir.path(), package);
+    let output = invoke_cheadergen(
+        name,
+        path,
+        language,
+        style,
+        cpp_compat,
+        output_dir.path(),
+        package,
+    );
     assert!(
         output.status.success(),
         "header_diff test `{name} {variant_path}` expected cheadergen to succeed, \
@@ -184,8 +202,10 @@ pub fn run_header_diff_test(
     }
 
     // Snapshot the differing output.
-    let diff_snap_name =
-        format!("{}.diff", expectation_filename(name, style, language, cpp_compat));
+    let diff_snap_name = format!(
+        "{}.diff",
+        expectation_filename(name, style, language, cpp_compat)
+    );
 
     let mut settings = insta::Settings::clone_current();
     settings.set_snapshot_path(&expectations_dir);
@@ -207,7 +227,15 @@ pub fn run_generation_fails_test(
     package: Option<&str>,
 ) {
     let output_dir = tempfile::tempdir().expect("failed to create temp dir");
-    let output = invoke_cheadergen(name, path, language, style, cpp_compat, output_dir.path(), package);
+    let output = invoke_cheadergen(
+        name,
+        path,
+        language,
+        style,
+        cpp_compat,
+        output_dir.path(),
+        package,
+    );
     if output.status.success() {
         panic!(
             "generation_fails test `{name} {variant_path}` expected cheadergen to fail, \

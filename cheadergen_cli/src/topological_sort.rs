@@ -97,7 +97,11 @@ pub fn topological_sort(
     };
 
     let mut in_degree: Vec<usize> = (0..n)
-        .map(|i| graph.neighbors_directed(nodes[i], Direction::Incoming).count())
+        .map(|i| {
+            graph
+                .neighbors_directed(nodes[i], Direction::Incoming)
+                .count()
+        })
         .collect();
 
     // BTreeMap keyed by (line, col, name, idx) for deterministic, collision-free ordering.
@@ -140,7 +144,9 @@ pub fn topological_sort(
             cycle_found = true;
             let cycle = extract_cycle_from_scc(scc, &graph, &compounds);
             diagnostics
-                .warning(format!("cycle detected in by-value type dependencies: {cycle}"))
+                .warning(format!(
+                    "cycle detected in by-value type dependencies: {cycle}"
+                ))
                 .with_help("appending remaining types in source order")
                 .emit();
         }
@@ -238,10 +244,7 @@ fn extract_cycle_from_scc(
     names.join(" -> ")
 }
 
-fn span_sort_key_for_def(
-    def: &CTypeDefinition,
-    collection: &Collection,
-) -> (usize, usize) {
+fn span_sort_key_for_def(def: &CTypeDefinition, collection: &Collection) -> (usize, usize) {
     let Some(gid) = &def.rustdoc_id else {
         return (usize::MAX, usize::MAX);
     };

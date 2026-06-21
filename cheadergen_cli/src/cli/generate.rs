@@ -65,6 +65,16 @@ pub(super) struct GenerateArgs {
     #[arg(long)]
     symbol_file: Option<PathBuf>,
 
+    /// Rust toolchain used by `rustdoc` for generating JSON documentation.
+    ///
+    /// Be careful: specifying a custom toolchain may break `cheadergen`!
+    #[arg(
+        long = "rust-toolchain",
+        env = metadata::DOC_TOOLCHAIN_ENV_VAR,
+        default_value = metadata::DOCS_TOOLCHAIN
+    )]
+    rust_toolchain: String,
+
     /// Suppress header output. Must be used with --symbol-file.
     #[arg(long)]
     no_header: bool,
@@ -369,9 +379,7 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
     }
 
     if cli.skip_empty && config_set.bundle {
-        anyhow::bail!(
-            "--skip-empty is only valid in partitioned mode; remove --bundle to use it"
-        );
+        anyhow::bail!("--skip-empty is only valid in partitioned mode; remove --bundle to use it");
     }
 
     let package_graph = metadata::load_package_graph(cli.metadata.as_ref())?;
@@ -388,8 +396,7 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
     // Drop packages without a library target. Explicit `-p` selections
     // produce an error; implicit ones (directory / workspace defaults) are
     // skipped with a warning so bin-only siblings don't block the real libs.
-    let explicit_names: HashSet<String> =
-        cli.package_selection.packages.iter().cloned().collect();
+    let explicit_names: HashSet<String> = cli.package_selection.packages.iter().cloned().collect();
     let packages =
         filter_library_targets(packages, &package_graph, &explicit_names, &mut diagnostics);
 
@@ -410,16 +417,15 @@ pub(super) fn generate(cli: &GenerateArgs) -> anyhow::Result<()> {
         );
     }
 
-    let toolchain = std::env::var("CHEADERGEN_DOCS_TOOLCHAIN")
-        .unwrap_or_else(|_| metadata::DOCS_TOOLCHAIN.to_string());
     if !cli.quiet {
         eprintln!(
             "Generating headers for {} crate(s) using toolchain `{toolchain}`...",
-            packages.len()
+            packages.len(),
+            toolchain = cli.rust_toolchain,
         );
     }
 
-    let collection = metadata::create_collection(package_graph)?;
+    let collection = metadata::create_collection(package_graph, &cli.rust_toolchain)?;
 
     // Batch-compute rustdoc JSON for all target crates up front. The underlying
     // processor issues a single `cargo doc -p crate1 -p crate2 ...` invocation
@@ -622,8 +628,7 @@ fn generate_partitioned(
 
     // Step 2: Get a common C config (for enum_prefix_with_name and other shared settings).
     // Use the first target's config as the baseline for type collection settings.
-    let first_base_name =
-        target_base_name(graph, &packages[0].0, &packages[0].1, header_renames);
+    let first_base_name = target_base_name(graph, &packages[0].0, &packages[0].1, header_renames);
     let first_config = config_set.for_header(&first_base_name);
     let c_config = match first_config {
         config::Config::C(c) => c,
@@ -895,7 +900,8 @@ fn generate_one_crate(
             _ => anyhow::bail!("Only C output is currently supported"),
         };
 
-        let extern_items = extern_items.resolve(collection, &c_config.common, overrides, diagnostics);
+        let extern_items =
+            extern_items.resolve(collection, &c_config.common, overrides, diagnostics);
 
         if !cli.quiet {
             eprintln!("Resolved {} function(s) to IR", extern_items.fns.len());
@@ -953,7 +959,29 @@ fn generate_one_crate(
 
 #[cfg(test)]
 mod tests {
-    use super::write_header_if_changed;
+    use super::{GenerateArgs, write_header_if_changed};
+    use crate::metadata;
+    use clap::Parser;
+
+    #[test]
+    fn accepts_rust_toolchain_flag() {
+        let args = GenerateArgs::parse_from([
+            "generate",
+            "--output-dir",
+            "include",
+            "--rust-toolchain",
+            "nightly-custom",
+        ]);
+
+        assert_eq!(args.rust_toolchain, "nightly-custom");
+    }
+
+    #[test]
+    fn defaults_rust_toolchain() {
+        let args = GenerateArgs::parse_from(["generate", "--output-dir", "include"]);
+
+        assert_eq!(args.rust_toolchain, metadata::DOCS_TOOLCHAIN);
+    }
 
     #[test]
     fn write_header_if_changed_skips_identical_content() {

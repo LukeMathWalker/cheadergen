@@ -248,10 +248,7 @@ fn translate_config(cb: &CbindgenConfig) -> (RawConfig, Vec<String>) {
     // synthesizes a path-aware default. To preserve cbindgen's behavior after
     // translation, suppress the default with an empty string when the source
     // config didn't set one.
-    let autogen_warning = cb
-        .autogen_warning
-        .clone()
-        .or_else(|| Some(String::new()));
+    let autogen_warning = cb.autogen_warning.clone().or_else(|| Some(String::new()));
 
     let mut config = RawConfig {
         preamble: cb.header.clone(),

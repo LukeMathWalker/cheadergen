@@ -46,6 +46,16 @@ struct WarmArgs {
     #[arg(long)]
     metadata: Option<PathBuf>,
 
+    /// Rust toolchain used by `rustdoc` for generating JSON documentation.
+    ///
+    /// Be careful: specifying a custom toolchain may break `cheadergen`!
+    #[arg(
+        long = "rust-toolchain",
+        env = metadata::DOC_TOOLCHAIN_ENV_VAR,
+        default_value = metadata::DOCS_TOOLCHAIN
+    )]
+    rust_toolchain: String,
+
     /// Suppress all output.
     #[arg(short, long)]
     quiet: bool,
@@ -76,8 +86,7 @@ fn warm(args: &WarmArgs) -> anyhow::Result<()> {
     let ws_root: PathBuf = package_graph.workspace().root().to_path_buf().into();
     let debug = std::env::var("CHEADERGEN_DEBUG").is_ok_and(|v| v == "true" || v == "1");
     let mut diagnostics = DiagnosticSink::new(ws_root, debug);
-    let explicit_names: HashSet<String> =
-        args.package_selection.packages.iter().cloned().collect();
+    let explicit_names: HashSet<String> = args.package_selection.packages.iter().cloned().collect();
     let packages =
         filter_library_targets(packages, &package_graph, &explicit_names, &mut diagnostics);
 
@@ -100,7 +109,7 @@ fn warm(args: &WarmArgs) -> anyhow::Result<()> {
         );
     }
 
-    let collection = metadata::create_collection(package_graph)?;
+    let collection = metadata::create_collection(package_graph, &args.rust_toolchain)?;
     collection.compute_batch(packages.into_iter().map(|(id, _)| id))?;
 
     if !args.quiet {
@@ -146,4 +155,25 @@ fn render_pending_diagnostics(diagnostics: &mut DiagnosticSink, debug: bool) -> 
         eprintln!();
     }
     all.iter().any(|d| d.severity == Severity::Error)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::WarmArgs;
+    use crate::metadata;
+    use clap::Parser;
+
+    #[test]
+    fn accepts_rust_toolchain_flag() {
+        let args = WarmArgs::parse_from(["warm", "--rust-toolchain", "nightly-custom"]);
+
+        assert_eq!(args.rust_toolchain, "nightly-custom");
+    }
+
+    #[test]
+    fn defaults_rust_toolchain() {
+        let args = WarmArgs::parse_from(["warm"]);
+
+        assert_eq!(args.rust_toolchain, metadata::DOCS_TOOLCHAIN);
+    }
 }

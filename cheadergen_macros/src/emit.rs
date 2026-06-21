@@ -26,9 +26,7 @@ fn emit_one(directive: &Directive) -> TokenStream {
         Directive::PrefixWithName { value: None, .. } => {
             quote! { #[diagnostic::cheadergen::prefix_with_name] }
         }
-        Directive::PrefixWithName {
-            value: Some(v), ..
-        } => {
+        Directive::PrefixWithName { value: Some(v), .. } => {
             quote! { #[diagnostic::cheadergen::prefix_with_name(#v)] }
         }
         Directive::FieldNames { names, .. } => {
@@ -151,10 +149,7 @@ fn is_cheadergen_attr(attr: &Attribute) -> bool {
     path.segments[0].ident == "cheadergen"
 }
 
-fn parse_and_rewrite(
-    attr: Attribute,
-    is_variant: bool,
-) -> Result<TokenStream, syn::Error> {
+fn parse_and_rewrite(attr: Attribute, is_variant: bool) -> Result<TokenStream, syn::Error> {
     let directives: FieldDirectives = match &attr.meta {
         Meta::List(list) => syn::parse2(list.tokens.clone())?,
         _ => {
@@ -168,17 +163,13 @@ fn parse_and_rewrite(
     let mut tokens = TokenStream::new();
     for directive in &directives.items {
         // Validate: bitfield not allowed on variants
-        if is_variant
-            && let FieldDirective::Bitfield { span, .. } = directive
-        {
+        if is_variant && let FieldDirective::Bitfield { span, .. } = directive {
             return Err(syn::Error::new(
                 *span,
                 "`bitfield` cannot be applied to enum variants",
             ));
         }
-        if is_variant
-            && let FieldDirective::ConstPtr { span } = directive
-        {
+        if is_variant && let FieldDirective::ConstPtr { span } = directive {
             return Err(syn::Error::new(
                 *span,
                 "`const_ptr` cannot be applied to enum variants",

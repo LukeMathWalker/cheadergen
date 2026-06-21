@@ -21,7 +21,7 @@ annotate-snippets = "0.11"
 anyhow = "1"
 bincode = "2"
 camino = "1"
-clap = { version = "4", features = ["derive"] }
+clap = { version = "4", features = ["derive", "env"] }
 serde = { version = "1", features = ["derive"] }
 toml = "1"
 fs-err = "3"

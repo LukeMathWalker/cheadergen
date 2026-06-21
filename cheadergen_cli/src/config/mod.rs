@@ -1167,10 +1167,7 @@ preamble = "/* C++ */"
 types = "opaque"
 "#;
         let raw: RawConfig = toml::from_str(toml_str).unwrap();
-        assert_eq!(
-            raw.package["my-dep"].types,
-            Some(PackageTypeMode::Opaque)
-        );
+        assert_eq!(raw.package["my-dep"].types, Some(PackageTypeMode::Opaque));
         let config_set = raw
             .into_config(&Language::C, &CliOverrides::default())
             .unwrap();
@@ -1192,10 +1189,7 @@ types = "opaque"
 types = "skip"
 "#;
         let raw: RawConfig = toml::from_str(toml_str).unwrap();
-        assert_eq!(
-            raw.package["other-dep"].types,
-            Some(PackageTypeMode::Skip)
-        );
+        assert_eq!(raw.package["other-dep"].types, Some(PackageTypeMode::Skip));
         let config_set = raw
             .into_config(&Language::C, &CliOverrides::default())
             .unwrap();
@@ -1221,14 +1215,8 @@ types = "skip"
 "#;
         let raw: RawConfig = toml::from_str(toml_str).unwrap();
         assert_eq!(raw.package.len(), 2);
-        assert_eq!(
-            raw.package["foo@1.0"].types,
-            Some(PackageTypeMode::Opaque)
-        );
-        assert_eq!(
-            raw.package["foo@2.0"].types,
-            Some(PackageTypeMode::Skip)
-        );
+        assert_eq!(raw.package["foo@1.0"].types, Some(PackageTypeMode::Opaque));
+        assert_eq!(raw.package["foo@2.0"].types, Some(PackageTypeMode::Skip));
     }
 
     #[test]
@@ -1714,7 +1702,8 @@ include_guard = "LIB_B_H"
         };
 
         let serialized = toml::to_string(&max).expect("serialize max RawConfig");
-        let value: toml::Value = toml::from_str(&serialized).expect("re-parse serialized RawConfig");
+        let value: toml::Value =
+            toml::from_str(&serialized).expect("re-parse serialized RawConfig");
 
         let mut keys: std::collections::HashSet<String> = std::collections::HashSet::new();
         let dynamic = [PACKAGE_DUMMY, HEADER_DUMMY];

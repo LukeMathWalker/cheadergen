@@ -3,11 +3,11 @@ use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 use std::{fs, str};
 
-pub use ui_tests_toolkit::types::{Language, Style};
-pub use ui_tests_toolkit::{compile, style_str};
 use ui_tests_toolkit::cheadergen::{get_metadata, run_cheadergen, run_cheadergen_symbols};
 use ui_tests_toolkit::generate::{find_generated_files, has_snapshot_diagnostics_marker};
 use ui_tests_toolkit::types::language_extension;
+pub use ui_tests_toolkit::types::{Language, Style};
+pub use ui_tests_toolkit::{compile, style_str};
 
 const SKIP_WARNING_AS_ERROR_SUFFIX: &str = ".skip_warning_as_error";
 
@@ -103,7 +103,15 @@ pub fn run_generate_test(
     package: Option<&str>,
 ) {
     let output_dir = tempfile::tempdir().expect("failed to create temp dir");
-    let output = invoke_cheadergen(name, path, language, style, cpp_compat, output_dir.path(), package);
+    let output = invoke_cheadergen(
+        name,
+        path,
+        language,
+        style,
+        cpp_compat,
+        output_dir.path(),
+        package,
+    );
     assert!(
         output.status.success(),
         "cheadergen failed for {path:?} with error: {}",
@@ -150,8 +158,12 @@ pub fn run_symbol_test(name: &str, path: &Path) {
     let symbol_path = symbol_file.path().to_owned();
     let output_dir = tempfile::tempdir().expect("failed to create temp dir");
 
-    let output =
-        run_cheadergen_symbols(path, &symbol_path, output_dir.path(), &CHEADERGEN_CASES_METADATA);
+    let output = run_cheadergen_symbols(
+        path,
+        &symbol_path,
+        output_dir.path(),
+        &CHEADERGEN_CASES_METADATA,
+    );
     assert!(
         output.status.success(),
         "cheadergen --symbol-file failed for {path:?} with error: {}",
@@ -185,7 +197,15 @@ pub fn run_generation_fails_test(
     package: Option<&str>,
 ) {
     let output_dir = tempfile::tempdir().expect("failed to create temp dir");
-    let output = invoke_cheadergen(name, path, language, style, cpp_compat, output_dir.path(), package);
+    let output = invoke_cheadergen(
+        name,
+        path,
+        language,
+        style,
+        cpp_compat,
+        output_dir.path(),
+        package,
+    );
     if output.status.success() {
         panic!(
             "generation_fails test `{name} {variant_path}` expected cheadergen to fail, \
@@ -202,8 +222,12 @@ pub fn run_generation_fails_symbol_test(name: &str, path: &Path) {
     let symbol_path = symbol_file.path().to_owned();
     let output_dir = tempfile::tempdir().expect("failed to create temp dir");
 
-    let output =
-        run_cheadergen_symbols(path, &symbol_path, output_dir.path(), &CHEADERGEN_CASES_METADATA);
+    let output = run_cheadergen_symbols(
+        path,
+        &symbol_path,
+        output_dir.path(),
+        &CHEADERGEN_CASES_METADATA,
+    );
     if output.status.success() {
         panic!(
             "generation_fails symbol test `{name}` expected cheadergen to fail, \
@@ -217,8 +241,7 @@ pub fn check_manifest_up_to_date(known_cheadergen: &[&str]) {
 
     let cheadergen_cases_dir = tests_path.join("cheadergen/rust/cases");
     if cheadergen_cases_dir.is_dir() {
-        let actual_cheadergen =
-            ui_tests_toolkit::collect_case_dirs(&cheadergen_cases_dir);
+        let actual_cheadergen = ui_tests_toolkit::collect_case_dirs(&cheadergen_cases_dir);
         if actual_cheadergen != known_cheadergen {
             let cheadergen_manifest_path = tests_path.join("cheadergen/.test_manifest");
             ui_tests_toolkit::write_manifest_file(&cheadergen_manifest_path, &actual_cheadergen);

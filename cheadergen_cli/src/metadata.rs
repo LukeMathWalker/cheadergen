@@ -12,7 +12,25 @@ use crate::indexing::CheadergenIndexer;
 /// Must match the FORMAT_VERSION expected by `rustdoc_types`.
 /// Single source of truth is `rust-docs-toolchain` at the repo root,
 /// also read by the `justfile`.
-pub const DOCS_TOOLCHAIN: &str = include_str!("../rust-docs-toolchain");
+///
+/// Trim trailing ASCII whitespace because `include_str!` preserves the final
+/// newline from the file on disk.
+pub const DOCS_TOOLCHAIN: &str = trim_ascii_end(include_str!("../rust-docs-toolchain"));
+
+/// Environment variable used to override the default rustdoc toolchain.
+pub const DOC_TOOLCHAIN_ENV_VAR: &str = "CHEADERGEN_DOC_TOOLCHAIN";
+
+const fn trim_ascii_end(input: &str) -> &str {
+    let bytes = input.as_bytes();
+    let mut end = bytes.len();
+    while end > 0 {
+        match bytes[end - 1] {
+            b' ' | b'\n' | b'\r' | b'\t' => end -= 1,
+            _ => break,
+        }
+    }
+    input.split_at(end).0
+}
 
 /// Load cargo metadata and build a package graph.
 ///
@@ -36,9 +54,11 @@ pub fn cache_dir() -> anyhow::Result<PathBuf> {
 }
 
 /// Resolve the toolchain and create a `CrateCollection`.
-pub fn create_collection(package_graph: PackageGraph) -> anyhow::Result<crate::Collection> {
-    let toolchain =
-        std::env::var("CHEADERGEN_DOCS_TOOLCHAIN").unwrap_or_else(|_| DOCS_TOOLCHAIN.to_string());
+pub fn create_collection(
+    package_graph: PackageGraph,
+    toolchain: &str,
+) -> anyhow::Result<crate::Collection> {
+    let toolchain = toolchain.to_owned();
 
     let project_fingerprint = package_graph.workspace().root().to_string();
 

@@ -681,7 +681,9 @@ fn extract_enum_repr(
 ) -> anyhow::Result<EnumReprValidation> {
     let mut chosen: Option<CEnumRepr> = None;
     for attr in attrs {
-        let Attribute::Repr(repr) = attr else { continue };
+        let Attribute::Repr(repr) = attr else {
+            continue;
+        };
         if repr.packed.is_some() {
             diagnostics
                 .error(format!(
