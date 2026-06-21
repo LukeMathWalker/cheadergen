@@ -30,9 +30,7 @@ pub struct TestManifest {
 /// `package` field. Variants not mentioned in the file are implicitly `Normal`.
 ///
 /// Returns an error if the file cannot be read, parsed, or contains unknown variant keys.
-pub fn read_test_manifest(
-    toml_path: &Path,
-) -> Result<TestManifest, TestManifestError> {
+pub fn read_test_manifest(toml_path: &Path) -> Result<TestManifest, TestManifestError> {
     let content = fs::read_to_string(toml_path).map_err(|e| TestManifestError::Io {
         path: toml_path.display().to_string(),
         source: e,

@@ -1,6 +1,6 @@
 use rustdoc_ir::{ScalarPrimitive, Type};
-use rustdoc_processor::queries::Crate;
 use rustdoc_processor::GlobalItemId;
+use rustdoc_processor::queries::Crate;
 
 use crate::Collection;
 use crate::diagnostic::DiagnosticSink;
@@ -189,20 +189,18 @@ pub fn resolve_assoc_constant(
 
     let value = match &resolved {
         Type::ScalarPrimitive(ScalarPrimitive::Bool) => raw_value.clone(),
-        Type::ScalarPrimitive(ScalarPrimitive::Char) => {
-            match sanitize_char_literal(raw_value) {
-                Some(value) => value,
-                None => {
-                    diagnostics
+        Type::ScalarPrimitive(ScalarPrimitive::Char) => match sanitize_char_literal(raw_value) {
+            Some(value) => value,
+            None => {
+                diagnostics
                         .error(format!(
                             "assoc constant `{type_name}_{const_name}` has a malformed char literal: `{raw_value}`"
                         ))
                         .with_span_if(item.span.as_ref())
                         .emit();
-                    return None;
-                }
+                return None;
             }
-        }
+        },
         Type::ScalarPrimitive(prim)
             if !matches!(
                 prim,
@@ -301,10 +299,7 @@ fn sanitize_rust_number(value: &str, prim: &ScalarPrimitive) -> String {
         }
     };
 
-    let cleaned = value
-        .strip_suffix(suffix)
-        .unwrap_or(value)
-        .replace('_', "");
+    let cleaned = value.strip_suffix(suffix).unwrap_or(value).replace('_', "");
 
     if matches!(prim, ScalarPrimitive::F32 | ScalarPrimitive::F64)
         && looks_like_integer_literal(&cleaned)

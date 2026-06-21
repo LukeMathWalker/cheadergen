@@ -45,12 +45,7 @@ pub fn find_generated_files(output_dir: &Path, language: Language) -> Vec<(Strin
     found
         .into_iter()
         .map(|path| {
-            let filename = path
-                .file_name()
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .to_owned();
+            let filename = path.file_name().unwrap().to_str().unwrap().to_owned();
             let content = fs::read(&path).unwrap_or_else(|e| {
                 panic!("failed to read generated file {path:?}: {e}");
             });

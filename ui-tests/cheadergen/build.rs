@@ -24,12 +24,7 @@ fn main() {
     };
 
     if cheadergen.cases_dir.is_dir() {
-        process_suite(
-            &cheadergen,
-            &mut dst,
-            &mut root,
-            "KNOWN_CHEADERGEN_CASES",
-        );
+        process_suite(&cheadergen, &mut dst, &mut root, "KNOWN_CHEADERGEN_CASES");
     } else {
         writeln!(dst).unwrap();
         writeln!(dst, "const KNOWN_CHEADERGEN_CASES: &[&str] = &[];").unwrap();

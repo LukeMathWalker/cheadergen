@@ -161,7 +161,9 @@ mod tests {
         let errors = validate(&directives, &item);
         assert_eq!(errors.len(), 1);
         assert!(
-            errors[0].to_string().contains("`opaque` can only be applied"),
+            errors[0]
+                .to_string()
+                .contains("`opaque` can only be applied"),
             "unexpected error: {}",
             errors[0]
         );

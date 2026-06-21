@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use rustdoc_ir::Type;
-use rustdoc_processor::queries::Crate;
 use rustdoc_processor::GlobalItemId;
+use rustdoc_processor::queries::Crate;
 
 use crate::Collection;
 use rustdoc_resolver::{TypeAliasResolution, resolve_type};

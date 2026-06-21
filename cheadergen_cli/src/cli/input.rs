@@ -82,9 +82,7 @@ pub(super) fn select_packages(
 /// `[workspace] default-members` if configured, which for a virtual
 /// workspace expands to every member and for a non-virtual workspace points
 /// at the root package.
-fn default_selection(
-    workspace: &Workspace<'_>,
-) -> anyhow::Result<Vec<(PackageId, String)>> {
+fn default_selection(workspace: &Workspace<'_>) -> anyhow::Result<Vec<(PackageId, String)>> {
     let cwd = std::env::current_dir()?.canonicalize()?;
     let cwd = camino::Utf8PathBuf::try_from(cwd)?;
 
@@ -104,10 +102,7 @@ fn default_selection(
 /// "Closest" matters in hybrid workspaces where the root is both a package
 /// and a workspace with nested members: cwd inside `crates/alpha/` must
 /// resolve to alpha, not the root package — even though both contain cwd.
-fn current_package<'g>(
-    workspace: &Workspace<'g>,
-    cwd: &Utf8Path,
-) -> Option<PackageMetadata<'g>> {
+fn current_package<'g>(workspace: &Workspace<'g>, cwd: &Utf8Path) -> Option<PackageMetadata<'g>> {
     let candidates = workspace
         .iter()
         .filter_map(|pkg| pkg.manifest_path().parent().map(|dir| (dir, pkg)));

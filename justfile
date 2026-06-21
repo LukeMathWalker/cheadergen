@@ -4,8 +4,8 @@ set positional-arguments
 # UI test workspaces (which use unstable features like `sync_unsafe_cell`).
 # Single source of truth is `rust-docs-toolchain` at the repo root, also
 # read by `cheadergen_cli::metadata::DOCS_TOOLCHAIN`. Override locally with
-# `CHEADERGEN_DOCS_TOOLCHAIN=...` if needed.
-docs_toolchain := env_var_or_default("CHEADERGEN_DOCS_TOOLCHAIN", trim(shell("cat 'cheadergen_cli/rust-docs-toolchain'")))
+# `CHEADERGEN_DOC_TOOLCHAIN=...` if needed.
+docs_toolchain := env_var_or_default("CHEADERGEN_DOC_TOOLCHAIN", trim(shell("cat 'cheadergen_cli/rust-docs-toolchain'")))
 
 # Format all files
 # Use `just fmt check` to verify rather than format

@@ -397,12 +397,7 @@ fn exported_static_name(s: &StaticItem) -> &str {
     s.symbol_name.as_deref().unwrap_or(&s.name)
 }
 
-fn write_c_static_decl(
-    s: &StaticItem,
-    style: &Style,
-    ctx: &TypeEmitCtx<'_>,
-    out: &mut String,
-) {
+fn write_c_static_decl(s: &StaticItem, style: &Style, ctx: &TypeEmitCtx<'_>, out: &mut String) {
     out.push_str("extern ");
     if !s.is_mutable && !is_const_pointer(&s.type_) {
         out.push_str("const ");

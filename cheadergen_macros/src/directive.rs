@@ -80,7 +80,6 @@ pub enum FieldDirective {
     ConstPtr { span: Span },
 }
 
-
 /// A comma-separated list of item-level directives.
 pub struct Directives {
     pub items: Vec<Directive>,

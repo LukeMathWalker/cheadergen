@@ -28,11 +28,7 @@ fn main() {
             cmd_translate_configs();
         }
         Some("cbindgen-report") => {
-            let variant = args
-                .iter()
-                .skip(2)
-                .find(|a| !a.starts_with('-'))
-                .cloned();
+            let variant = args.iter().skip(2).find(|a| !a.starts_with('-')).cloned();
             let variant = variant.as_deref().unwrap_or_else(|| {
                 eprintln!("Usage: ui-tests cbindgen-report <variant>");
                 eprintln!();
@@ -200,10 +196,7 @@ fn cmd_cbindgen_report(variant: &str) {
     for name in &xfail_with_unsupported {
         println!("    {name}");
     }
-    println!(
-        "  Neither (pure generation):   {:>4}",
-        xfail_neither.len()
-    );
+    println!("  Neither (pure generation):   {:>4}", xfail_neither.len());
     for name in &xfail_neither {
         println!("    {name}");
     }
@@ -244,8 +237,12 @@ fn cmd_new(name: &str) {
     }
 
     let root = workspace_root();
-    let cheadergen_case = root.join("ui-tests/cheadergen/tests/cheadergen/rust/cases").join(name);
-    let cbindgen_case = root.join("ui-tests/cbindgen/tests/cbindgen/rust/cases").join(name);
+    let cheadergen_case = root
+        .join("ui-tests/cheadergen/tests/cheadergen/rust/cases")
+        .join(name);
+    let cbindgen_case = root
+        .join("ui-tests/cbindgen/tests/cbindgen/rust/cases")
+        .join(name);
 
     if cheadergen_case.exists() {
         eprintln!("Error: cheadergen test case '{name}' already exists");

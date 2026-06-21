@@ -26,12 +26,7 @@ fn main() {
         use_snap_files: false,
     };
 
-    process_suite(
-        &cbindgen,
-        &mut dst,
-        &mut root,
-        "KNOWN_CBINDGEN_CASES",
-    );
+    process_suite(&cbindgen, &mut dst, &mut root, "KNOWN_CBINDGEN_CASES");
 
     // Emit the nested module tree.
     writeln!(dst).unwrap();
