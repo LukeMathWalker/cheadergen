@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1](https://github.com/LukeMathWalker/cheadergen/compare/0.3.0...0.3.1) - 2026-06-21
+
+### ⛰️ Features
+
+- Allow users to override the toolchain used for doc generation (by @LukeMathWalker) - #24
+
+### Contributors
+
+- @LukeMathWalker
+
 ## [0.3.0](https://github.com/LukeMathWalker/cheadergen/compare/0.2.4...0.3.0) - 2026-06-11
 
 ### ‼️ Breaking changes
