@@ -42,7 +42,8 @@ impl Language {
 #[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum SortKey {
-    /// Emit items in the order they appear in the Rust source file.
+    /// Emit items in the order they appear in the Rust source: grouped by
+    /// source file (files ordered by path), then by position within the file.
     #[default]
     SourceOrder,
     /// Sort items alphabetically by name.

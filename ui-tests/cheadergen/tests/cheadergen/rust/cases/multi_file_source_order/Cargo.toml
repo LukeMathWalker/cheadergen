@@ -1,0 +1,7 @@
+[package]
+name = "multi_file_source_order"
+version = "0.1.0"
+edition.workspace = true
+
+[lints]
+workspace = true

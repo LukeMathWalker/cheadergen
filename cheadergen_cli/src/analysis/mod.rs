@@ -17,8 +17,26 @@ pub use type_collection::{
     collect_type_definitions, collect_type_definitions_multi, ffi_primitive_to_c,
 };
 
+use std::path::PathBuf;
+
 use crate::Collection;
 use crate::config::SortKey;
+
+/// Sort key for `source_order`: `(span_missing, filename, line, column)`.
+///
+/// The filename comes first so that items from different source files never
+/// interleave by line number. Items without a span sort last (`span_missing`
+/// is `true`); the caller's trailing name component keeps their relative
+/// order deterministic.
+pub(crate) type SpanSortKey = (bool, PathBuf, usize, usize);
+
+fn span_key(span: &rustdoc_types::Span) -> SpanSortKey {
+    (false, span.filename.clone(), span.begin.0, span.begin.1)
+}
+
+pub(crate) fn missing_span_key() -> SpanSortKey {
+    (true, PathBuf::new(), 0, 0)
+}
 
 /// Trait for items that carry a [`GlobalItemId`] for sorting purposes.
 pub trait HasGlobalId {
@@ -43,8 +61,10 @@ impl HasGlobalId for CTypeDefinition {
 pub fn sort_local_ids_by_key(ids: &mut [rustdoc_types::Id], sort_by: SortKey, krate: &Crate) {
     match sort_by {
         SortKey::SourceOrder => ids.sort_by_cached_key(|id| {
-            let (line, col) = span_sort_key_local(id, krate);
-            (line, col, name_sort_key_local(id, krate))
+            (
+                span_sort_key_local(id, krate),
+                name_sort_key_local(id, krate),
+            )
         }),
         SortKey::Name => ids.sort_by_cached_key(|id| name_sort_key_local(id, krate)),
     }
@@ -54,11 +74,11 @@ pub fn sort_local_ids_by_key(ids: &mut [rustdoc_types::Id], sort_by: SortKey, kr
 pub fn sort_by_key<T: HasGlobalId>(items: &mut [T], sort_by: SortKey, collection: &Collection) {
     match sort_by {
         SortKey::SourceOrder => items.sort_by_cached_key(|item| {
-            let (line, col) = match item.global_id() {
+            let span_key = match item.global_id() {
                 Some(gid) => span_sort_key_global(gid, collection),
-                None => (usize::MAX, usize::MAX),
+                None => missing_span_key(),
             };
-            (line, col, item.fallback_name())
+            (span_key, item.fallback_name())
         }),
         SortKey::Name => items.sort_by_cached_key(|item| match item.global_id() {
             Some(gid) => name_sort_key_global(gid, collection),
@@ -67,15 +87,12 @@ pub fn sort_by_key<T: HasGlobalId>(items: &mut [T], sort_by: SortKey, collection
     }
 }
 
-/// Sort key: (line, column) from the item's span, using the local crate index.
-fn span_sort_key_local(id: &rustdoc_types::Id, krate: &Crate) -> (usize, usize) {
+/// Sort key: (filename, line, column) from the item's span, using the local crate index.
+fn span_sort_key_local(id: &rustdoc_types::Id, krate: &Crate) -> SpanSortKey {
     let Some(item) = krate.core.krate.index.get(id) else {
-        return (usize::MAX, usize::MAX);
+        return missing_span_key();
     };
-    match item.span.as_ref() {
-        Some(span) => (span.begin.0, span.begin.1),
-        None => (usize::MAX, usize::MAX),
-    }
+    item.span.as_ref().map_or_else(missing_span_key, span_key)
 }
 
 /// Sort key: item name, using the local crate index.
@@ -89,17 +106,51 @@ fn name_sort_key_local(id: &rustdoc_types::Id, krate: &Crate) -> String {
         .unwrap_or_default()
 }
 
-/// Sort key: (line, column) from the item's span, using the collection for cross-crate lookup.
-pub(crate) fn span_sort_key_global(gid: &GlobalItemId, collection: &Collection) -> (usize, usize) {
+/// Sort key: (filename, line, column) from the item's span, using the collection for cross-crate lookup.
+pub(crate) fn span_sort_key_global(gid: &GlobalItemId, collection: &Collection) -> SpanSortKey {
     let item = collection.get_item_by_global_type_id(gid);
-    match item.span.as_ref() {
-        Some(span) => (span.begin.0, span.begin.1),
-        None => (usize::MAX, usize::MAX),
-    }
+    item.span.as_ref().map_or_else(missing_span_key, span_key)
 }
 
 /// Sort key: item name, using the collection for cross-crate lookup.
 fn name_sort_key_global(gid: &GlobalItemId, collection: &Collection) -> String {
     let item = collection.get_item_by_global_type_id(gid);
     item.name.clone().unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn span(filename: &str, line: usize, column: usize) -> rustdoc_types::Span {
+        rustdoc_types::Span {
+            filename: PathBuf::from(filename),
+            begin: (line, column),
+            end: (line, column),
+        }
+    }
+
+    /// The leading `span_missing` flag must dominate every other component, so
+    /// that a span-less item sorts after *any* spanned item — even one at the
+    /// very end of the last file. Guards against reordering the tuple or
+    /// flipping the flag's polarity.
+    #[test]
+    fn missing_spans_sort_after_spanned_items() {
+        assert!(missing_span_key() > span_key(&span("a.rs", 1, 1)));
+        assert!(missing_span_key() > span_key(&span("zzz.rs", usize::MAX, usize::MAX)));
+    }
+
+    /// The filename precedes the line number, so items from different source
+    /// files never interleave by line.
+    #[test]
+    fn filename_outranks_position() {
+        assert!(span_key(&span("a.rs", 999, 0)) < span_key(&span("b.rs", 1, 0)));
+    }
+
+    /// Within one file, ordering falls back to line then column.
+    #[test]
+    fn same_file_orders_by_line_then_column() {
+        assert!(span_key(&span("a.rs", 1, 0)) < span_key(&span("a.rs", 2, 0)));
+        assert!(span_key(&span("a.rs", 1, 0)) < span_key(&span("a.rs", 1, 5)));
+    }
 }

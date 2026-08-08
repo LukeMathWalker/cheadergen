@@ -1,6 +1,6 @@
 ---
 source: ui-tests/cbindgen/src/lib.rs
-assertion_line: 166
+assertion_line: 214
 expression: actual
 ---
 #include <stdarg.h>
@@ -8,12 +8,12 @@ expression: actual
 #include <stdint.h>
 #include <stdlib.h>
 
-typedef struct Opaque Opaque;
-
 /**
  * The `Option` type. See [the module level documentation](self) for more.
  */
 typedef struct Option_Opaque Option_Opaque;
+
+typedef struct Opaque Opaque;
 
 typedef struct {
   const Opaque *x;
