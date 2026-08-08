@@ -167,8 +167,13 @@
 //! - **Default**: `source_order`
 //!
 //! Default emission order for items of every kind (functions, statics,
-//! constants). Can be overridden per kind via [`[fn]`](#fn-section),
-//! [`[static]`](#static-section), or [`[constant]`](#constant-section).
+//! constants, type definitions). Can be overridden per kind via
+//! [`[fn]`](#fn-section), [`[static]`](#static-section), or
+//! [`[constant]`](#constant-section).
+//!
+//! For type definitions, dependency order always comes first: a type used
+//! by value in another type's fields is emitted before its user. `sort_by`
+//! controls the order among types that dependency order leaves unconstrained.
 //!
 //! ### `bundle`
 //!

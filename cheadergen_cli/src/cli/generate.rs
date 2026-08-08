@@ -720,9 +720,15 @@ fn generate_partitioned(
             continue;
         }
 
-        // Sort types: source order first, then topological sort.
-        analysis::sort_by_key(&mut type_defs, config::SortKey::SourceOrder, collection);
-        topological_sort::topological_sort(&mut type_defs, collection, diagnostics);
+        // Sort types: baseline `sort_by` order first, then topological sort
+        // (which uses `sort_by` as the tie-break within each level).
+        analysis::sort_by_key(&mut type_defs, c_cfg.common.type_sort_by, collection);
+        topological_sort::topological_sort(
+            &mut type_defs,
+            c_cfg.common.type_sort_by,
+            collection,
+            diagnostics,
+        );
 
         // Find associated constants for types in this header.
         let krate_data = collection
@@ -920,11 +926,17 @@ fn generate_one_crate(
             diagnostics,
         )?;
 
-        // First, establish a baseline source order (type_defs come from a
+        // First, establish a baseline `sort_by` order (type_defs come from a
         // HashMap and have no inherent order). Then apply topological sort
-        // to reorder compounds so by-value dependencies are defined first.
-        analysis::sort_by_key(&mut type_defs, config::SortKey::SourceOrder, collection);
-        topological_sort::topological_sort(&mut type_defs, collection, diagnostics);
+        // to reorder compounds so by-value dependencies are defined first,
+        // with `sort_by` as the tie-break within each level.
+        analysis::sort_by_key(&mut type_defs, c_config.common.type_sort_by, collection);
+        topological_sort::topological_sort(
+            &mut type_defs,
+            c_config.common.type_sort_by,
+            collection,
+            diagnostics,
+        );
 
         let assoc_constants =
             analysis::find_assoc_constants(&type_defs, krate, collection, diagnostics);
