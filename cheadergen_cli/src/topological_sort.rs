@@ -5,14 +5,16 @@ use petgraph::graph::{DiGraph, NodeIndex};
 use rustdoc_ir::Type;
 
 use crate::Collection;
-use crate::analysis::{CTypeDefinition, CTypeKind, c_type_name, span_sort_key_global};
+use crate::analysis::{
+    CTypeDefinition, CTypeKind, SpanSortKey, c_type_name, missing_span_key, span_sort_key_global,
+};
 use crate::diagnostic::DiagnosticSink;
 
 /// Sort type definitions in dependency order: types used **by value** in
 /// another type's fields are emitted first.
 ///
 /// Within the same topological level, items are ordered by source position
-/// (line, column) as a stable tiebreaker.
+/// (filename, line, column) as a stable tiebreaker.
 ///
 /// If a cycle exists in by-value dependencies (impossible in valid
 /// `#[repr(C)]` Rust), the remaining types are appended in source order
@@ -88,12 +90,12 @@ pub fn topological_sort(
 
     // Kahn's algorithm with source-order tiebreaker.
     // The key includes the compound index as a final tiebreaker to guarantee
-    // uniqueness — two compounds with the same (line, col, name) must not
+    // uniqueness — two compounds with the same (span, name) must not
     // collide in the BTreeMap, or one would be silently lost.
-    let sort_key = |idx: usize| -> (usize, usize, &str, usize) {
+    let sort_key = |idx: usize| -> (SpanSortKey, String, usize) {
         let def = &compounds[idx];
-        let (line, col) = span_sort_key_for_def(def, collection);
-        (line, col, def.name.as_str(), idx)
+        let span = span_sort_key_for_def(def, collection);
+        (span, def.name.clone(), idx)
     };
 
     let mut in_degree: Vec<usize> = (0..n)
@@ -104,12 +106,11 @@ pub fn topological_sort(
         })
         .collect();
 
-    // BTreeMap keyed by (line, col, name, idx) for deterministic, collision-free ordering.
-    let mut queue: BTreeMap<(usize, usize, String, usize), usize> = BTreeMap::new();
+    // BTreeMap keyed by (span, name, idx) for deterministic, collision-free ordering.
+    let mut queue: BTreeMap<(SpanSortKey, String, usize), usize> = BTreeMap::new();
     for (i, &deg) in in_degree.iter().enumerate() {
         if deg == 0 {
-            let (l, c, name, idx) = sort_key(i);
-            queue.insert((l, c, name.to_owned(), idx), i);
+            queue.insert(sort_key(i), i);
         }
     }
 
@@ -124,8 +125,7 @@ pub fn topological_sort(
             let dep_idx = graph[dependent];
             in_degree[dep_idx] -= 1;
             if in_degree[dep_idx] == 0 {
-                let (l, c, name, idx) = sort_key(dep_idx);
-                queue.insert((l, c, name.to_owned(), idx), dep_idx);
+                queue.insert(sort_key(dep_idx), dep_idx);
             }
         }
     }
@@ -161,10 +161,7 @@ pub fn topological_sort(
         }
 
         let mut remaining: Vec<usize> = (0..n).filter(|i| !in_sorted.contains(i)).collect();
-        remaining.sort_by_key(|&i| {
-            let (l, c, name, idx) = sort_key(i);
-            (l, c, name.to_owned(), idx)
-        });
+        remaining.sort_by_cached_key(|&i| sort_key(i));
         sorted_indices.extend(remaining);
     }
 
@@ -244,9 +241,9 @@ fn extract_cycle_from_scc(
     names.join(" -> ")
 }
 
-fn span_sort_key_for_def(def: &CTypeDefinition, collection: &Collection) -> (usize, usize) {
+fn span_sort_key_for_def(def: &CTypeDefinition, collection: &Collection) -> SpanSortKey {
     let Some(gid) = &def.rustdoc_id else {
-        return (usize::MAX, usize::MAX);
+        return missing_span_key();
     };
     span_sort_key_global(gid, collection)
 }

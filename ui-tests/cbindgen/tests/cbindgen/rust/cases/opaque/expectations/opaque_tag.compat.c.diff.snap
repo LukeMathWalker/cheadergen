@@ -1,5 +1,6 @@
 ---
 source: ui-tests/cbindgen/src/lib.rs
+assertion_line: 214
 expression: actual
 ---
 #if 0
@@ -22,6 +23,13 @@ struct DefaultHasher;
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+
+/**
+ * `Result` is a type that represents either success ([`Ok`]) or failure ([`Err`]).
+ *
+ * See the [module documentation](self) for details.
+ */
+struct Result_Foo__;
 
 /**
  * A [hash map] implemented with quadratic probing and SIMD lookup.
@@ -253,13 +261,6 @@ struct DefaultHasher;
  * ```
  */
 struct HashMap_i32__i32__BuildHasherDefault_DefaultHasher;
-
-/**
- * `Result` is a type that represents either success ([`Ok`]) or failure ([`Err`]).
- *
- * See the [module documentation](self) for details.
- */
-struct Result_Foo__;
 
 typedef struct HashMap_i32__i32__BuildHasherDefault_DefaultHasher Foo;
 

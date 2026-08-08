@@ -1,6 +1,6 @@
 ---
 source: ui-tests/cbindgen/src/lib.rs
-assertion_line: 166
+assertion_line: 214
 expression: actual
 ---
 #include <stdarg.h>
@@ -16,9 +16,9 @@ struct ExportMe;
 extern "C" {
 #endif // __cplusplus
 
-void from_really_nested_mod(void);
-
 void export_me(struct ExportMe *val);
+
+void from_really_nested_mod(void);
 
 #ifdef __cplusplus
 }  // extern "C"

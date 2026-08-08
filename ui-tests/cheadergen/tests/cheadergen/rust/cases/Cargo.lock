@@ -237,6 +237,10 @@ name = "maybe_uninit"
 version = "0.1.0"
 
 [[package]]
+name = "multi_file_source_order"
+version = "0.1.0"
+
+[[package]]
 name = "no_mangle_required"
 version = "0.1.0"
 

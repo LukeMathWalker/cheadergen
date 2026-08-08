@@ -1,6 +1,6 @@
 ---
 source: ui-tests/cbindgen/src/lib.rs
-assertion_line: 166
+assertion_line: 214
 expression: actual
 ---
 #include <stdarg.h>
@@ -14,8 +14,8 @@ typedef struct ExportMe2 ExportMe2;
 
 #define EXPORT_ME_TOO 42
 
+void export_me(ExportMe *val);
+
 void from_really_nested_mod(void);
 
 void export_me_2(ExportMe2 *_);
-
-void export_me(ExportMe *val);
