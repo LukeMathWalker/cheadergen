@@ -8,19 +8,21 @@ use crate::Collection;
 use crate::analysis::{
     CTypeDefinition, CTypeKind, SpanSortKey, c_type_name, missing_span_key, span_sort_key_global,
 };
+use crate::config::SortKey;
 use crate::diagnostic::DiagnosticSink;
 
 /// Sort type definitions in dependency order: types used **by value** in
 /// another type's fields are emitted first.
 ///
-/// Within the same topological level, items are ordered by source position
-/// (filename, line, column) as a stable tiebreaker.
+/// Within the same topological level, `sort_by` controls the order: source
+/// position (filename, line, column) or C name.
 ///
 /// If a cycle exists in by-value dependencies (impossible in valid
-/// `#[repr(C)]` Rust), the remaining types are appended in source order
+/// `#[repr(C)]` Rust), the remaining types are appended in `sort_by` order
 /// with a warning.
 pub fn topological_sort(
     type_defs: &mut Vec<CTypeDefinition>,
+    sort_by: SortKey,
     collection: &Collection,
     diagnostics: &mut DiagnosticSink,
 ) {
@@ -88,13 +90,17 @@ pub fn topological_sort(
         }
     }
 
-    // Kahn's algorithm with source-order tiebreaker.
+    // Kahn's algorithm with a `sort_by` tiebreaker.
     // The key includes the compound index as a final tiebreaker to guarantee
     // uniqueness — two compounds with the same (span, name) must not
     // collide in the BTreeMap, or one would be silently lost.
-    let sort_key = |idx: usize| -> (SpanSortKey, String, usize) {
+    let sort_key = |idx: usize| -> (Option<SpanSortKey>, String, usize) {
         let def = &compounds[idx];
-        let span = span_sort_key_for_def(def, collection);
+        // In name order the span component is absent, so the name decides.
+        let span = match sort_by {
+            SortKey::SourceOrder => Some(span_sort_key_for_def(def, collection)),
+            SortKey::Name => None,
+        };
         (span, def.name.clone(), idx)
     };
 
@@ -107,7 +113,7 @@ pub fn topological_sort(
         .collect();
 
     // BTreeMap keyed by (span, name, idx) for deterministic, collision-free ordering.
-    let mut queue: BTreeMap<(SpanSortKey, String, usize), usize> = BTreeMap::new();
+    let mut queue: BTreeMap<(Option<SpanSortKey>, String, usize), usize> = BTreeMap::new();
     for (i, &deg) in in_degree.iter().enumerate() {
         if deg == 0 {
             queue.insert(sort_key(i), i);
@@ -147,7 +153,7 @@ pub fn topological_sort(
                 .warning(format!(
                     "cycle detected in by-value type dependencies: {cycle}"
                 ))
-                .with_help("appending remaining types in source order")
+                .with_help("appending remaining types in `sort_by` order")
                 .emit();
         }
         if !cycle_found {
@@ -156,7 +162,7 @@ pub fn topological_sort(
                     "topological sort did not converge, but no cycle was found; \
                      this is a cheadergen bug",
                 )
-                .with_help("appending remaining types in source order")
+                .with_help("appending remaining types in `sort_by` order")
                 .emit();
         }
 

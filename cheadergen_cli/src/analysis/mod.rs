@@ -80,10 +80,10 @@ pub fn sort_by_key<T: HasGlobalId>(items: &mut [T], sort_by: SortKey, collection
             };
             (span_key, item.fallback_name())
         }),
-        SortKey::Name => items.sort_by_cached_key(|item| match item.global_id() {
-            Some(gid) => name_sort_key_global(gid, collection),
-            None => item.fallback_name(),
-        }),
+        // Sort by the emitted C name (not the rustdoc item name), so the
+        // order matches what the reader sees in the header and agrees with
+        // the topological sort's tie-break.
+        SortKey::Name => items.sort_by_cached_key(|item| item.fallback_name()),
     }
 }
 
@@ -110,12 +110,6 @@ fn name_sort_key_local(id: &rustdoc_types::Id, krate: &Crate) -> String {
 pub(crate) fn span_sort_key_global(gid: &GlobalItemId, collection: &Collection) -> SpanSortKey {
     let item = collection.get_item_by_global_type_id(gid);
     item.span.as_ref().map_or_else(missing_span_key, span_key)
-}
-
-/// Sort key: item name, using the collection for cross-crate lookup.
-fn name_sort_key_global(gid: &GlobalItemId, collection: &Collection) -> String {
-    let item = collection.get_item_by_global_type_id(gid);
-    item.name.clone().unwrap_or_default()
 }
 
 #[cfg(test)]

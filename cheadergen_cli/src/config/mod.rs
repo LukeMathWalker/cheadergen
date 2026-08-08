@@ -476,6 +476,11 @@ pub struct CommonConfig {
     pub static_sort_by: SortKey,
     /// Resolved sort order for constants: `[constant].sort_by` → top-level `sort_by` → `SourceOrder`.
     pub constant_sort_by: SortKey,
+    /// Resolved sort order for type definitions: top-level `sort_by` → `SourceOrder`.
+    ///
+    /// Used as the baseline order before the topological sort, and as the
+    /// tie-break within each topological level.
+    pub type_sort_by: SortKey,
     /// Whether to emit Rust doc comments. Defaults to `true`.
     pub documentation: bool,
     /// Comment style for doc comments.
@@ -619,6 +624,7 @@ impl RawCommonFields {
             fn_sort_by: self.fn_sort_by.or(self.sort_by).unwrap_or_default(),
             static_sort_by: self.static_sort_by.or(self.sort_by).unwrap_or_default(),
             constant_sort_by: self.constant_sort_by.or(self.sort_by).unwrap_or_default(),
+            type_sort_by: self.sort_by.unwrap_or_default(),
             documentation: overrides
                 .documentation
                 .or(self.documentation)
@@ -1493,6 +1499,32 @@ documentation = true
             Config::C(c) => {
                 assert!(!c.common.pragma_once);
                 assert!(c.common.documentation);
+            }
+            _ => panic!("expected Config::C"),
+        }
+    }
+
+    #[test]
+    fn header_section_sort_by_flows_to_type_sort_by() {
+        let toml_str = r#"
+[header.my-lib]
+sort_by = "name"
+"#;
+        let raw: RawConfig = toml::from_str(toml_str).unwrap();
+        let config_set = raw
+            .into_config(&Language::C, &CliOverrides::default())
+            .unwrap();
+
+        match &config_set.default {
+            Config::C(c) => {
+                assert_eq!(c.common.type_sort_by, SortKey::SourceOrder);
+            }
+            _ => panic!("expected Config::C"),
+        }
+
+        match config_set.for_header("my-lib") {
+            Config::C(c) => {
+                assert_eq!(c.common.type_sort_by, SortKey::Name);
             }
             _ => panic!("expected Config::C"),
         }
