@@ -44,7 +44,7 @@ pub fn sort_local_ids_by_key(ids: &mut [rustdoc_types::Id], sort_by: SortKey, kr
     match sort_by {
         SortKey::SourceOrder => ids.sort_by_cached_key(|id| {
             let (line, col) = span_sort_key_local(id, krate);
-            (line, col, String::new())
+            (line, col, name_sort_key_local(id, krate))
         }),
         SortKey::Name => ids.sort_by_cached_key(|id| name_sort_key_local(id, krate)),
     }
