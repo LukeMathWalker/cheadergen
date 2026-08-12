@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2](https://github.com/LukeMathWalker/cheadergen/compare/0.3.1...0.3.2) - 2026-08-12
+
+### 🐛 Bug Fixes
+
+- Make type definitions honor sort_by (by @memark) - #32
+- Group items by source file when sorting in source order (by @memark) - #31
+- Break source-order ties for extern items by name (by @memark) - #30
+
+### Contributors
+
+- @memark
+
 ## [0.3.1](https://github.com/LukeMathWalker/cheadergen/compare/0.3.0...0.3.1) - 2026-06-21
 
 ### ⛰️ Features
