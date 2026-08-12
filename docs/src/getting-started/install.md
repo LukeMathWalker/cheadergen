@@ -12,7 +12,7 @@ On macOS or Linux:
 
 ```bash
 curl --proto '=https' --tlsv1.2 -LsSf \
-  https://github.com/LukeMathWalker/cheadergen/releases/download/0.3.1/cheadergen_cli-installer.sh \
+  https://github.com/LukeMathWalker/cheadergen/releases/download/0.3.2/cheadergen_cli-installer.sh \
   | sh
 ```
 
@@ -22,7 +22,7 @@ The installer downloads the prebuilt binary for your platform and drops it into
 On Windows, via Powershell:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -c "irm https://github.com/LukeMathWalker/cheadergen/releases/download/0.3.1/cheadergen_cli-installer.ps1 | iex"
+powershell -ExecutionPolicy Bypass -c "irm https://github.com/LukeMathWalker/cheadergen/releases/download/0.3.2/cheadergen_cli-installer.ps1 | iex"
 ```
 
 Installers download prebuilt binaries from our [GitHub releases](https://github.com/LukeMathWalker/cheadergen/releases/latest). Each archive ships with a sibling `.sha256` file you can use to verify the
