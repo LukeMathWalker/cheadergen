@@ -1,3 +1,7 @@
+> [!IMPORTANT]
+> **`cheadergen` has moved to [LukeMathWalker/officina](https://github.com/LukeMathWalker/officina/tree/main/cheadergen).**
+> This repository is archived: development, issues and releases continue there. Its crates on crates.io are unaffected.
+
 # `cheadergen`
 
 `cheadergen` generates accurate C headers for Rust libraries that expose a C-compatible API.
